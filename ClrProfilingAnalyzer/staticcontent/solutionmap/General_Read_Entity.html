@@ -1,0 +1,7 @@
+﻿The request spent most of the time in reading the request entity body from the client. This can occur in the following cases:
+
+<ol>
+    <li>The client is posting a very large request to the server. Check the <strong>cs-bytes</strong> property of this request, which represents the size of the request content, to understand if that's the case</li>
+    <li>The Client is behind a slow network (for e.g. a mobile client) or in a different geography or geo-location </li>
+    <li>There is network latency between the client and this application</li>
+</ol>

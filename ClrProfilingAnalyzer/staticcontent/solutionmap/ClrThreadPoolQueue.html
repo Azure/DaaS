@@ -1,0 +1,9 @@
+﻿This request is spending time waiting in the CLR Thread pool queue. This has happen if there is a <b><u>burst load of requests</u></b> coming to the process or if there is <b><u>HIGH CPU</u></b> on the overall instance.
+<br />
+<br />
+<strong>Recommendations</strong>
+<ol>
+    <li>Increase <strong>minWorkerThreads</strong> setting if your application is getting burst load of requests.</li>
+    <li>Check if you are facing HIGH CPU on the instance.</li>
+    <li><strong>Scale up</strong> or <strong>Scale out</strong> the App Service Plan to get more resources.</li>
+</ol>

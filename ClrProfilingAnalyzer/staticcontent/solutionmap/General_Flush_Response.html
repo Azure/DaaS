@@ -1,0 +1,6 @@
+﻿The request spent most of the time in flushing out the response buffer. This can occur in the following cases:
+<ol>
+    <li>The application is returning too much data back from the server to the client. Check the <strong>sc-bytes</strong> property of this request to understand if that's the case (A zero value for sc-bytes indicates that the request has not finished in this trace yet so you might have to check if response data will be large for this request.).</li>
+    <li>The Client is behind a slow network (for e.g. a mobile client) or in a different geography or geo-location.</li>
+    <li>There is network latency between the client and this application.</li>
+</ol>

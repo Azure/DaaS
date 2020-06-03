@@ -1,0 +1,233 @@
+﻿<!-- Dashboard designed using https://codepen.io/MustafaOmarIbrahim/pen/jLMPKm -->
+<html lang="en" ng-app="app" ng-controller="Ctrl">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Thread Dump Analysis Report</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u"
+          crossorigin="anonymous">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Droid+Sans">
+    <link rel="stylesheet" href="css/styles.css">
+
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.15/angular.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/angular-filter/0.5.17/angular-filter.min.js"></script>
+    <script src='https://code.jquery.com/jquery-latest.js'></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa"
+            crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/underscore.js/1.8.3/underscore-min.js"></script>
+
+    <script src="js/default.js"></script>
+    <script src="js/controller.js"></script>
+</head>
+
+<body>
+    <aside class="side-nav" id="show-side-navigation1">
+        <i class="fa fa-bars close-aside hidden-sm hidden-md hidden-lg" data-close="show-side-navigation1"></i>
+        <div class="heading">
+            <div class="info">
+                <h3>
+                    <a href="#">jStackParser</a>
+                </h3>
+                <p>Quick Viewer for jstack logs</p>
+            </div>
+        </div>
+
+        <ul class="categories">
+            <li>
+                <i class="fa fa-home fa-list" aria-hidden="true"></i>
+                <a href="#ThreadReport"> Thread Report</a>
+            </li>
+            <li>
+                <i class="fa fa-support fa-fw"></i>
+                <a href="#MatchingStacks"> Matching Callstack</a>
+            </li>
+            <li>
+                <i class="fa fa-recycle fa-fw"></i>
+                <a href="#FinalizerThread"> Finalizer Thread</a>
+            </li>
+        </ul>
+    </aside>
+    <section id="contents">
+        <nav class="navbar navbar-default">
+            <div class="container-fluid">
+                <div class="navbar-header">
+                    <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1"
+                            aria-expanded="false">
+                        <i class="fa fa-align-right"></i>
+                    </button>
+                    <a class="navbar-brand" href="#">
+                        jStack
+                        <span class="main-color">Parser</span>
+                    </a>
+                </div>
+
+            </div>
+        </nav>
+        <div class="welcome">
+            <div class="container-fluid">
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="content">
+                            <h2>Java Thread Dump Analysis</h2>
+                            <p>
+                                The below report shows a quick summary of all threads and their states captured using the JAVA
+                                Thread dumper. Click on the individual tiles to filter the threads by their State.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <section class="statistics">
+            <div class="container-fluid">
+                <ul style="list-style-type:none;">
+                    <li style="margin: 10px 0">
+                        <i class="fa fa-file"></i>
+                        <span style="margin-left:10px">{{stackDump.FileName}}</span>
+                    </li>
+                    <li style="margin: 10px 0">
+                        <i class="fa fa-globe"></i>
+                        <span style="margin-left:10px">{{stackDump.SiteName}}</span>
+                    </li>
+                    <li style="margin: 10px 0">
+                        <i class="fa fa-server"></i>
+                        <span style="margin-left:10px">{{stackDump.MachineName}}</span>
+                    </li>
+                    <li style="margin: 10px 0">
+                        <i class="fa fa-clock-o"></i>
+                        <span style="margin-left:10px">{{stackDump.Timestamp}}</span>
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <section class="statistics" ng-if="DeadlockMessage">
+            <div class="container-fluid">
+                <div class="col-md-10">
+                    <div class="box">                        
+                        <ul>
+                            <li style="list-style-type:none" ng-repeat="msg in DeadlockMessage">
+                                {{ msg}}
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class='statis text-center'>
+            <div class="container-fluid">
+                <div class="row">
+                    <div ng-class="(states.length > 4) ? 'col-md-2' : 'col-md-3'">
+                        <div class="box bg-primary" ng-click="updateState('',$event)">
+                            <i class="fa fa-info-circle"></i>
+                            <h3>{{ stackDump.Threads.length }} Threads</h3>
+                            <p class="lead"> Total</p>
+                        </div>
+                    </div>
+                    <div ng-repeat="(key, value) in stackDump.Threads | groupBy:'State'" ng-class="(states.length > 4) ? 'col-md-2' : 'col-md-3'">
+                        <div class="box {{ state[key].class }}" title="{{ state[key].desc }}" ng-click="updateState(key,$event)">
+                            <i class="fa {{ state[key].Icon  }}"></i>
+                            <h3>{{ value.length }} Threads</h3>
+                            <p class="lead"> {{ key }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <section class="statistics">
+            <div class="container-fluid">
+                <a name="ThreadReport"></a>
+                <div class="row heading">Thread Report (showing {{ getSelectedState() }} threads) </div>
+                <div ng-repeat="thread in stackDump.Threads | orderBy:'Id' | filter:{ State: by_State }" class="row" style="margin-top:10px">
+                    <div class="col-md-10">
+                        <div class="box">
+                            <div class="info" style="width:100%;overflow:auto">
+                                <div class="threadheading">
+                                    <a name="Thread-{{thread.Id}}"></a>
+                                    <h4>
+                                        Thread - {{thread.Id}}&nbsp;&nbsp;
+                                        <span class="label {{ state[thread.State].class }}">{{thread.State}}</span>
+                                    </h4>
+                                </div>
+                                <ul style="list-style-type:circle; white-space:nowrap">
+                                    <li ng-repeat="stackFrame in thread.CallStack track by $index" style="margin: 5px 0;font-family:Courier New, Courier, monospace">
+                                        {{ stackFrame }}
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <section class="statistics">
+            <div class="container-fluid">
+                <a name="MatchingStacks"></a>
+                <div class="row heading">Matching Stacks</div>
+                <div ng-repeat="(key, value) in stackDump.Threads | groupBy:'CallStackHash' | toArray: true | orderBy:'length':true" class="row" style="margin-top:10px">
+                    <div class="col-md-10">
+                        <div class="box">
+                            <div class="info">
+                                <div class="threadheading">
+                                    <h4>
+                                        <div style="position:relative;float:left">
+                                            <span class="label success">{{value.length}}</span> thread(s) matching
+                                        </div>
+                                    </h4>
+                                </div>
+                                <div style="position:relative;float:left;width:800px">
+                                    <ul>
+                                        <li ng-repeat="thread in value" class="threadlist">
+                                            <a href="#Thread-{{thread.Id}}" class="singlethread">
+                                                <span class="label warning singlethread">{{ thread.Id }}</span>
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div>
+                                    <ul style="list-style-type:circle;">
+                                        <li ng-repeat="stackFrame in value[0].CallStack track by $index" style="margin: 5px 0;font-family:Courier New, Courier, monospace">
+                                            {{ simplifyStack(stackFrame) }}
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <section class="statistics">
+            <div class="container-fluid">
+                <a name="FinalizerThread"></a>
+                <div class="row heading">Finalizer Thread</div>
+                <div ng-repeat="thread in stackDump.Threads | filter:'FinalizerThread.run'" class="row" style="margin-top:10px">
+                    <div class="col-md-10">
+                        <div class="box">
+                            <div class="info">
+                                <div class="threadheading">
+                                    <h4>
+                                        Thread - {{thread.Id}}&nbsp;&nbsp;
+                                        <span class="label {{ state[thread.State].class }}">{{thread.State}}</span>
+                                    </h4>
+                                </div>
+                                <ul style="list-style-type:circle;">
+                                    <li ng-repeat="stackFrame in thread.CallStack track by $index" style="margin: 5px 0;">
+                                        {{ stackFrame }}
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <div style="height:20px" id="closureDiv">
+        </div>
+    </section>
+</body>
+
+</html>

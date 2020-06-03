@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html ng-app="app" ng-controller="Ctrl">
+<head>
+    <link href="https://netdna.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
+    <link href="css/styles.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/themes/default/style.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/qtip2/3.0.3/jquery.qtip.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.1.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jstree/3.2.1/jstree.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jstreegrid/3.9.0/jstreegrid.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.2.15/angular.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/angular-filter/0.5.17/angular-filter.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.4.0/Chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qtip2/3.0.3/basic/jquery.qtip.js"></script>
+    <script src="js/default.js"></script>
+    <script src="js/controller.js"></script>
+    <script src="js/Chart.PieceLabel.js"></script>
+</head>
+
+<body>
+    <h4 style="MARGIN-LEFT:30PX;margin-top:10px">Application Performance Analyzer</h4>
+    <div style="MARGIN-LEFT:30PX;width:80%;">
+        <div style="width:100%;height:436px;   margin-bottom:10px;">
+            <div class="col-md-12" style="border:1px solid silver; background-color:#fafafd; padding-bottom:5px; border-radius:5px 5px 0 0;  ">
+                <h6><bold>Trace Details</bold></h6>
+
+                <div class="row" style="margin-top:5px; border-top:1px solid silver ; padding-top:5px">
+                    <div class="col-sm-2" style="background-color:lavender;">Trace Duration </div>
+                    <div class="col-sm-2" style="background-color:whitesmoke;">{{traceInformation.TraceDuration | number:2 }} seconds </div>
+                    <div class="col-sm-2" style="background-color:lavender;">  Number of Processors  </div>
+                    <div class="col-sm-2" style="background-color:whitesmoke;">{{traceInformation.NumberOfProcessors}}</div>
+                    <div class="col-sm-2" style="background-color:lavender;">Instance Name</div>
+                    <div class="col-sm-2" style="background-color:whitesmoke;">{{traceInformation.InstanceName}}</div>
+                </div>
+                <div ng-if="traceInformation.ContainsIisEvents" class="row" style="margin-top:5px;">
+                    <div class="col-sm-2" style="background-color:lavender;">Successful Requests </div>
+                    <div class="col-sm-2" style="background-color:whitesmoke;">{{traceInformation.SuccessfulRequests}} </div>
+                    <div class="col-sm-2" style="background-color:lavender;">Failed Requests </div>
+                    <div class="col-sm-2" style="background-color:whitesmoke;">{{traceInformation.FailedRequests}} </div>
+                    <div class="col-sm-2" style="background-color:lavender;">Incomplete Requests </div>
+                    <div class="col-sm-2" style="background-color:whitesmoke;">{{traceInformation.IncompleteRequests}}</div>
+                </div>
+                <div ng-if="traceInformation.ContainsIisEvents" class="row" style="margin-top:5px;">
+                    <div class="col-sm-2" style="background-color:lavender;">Total Requests </div>
+                    <div class="col-sm-2" style="background-color:whitesmoke;">{{traceInformation.TotalRequests}} </div>
+                    <div class="col-sm-2" style="background-color:lavender;">RPS (Requests/Sec) </div>
+                    <div class="col-sm-2" style="background-color:whitesmoke;">{{traceInformation.TotalRequests / traceInformation.TraceDuration | number:2}} </div>
+                    <div class="col-sm-2" style="background-color:lavender;">Average Response Time </div>
+                    <div class="col-sm-2" style="background-color:whitesmoke;">{{traceInformation.AverageResponseTime | number:2}} ms</div>
+                </div>
+                <div ng-if="traceInformation.ContainsIisEvents" class="row" style="margin-top:5px;">
+                    <div class="col-sm-2" style="background-color:lavender;">50th Percentile</div>
+                    <div class="col-sm-2" style="background-color:whitesmoke;">{{traceInformation.FiftyPercentile}} ms</div>
+                    <div class="col-sm-2" style="background-color:lavender;">90th Percentile </div>
+                    <div class="col-sm-2" style="background-color:whitesmoke;">{{traceInformation.NinetyPercentile}} ms</div>
+                    <div class="col-sm-2" style="background-color:lavender;">95th Percentile </div>
+                    <div class="col-sm-2" style="background-color:whitesmoke;">{{traceInformation.NinetyFifthPercentile}} ms</div>
+                </div>
+                <div class="row" style="margin-top:5px;">
+                    <div class="col-sm-2" style="background-color:lavender;">Avg CPU % (Instance) </div>
+                    <div class="col-sm-2" style="background-color:whitesmoke;">{{(traceInformation.CPUMetricPerInterval)* 100 | number:2}} %</div>
+                    <div class="col-sm-2" style="background-color:lavender;"> CPU % (this Process) </div>
+                    <div class="col-sm-2" style="background-color:whitesmoke;">{{(traceInformation.CPUTimeByThisProcess /traceInformation.CPUTimeTotalMetrics) * traceInformation.CPUMetricPerInterval * 100 | number:2}} % </div>
+                </div>
+                <div class="row" style="margin-top:5px;">
+                    <div class="col-sm-2" style="background-color:lavender;">Trace File </div>
+                    <div class="col-sm-6" style="background-color:whitesmoke;"><a href='{{traceInformation.TraceFileLocation}}'>{{traceInformation.TraceFileName}}</a></div>
+
+                </div>
+            </div>
+            <ul class="nav nav-tabs">
+                <li ng-if="traceInformation.ContainsIisEvents" class="active" style="margin-top:20px"><a data-toggle="tab" href="#slowperf">Slow Requests</a></li>
+                <li ng-if="corerequests.length > 0" style="margin-top:20px"><a data-toggle="tab" href="#corerequests">.NET Core Slow Requests</a></li>
+                <li ng-if="traceInformation.ContainsIisEvents" style="margin-top:20px"><a data-toggle="tab" href="#failedreq">Failed Requests</a></li>
+                <li ng-if="coreFailedRequests.length > 0" style="margin-top:20px"><a data-toggle="tab" href="#coreFailedRequests">.NET Core Failed Requests</a></li>
+                <li ng-if="rawStacks" style="margin-top:20px"><a data-toggle="tab" href="#threadCallStack">Thread Callstacks</a></li>
+                <li ng-if="allExceptions.length > 0" style="margin-top:20px"><a data-toggle="tab" href="#allExceptions">.NET Exceptions</a></li>
+                <li ng-if="allExceptionsOutProc.length > 0" style="margin-top:20px"><a data-toggle="tab" href="#allExceptionsOutProc">.NET Core Exceptions</a></li>
+                <li ng-class="{'active' : traceInformation.ContainsIisEvents == false}" style="margin-top:20px"><a data-toggle="tab" href="#cpuStacks">CPU Stacks</a></li>
+            </ul>
+            <div class="tab-content">
+                <div ng-show="traceInformation.ContainsIisEvents" id="slowperf" class="tab-pane fade in active">
+                    <div ng-if="requests.length == 0">
+                        <h5> None of the requests in this trace took more than 500 milliseconds to execute </h5>
+                    </div>
+                    <div ng-if="requests.length > 0">
+                        <div class="sectionHeading">Request Execution Breakup - Top 100 Slowest Request</div>
+                        <div class="sectionDescription">This is a breakdown of the slowest IIS pipeline event (handler, module etc.) for <strong>top 100 slowest requests</strong> captured in this trace. Requests finishing in less than 500 milliseconds are excluded. Based on the type of the module where the time is spent, the overall execution time is classified as <b>Application Code, Platform or Network</b>. Hover on each of the tiles to know more about what they represent. If a lot of time is spent in the <b>Application Code</b>, then drill down further in the table for the <u>Top 100 Slowest Requests</u> below to see the callstacks or details of where the delay is happening.</div>
+                        <div style="vertical-align:central;float:left;width:100%;height:210px;margin-top:20px;">
+                            <table style="width:100%;">
+                                <tr>
+                                    <td width="220px">
+                                        <canvas id="myChart" width="200" height="200" style="float:left; position:relative"></canvas>
+                                    </td>
+                                    <td>
+                                        <div id="chart-legends" style="width:300px;max-width:400px"></div>
+                                    </td>
+                                    <td>
+                                        <div style="width: 100%; overflow: hidden; margin-left:40px">
+                                            <div class="dashboardtable">
+                                                <div class="dashboardrow">
+                                                    <div class="dashboardcell" style="background-color:cornflowerblue;" data-toggle="tooltip" title="Application Code represents the time spent in handlers or modules that get invoked either while executing application code (for e.g ManagedPipelineHandler) or that are closely related to any explicit configuration done for the application (for e.g. RewriteModule). Any external or third party handlers, modules fall in this category. Anything which does not fall in the native IIS handlers or modules is classified as Application.">
+                                                        Application Code
+                                                        <div class="dashboardtile" id="liApp"></div>
+                                                    </div>
+                                                    <div class="dashboardcell" style="background-color:chocolate;" title="Platform represents the time a request spends in <b>core native modules or handlers of IIS</b> which are pre-installed in Azure App Service (for e.g. DefautlDocumentModule, StaticFileHandler etc.). A request spending too much time in these modules might indicate an overall platform issue so you can contact Microsoft Support to get more details.">Platform<div class="dashboardtile" id="liPlat"></div></div>
+                                                    <div class="dashboardcell" style="background-color:deeppink;" title="This represents the time spent in <b>reading the request entity body</b> from the client or time spent in <b>flushing the response buffer back to the client</b>. Time spent in waiting on external outbound network calls made from the application (like Database, cache, external HTTP requests etc.) is <b>not counted</b> here and is grouped under Application Code.">
+                                                        Network<div class="dashboardtile" id="liWire"></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+
+                        </div>
+
+                        <div class="sectionHeading">Top 100 Slowest Requests in the Trace</div>
+
+                        <div class="sectionDescription">The below table lists the top 100 slowest requests captured in this trace. Requests finishing in less than 500 milliseconds are excluded. Click on the Details button to view the stack-trace in the application code or more information about the module where the request is stuck.</div>
+
+                        <div style="overflow-y:scroll;height:320px; float:left; width:100%; margin-top:10px ; margin-bottom:20px; border-bottom:1px solid silver">
+                            <div>Search request &nbsp;&nbsp;<input type="text" name="search" ng-model="search.requestPath" /> </div>
+                            <div style="margin-top:10px"></div>
+
+                            <table class="table table-hover" id="demotable" style="width:100%;">
+                                <thead>
+                                    <tr>
+                                        <th>Method</th>
+                                        <th>Request Path</th>
+                                        <th>Duration</th>
+                                        <th>Type</th>
+                                        <th>Slowest Pipeline Event</th>
+                                        <th>Time Spent in Slowest Event</th>
+                                        <th>Details</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr ng-class="{'selected-row' : activeRequest.ContextId === request.ContextId}" ng-repeat="request in requests | filter:search:strict">
+                                        <td>{{ (request.Method )}}</td>
+                                        <td>{{ (request.requestPath|extractUrl )}}</td>
+                                        <td>{{ request.totalTimeSpent/1000| number:2 }} sec</td>
+                                        <td align="center"><img style="width:30px" ng-src='{{ GetIssueIcon(GetIssueType(request.slowestPipelineEvent.Name)) }}' /></td>
+                                        <td>{{ request.slowestPipelineEvent.Name }}  </td>
+                                        <td> <div style="min-height:20px; width: 150px; min-width:150px; border:1px solid purple;">  <div style="text-align:center;color:white;padding-top:3px;min-height:20px; width: {{150 *((request.slowestPipelineEvent.EndTimeRelativeMSec - request.slowestPipelineEvent.StartTimeRelativeMSec) / request.totalTimeSpent)}}px; background-color:purple; font-size:small"> {{((request.slowestPipelineEvent.EndTimeRelativeMSec - request.slowestPipelineEvent.StartTimeRelativeMSec) / request.totalTimeSpent) * 100 | number:2 }} % </div> </div></td>
+                                        <td>
+                                            <button type="button" style="width:81px" class="btn btn-sm btn-primary" ng-click="UpdateRequest(request, true, request.slowestPipelineEvent.StartThreadId != request.slowestPipelineEvent.EndThreadId)">{{ (request.HasActivityStack || request.HasThreadStack) && !(request.slowestPipelineEvent.Name.toLowerCase().startsWith(('AspNetCoreModule').toLowerCase()))? "Stack Trace" : "Details" }}</button>
+                                            <span ng-if="(request.HasActivityStack || request.HasThreadStack) && !(request.slowestPipelineEvent.Name.toLowerCase().startsWith(('AspNetCoreModule').toLowerCase()))" style="font-size:18px" title="Stack Traces captured for this request. Click Stack Trace button to view the thread stacks.">&#x1F4A1;</span>
+                                            <span ng-if="request.slowestPipelineEvent.EndThreadId==0" style="font-size:18px" title="The request didn't finish execution in this profiler trace.">&#x26a0;</span>
+                                            <img ng-if="(request.slowestPipelineEvent.StartThreadId != request.slowestPipelineEvent.EndThreadId) && (request.slowestPipelineEvent.EndThreadId !=0) && !(request.slowestPipelineEvent.Name.toLowerCase().startsWith(('AspNetCoreModule').toLowerCase()))" title="This is an async request" style="width:30px" src="images/async.png">
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="row" style="position:relative; margin:0px; height:0px; display:none; margin-top:15px; margin-bottom:10px; font-size:14px" Id="requestBar">
+                            <div class="col-md-12" style="border:1px solid silver; background-color:#fafafd; border-radius:5px 5px 0 0; min-height:135px; max-height:285px; overflow-y:auto">
+                                <h6><bold>Request Details</bold></h6>
+                                <div class="row" style="margin-top:5px; border-top:1px solid silver; padding-top:2px;">
+                                    <div class="col-sm-2" style="background-color:lavender;">Request</div>
+                                    <div class="col-sm-10" style="background-color:whitesmoke;">{{activeRequest.requestPath}}</div>
+
+                                </div>
+                                <div class="row" style="margin-top:5px;">
+                                    <div class="col-sm-2" style="background-color:lavender;">Request Id</div>
+                                    <div class="col-sm-4" style="background-color:whitesmoke;">{{activeRequest.ContextId}}</div>
+                                    <div class="col-sm-2" style="background-color:lavender;">Correlated Id</div>
+                                    <div class="col-sm-4" style="background-color:whitesmoke;">{{activeRequest.RelatedActivityId}}</div>
+
+                                </div>
+                                <div class="row" style="margin-top:5px;">
+                                    <div class="col-sm-2" style="background-color:lavender;">Start Thread ID</div>
+                                    <div class="col-sm-4" style="background-color:whitesmoke;">{{activeRequest.slowestPipelineEvent.StartThreadId}}</div>
+                                    <div class="col-sm-2" style="background-color:lavender;">End Thread ID</div>
+                                    <div class="col-sm-4" style="background-color:whitesmoke;">{{activeRequest.slowestPipelineEvent.EndThreadId}}</div>
+
+                                </div>
+                                <div class="row" style="margin-top:5px;">
+                                    <div class="col-sm-2" style="background-color:lavender;">StatusCode</div>
+                                    <div class="col-sm-1" style="background-color:whitesmoke;">{{activeRequest.statusCode}}</div>
+                                    <div class="col-sm-2" style="background-color:lavender;">Sub-Status Code</div>
+                                    <div class="col-sm-1" style="background-color:whitesmoke;">{{activeRequest.SubStatusCode}}</div>
+                                    <div class="col-sm-1" style="background-color:lavender;">CS-Bytes</div>
+                                    <div class="col-sm-2" style="background-color:whitesmoke;">{{activeRequest.csBytes}}</div>
+                                    <div class="col-sm-1" style="background-color:lavender;">SC-Bytes</div>
+                                    <div class="col-sm-2" style="background-color:whitesmoke;">{{activeRequest.scBytes}}</div>
+
+                                </div>
+                                <div class="row" style="margin-top:5px;">
+                                    <div class="col-sm-2" style="background-color:lavender;">Total Time Spent </div>
+                                    <div class="col-sm-1" style="background-color:whitesmoke;">{{activeRequest.totalTimeSpent | number:0 }} ms</div>
+                                    <div class="col-sm-2" style="background-color:lavender;">Time in Slowest Module </div>
+                                    <div class="col-sm-1" style="background-color:whitesmoke;">{{(activeRequest.slowestPipelineEvent.EndTimeRelativeMSec - activeRequest.slowestPipelineEvent.StartTimeRelativeMSec) | number:0 }} ms</div>
+                                    <div class="col-sm-1" style="background-color:lavender;">ModuleName</div>
+                                    <div class="col-sm-2" style="background-color:whitesmoke;">{{activeRequest.slowestPipelineEvent.Name}}</div>
+                                    <div class="col-sm-1" style="background-color:lavender;">Notification</div>
+                                    <div class="col-sm-2" style="background-color:whitesmoke;">{{activeRequest.slowestPipelineEvent.Notification | getNotificationName }}</div>
+                                </div>
+                            </div>
+                        </div>
+
+
+                        <div id="stackDetailsPanel" style="display:none; float:left; position:relative;width:100%;overflow-x: scroll;border-right: 1px solid silver;border-left: 1px solid silver;background-color:whitesmoke;max-height: 600px;">
+                            <div id="endThreadIdMessage" style="display:none"></div>
+                            <table id="TreeViewer" style="width:100%;margin-top:20px">
+                                <tr>
+                                    <th>
+                                        <div id="syncronous" style="position:relative;float:left">
+                                            <input type="radio" id="threadView" name="stackType" ng-disabled="!activeRequest.HasThreadStack" ng-click="individualRequestController()"> Thread View
+                                        </div>
+
+                                        <div style="position:relative;float:left">
+                                            <input type="radio" id="activityView" name="stackType" ng-disabled="!activeRequest.HasActivityStack" ng-click="individualRequestController()" style="margin-left:20px"> Activity View
+                                        </div>
+
+                                    </th>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <fieldset id="group1">
+                                            <label class="switch">
+                                                <span class="caption" style="margin-top:-2px; margin-left: 5px ; margin-right:5px">( Just My Code  </span>
+                                                <input type="checkbox" id="cbJustMyCode" ng-click="individualRequestController();">
+                                                <span class="check"></span>
+                                                <span class="caption" style="margin-top:-2px">.NET Framework )</span>
+                                            </label>
+                                        </fieldset>
+                                    </td>
+                                </tr>
+
+                                <tr>
+                                    <td>
+                                        <div class="container">
+                                            <div id="stackViewerTreeDiv" style="width:100%;font-family:monospace"></div>
+                                        </div>
+                                    </td>
+                                </tr>
+
+                            </table>
+                        </div>
+                        <div id="detailsText" style="display:none; position:relative; float:left; min-height:250px;width:100%; ">
+                            <table style="width:100%;margin-top:20px">
+                                <tr>
+                                    <th>
+                                        <bold>Details</bold>
+                                    </th>
+                                </tr>
+                                <tr>
+                                    <td id="detailsTemplate"></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="coreFailedRequests" class="tab-pane fade in">
+                    <div ng-if="coreFailedRequests.length > 0">
+                        <div class="sectionHeading">.NET Core Failed Requets</div>
+                        <div class="sectionDescription">The below table shows the top 500 failed ASP.NET Core requests in this trace</div>
+
+                        <div style="overflow-y:scroll;height:320px; float:left; width:100%; margin-top:10px ; margin-bottom:20px; border-bottom:1px solid silver;vertical-align:central;float:left;width:100%;height:210px;margin-top:20px;">
+                            <table class="table table-hover" id="demotablecore" style="width:100%;">
+                                <thead>
+                                    <tr>
+                                        <th>RequestId</th>
+                                        <th>Path</th>
+                                        <th>Activity Id</th>
+                                        <th>Duration</th>
+                                        <th>Status Code</th>
+                                        <th>Details</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr ng-repeat="request in coreFailedRequests" ng-class="{'selected-row' : activeCoreFailedRequest.ActivityId === request.ActivityId}">
+                                        <td>{{ request.RequestId }}</td>
+                                        <td>{{ request.Path }}</td>
+                                        <td>{{ request.ShortActivityId }}</td>
+                                        <td>{{ (request.EndTimeRelativeMSec - request.StartTimeRelativeMSec) /1000| number:2 }} sec</td>
+                                        <td>{{ request.StatusCode}}  </td>
+                                        <td>
+                                            <button type="button" class="btn btn-sm btn-primary" ng-click="UpdateCoreFailedRequest(request)">Details</button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="coreFailedRequestsPanelCore" style="float:left; position:relative;width:100%;overflow-x: scroll;max-height: 300px;" ng-if="detailsCoreFailedRequest.length > 0">
+                            <table class="table table-bordered" style="width: 100%;background-color: #fbfbfb;font-size: small;font-family: monospace;">
+                                <tr>
+                                    <th>TimeStamp</th>
+                                    <th>Difference</th>
+                                    <th>Related Activity</th>
+                                    <th>Message</th>
+                                </tr>
+                                <tr ng-repeat="trace in detailsCoreFailedRequest">
+                                    <td>{{ trace.TimeStampRelativeMSec }}</td>
+                                    <td>{{ getTimeStampMilliseconds(trace.TimeStampRelativeMSec) }}</td>
+                                    <td>{{ trace.RelatedActivity }}</td>
+                                    <td ng-class="{'highlight-red' : trace.Message.startsWith('Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware')}">{{ trace.Message }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div id="corerequests" class="tab-pane fade in">
+                    <div ng-if="corerequests.length > 0">
+                        <div class="sectionHeading">.NET Core Slow Requets</div>
+                        <div class="sectionDescription">The below table shows the top slowest ASP.NET Core requests in this trace</div>
+
+                        <div style="overflow-y:scroll;height:320px; float:left; width:100%; margin-top:10px ; margin-bottom:20px; border-bottom:1px solid silver" style="vertical-align:central;float:left;width:100%;height:210px;margin-top:20px;">
+                            <table class="table table-hover" id="demotablecore" style="width:100%;">
+                                <thead>
+                                    <tr>
+                                        <th>RequestId</th>
+                                        <th>Path</th>
+                                        <th>Activity Id</th>
+                                        <th>Duration</th>
+                                        <th>Status Code</th>
+                                        <th>Details</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr ng-repeat="request in corerequests" ng-class="{'selected-row' : activeCoreRequest.ActivityId === request.ActivityId}">
+                                        <td>{{ request.RequestId }}</td>
+                                        <td>{{ request.Path }}</td>
+                                        <td>{{ request.ShortActivityId }}</td>
+                                        <td>{{ (request.EndTimeRelativeMSec - request.StartTimeRelativeMSec) /1000| number:2 }} sec</td>
+                                        <td>{{ request.StatusCode}}  </td>
+                                        <td>
+                                            <button type="button" class="btn btn-sm btn-primary" ng-click="UpdateCoreRequest(request)">Stack Trace</button>
+                                            <span ng-if="request.HasActivityStack" style="font-size:18px" title="Stack Traces captured for this request. Click Stack Trace button to view the thread stacks.">&#x1F4A1;</span>
+                                            <span ng-if="request.IncompleteRequest" style="font-size:18px" title="The request didn't finish execution in this profiler trace.">&#x26a0;</span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="stackDetailsPanelCore" style="display:none; float:left; position:relative;width:100%;overflow-x: scroll;max-height: 600px;">
+
+                            <button type="button" class="btn btn-sm topmenu-button" ng-click="viewer ='CallStack'" ng-class="{'btn-primary':viewer ==='CallStack'}">Call Stack</button>
+                            <button type="button" class="btn btn-sm topmenu-button" ng-click="viewer ='FullTrace'" ng-class="{'btn-primary':viewer ==='FullTrace'}">Full Request Trace</button>
+                            <div ng-show="viewer ==='CallStack'">
+                                <table ng-show="!activeCoreRequest.IncompleteRequest" id="TreeViewerCore" style="width:100%;background-color: #fbfbfb;">
+                                    <tr>
+                                        <td>
+                                            <fieldset id="group1core">
+                                                <label class="switch">
+                                                    <span class="caption" style="margin-top:-2px; margin-left: 5px ; margin-right:5px">( Just My Code  </span>
+                                                    <input type="checkbox" id="cbJustMyCodeCore" ng-click="individualCoreRequestController();">
+                                                    <span class="check"></span>
+                                                    <span class="caption" style="margin-top:-2px">.NET Framework )</span>
+                                                </label>
+                                            </fieldset>
+                                        </td>
+                                    </tr>
+
+                                    <tr>
+                                        <td>
+                                            <div class="container">
+                                                <div id="stackViewerTreeDivCore" style="width:100%;font-family:monospace"></div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </table>
+                                <div style="width:100%;height: 100px;display: table-cell;text-align: center;vertical-align: middle;" ng-show="activeCoreRequest.IncompleteRequest">
+                                    <div style="margin-left:40px">
+                                        The request didn't finish execution in this trace so the activity view for this request cannot be generated. Please use the full trace to identify where the request got stuck.
+                                    </div>
+
+                                </div>
+                            </div>
+                            <div ng-show="viewer ==='FullTrace'" style="overflow-y: scroll;max-height:420px">
+                                <div ng-if="detailsCoreRequest.length > 0">
+                                    <table class="table table-bordered" style="width: 100%;background-color: #fbfbfb;font-size: small;font-family: monospace;">
+                                        <tr>
+                                            <th>TimeStamp</th>
+                                            <th>Difference</th>
+                                            <th>Related Activity</th>
+                                            <th>Message</th>
+                                        </tr>
+                                        <tr ng-repeat="trace in detailsCoreRequest">
+                                            <td>{{ trace.TimeStampRelativeMSec }}</td>
+                                            <td>{{ getTimeStampMilliseconds(trace.TimeStampRelativeMSec) }}</td>
+                                            <td>{{ trace.RelatedActivity }}</td>
+                                            <td>{{ trace.Message }}</td>
+                                        </tr>
+                                    </table>
+                                    <div style="margin-bottom:30px;font-family: monospace; font-size:small; color:blue" ng-if="activeCoreRequest.IncompleteRequest && getDiffIncompleteRequest(activeCoreRequest.EndTimeRelativeMSec, detailsCoreRequest) > 0">
+                                        No events emitted for <strong> {{ getDiffIncompleteRequest(activeCoreRequest.EndTimeRelativeMSec, detailsCoreRequest) }} ms</strong>  after the last event.
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div ng-if="traceInformation.ContainsIisEvents" id="failedreq" class="tab-pane fade in">
+                    <div ng-if="failedrequests.length == 0">
+                        <h5> There are no failed requests in this trace </h5>
+                    </div>
+                    <div ng-if="failedrequests.length > 0">
+                        <div class="sectionHeading">Failed Requests in the Trace</div>
+
+                        <div class="sectionDescription">The below table lists all the failed requests (HTTP Status &gt;= 400) in the trace.</div>
+
+
+                        <div style="overflow-y:scroll;height:320px; float:left; width:100%; margin-top:10px ; margin-bottom:20px; border-bottom:1px solid silver">
+                            <div>Search request &nbsp;&nbsp;<input type="text" name="search" ng-model="failedrequestsearch.requestPath" /> </div>
+                            <div style="margin-top:10px"></div>
+
+                            <table id="demotable" style="width:100%;">
+                                <thead>
+                                    <tr>
+                                        <th>Method</th>
+                                        <th>Request Path</th>
+                                        <th>Duration</th>
+                                        <th>Failing Module</th>
+                                        <th>Failure Status</th>
+                                        <th>Final Status</th>
+                                        <th>Details</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr ng-repeat="failedrequest in failedrequests | filter:failedrequestsearch:strict">
+                                        <td>{{ (failedrequest.Method )}}</td>
+                                        <td>{{ (failedrequest.requestPath|extractUrl )}}</td>
+                                        <td>{{ failedrequest.totalTimeSpent/1000| number:2 }} sec</td>
+                                        <td>{{ failedrequest.FailureDetails.ModuleName }}  </td>
+                                        <td>{{ failedrequest.FailureDetails.HttpStatus}}.{{failedrequest.FailureDetails.HttpSubStatus}} </td>
+                                        <td>{{ failedrequest.statusCode}}.{{failedrequest.SubStatusCode}} </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-primary" ng-click="UpdateFailedRequest(failedrequest)" style="height:26px; width:80px;font-size:11px">Details</button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="row" style="position:relative; margin:0px; height:0px; display:none; margin-top:15px; margin-bottom:10px; font-size:14px" Id="failedrequestBar">
+                            <div class="col-md-12" style="border:1px solid silver; background-color:#fafafd; border-radius:5px 5px 0 0; min-height:125px; max-height:275px; overflow-y:auto">
+                                <h6><bold>Request Details</bold></h6>
+                                <div class="row" style="margin-top:5px; border-top:1px solid silver; padding-top:2px;">
+                                    <div class="col-sm-2" style="background-color:lavender;">Request</div>
+                                    <div class="col-sm-10" style="background-color:whitesmoke;">{{activeFailedRequest.requestPath}}</div>
+
+                                </div>
+                                <div class="row" style="margin-top:5px;">
+                                    <div class="col-sm-2" style="background-color:lavender;">RequestId</div>
+                                    <div class="col-sm-4" style="background-color:whitesmoke;">{{activeFailedRequest.ContextId}}</div>
+                                    <div class="col-sm-1" style="background-color:lavender;">Reason</div>
+                                    <div class="col-sm-5" style="background-color:whitesmoke;">{{ activeFailedRequest.FailureDetails.HttpReason }}</div>
+
+                                </div>
+                                <div class="row" style="margin-top:5px;">
+                                    <div class="col-sm-2" style="background-color:lavender;">HTTP Status</div>
+                                    <div class="col-sm-4" style="background-color:whitesmoke;">{{ activeFailedRequest.statusCode }}.{{ activeFailedRequest.SubStatusCode }}</div>
+                                    <div class="col-sm-1" style="background-color:lavender;">CS-Bytes</div>
+                                    <div class="col-sm-2" style="background-color:whitesmoke;">{{activeFailedRequest.csBytes}}</div>
+                                    <div class="col-sm-1" style="background-color:lavender;">SC-Bytes</div>
+                                    <div class="col-sm-2" style="background-color:whitesmoke;">{{activeFailedRequest.scBytes}}</div>
+
+                                </div>
+                                <div class="row" style="margin-top:5px;">
+                                    <div class="col-sm-2" style="background-color:lavender;">Total Time Spent </div>
+                                    <div class="col-sm-1" style="background-color:whitesmoke;">{{activeFailedRequest.totalTimeSpent | number:0 }} ms</div>
+                                    <div class="col-sm-2" style="background-color:lavender;">Error Code</div>
+                                    <div class="col-sm-1" style="background-color:whitesmoke;">{{ activeFailedRequest.FailureDetails.ErrorCode }} </div>
+                                    <div class="col-sm-1" style="background-color:lavender;">ModuleName</div>
+                                    <div class="col-sm-2" style="background-color:whitesmoke;">{{ activeFailedRequest.FailureDetails.ModuleName }}</div>
+                                    <div class="col-sm-1" style="background-color:lavender;">Notification</div>
+                                    <div class="col-sm-2" style="background-color:whitesmoke;">{{ activeFailedRequest.FailureDetails.Notification | getNotificationName }}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="requestExceptionDetails" style="display:none; position:relative; float:left; min-height:250px">
+                            <table style="width:100%;margin-top:20px">
+                                <tr>
+                                    <th>
+                                        <bold>Details</bold>
+                                    </th>
+                                </tr>
+                                <tr>
+                                    <td id="exceptionDetails" style="font-family:Courier New, Courier, monospace"></td>
+                                </tr>
+                            </table>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div id="threadCallStack" class="tab-pane fade in">
+                    <div ng-if="rawStacks && rawStacks.length == 0">
+                        <h5> There were no active threads running in the process when thread stacks were getting collected. </h5>
+                    </div>
+
+                    <div ng-if="rawStacks.length > 0">
+                        <div class="sectionHeading">Thread Stacks in the Process</div>
+
+                        <div class="sectionDescription">Below are all the call-stacks of the threads that were captured at the end of the profiler trace (up to a maximum of 1000 threads)</div>
+
+                        <div style="margin-left:30px;margin-top:10px" ng-repeat="(key, value) in rawStacks | groupBy:'CallStackHash' | toArray: true | orderBy:'length':true" class="row">
+                            <div class="col-md-10">
+                                <div>
+                                    <div>
+                                        <div class="threadheading">
+                                            <div>
+                                                <h5><span class="label label-success">{{value.length}}</span> thread(s) matching</h5>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <ul>
+                                                <li ng-repeat="thread in value" class="threadlist">
+                                                    <span class="label label-warning singlethread">{{ thread.ManagedThreadId }}</span>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                        <div>
+                                            <ul style="list-style-type:none">
+                                                <li ng-repeat="stackFrame in value[0].CallStack track by $index" style="margin: 5px 0;font-family:Courier New, Courier, monospace">
+                                                    {{ simplifyStack(stackFrame) }}
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+                <div id="allExceptions" class="tab-pane fade in">
+                    <div ng-if="allExceptions.length > 0">
+                        <div class="sectionHeading">.NET Exceptions</div>
+                        <div class="sectionDescription">The below table shows all .NET exceptions that were thrown in this process when the profiler trace was running</div>
+
+                        <div style="vertical-align:central;float:left;width:100%;height:210px;margin-top:20px;">
+                            <table style="width:100%;">
+                                <thead>
+                                    <tr>
+                                        <th>Exception</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr ng-repeat="exception in allExceptions">
+                                        <td>
+                                            <div style="margin-top:15px">
+                                                <div class="label label-primary">{{ exception.ProcessName }}</div> <strong style='margin-left:10px'>{{ exception.ExceptionType}} </strong> <div class="label label-warning"> {{ exception.Count }}</div>
+                                                <div style="margin-top:10px;color:#1630b3;margin-bottom:20px">{{ exception.ExceptionMessage}}</div>
+                                            </div>
+                                            <div style="display: block;max-height: 300px;overflow-y: auto;-ms-overflow-style: -ms-autohiding-scrollbar;">
+                                                <table class="table">
+                                                    <tr ng-repeat="stackObject in exception.StackTrace track by $index">
+                                                        <td>
+                                                            <div style="font-family:monospace;color:brown;margin-bottom:5px">Stack Trace {{  $index + 1}} </div>
+                                                            <ul>
+                                                                <li ng-repeat="stack in stackObject.StackTrace track by $index" style="list-style-type: none; padding: 1px;font-family:monospace">
+                                                                    {{ stack }}
+                                                                </li>
+                                                            </ul>
+                                                        </td>
+                                                    </tr>
+                                                </table>
+                                            </div>
+
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="allExceptionsOutProc" class="tab-pane fade in">
+                    <div ng-if="allExceptionsOutProc.length > 0">
+                        <div class="sectionHeading">.NET Core Exceptions</div>
+                        <div class="sectionDescription">The below table shows all .NET core exceptions that were thrown in the process hosting the application</div>
+
+                        <div style="vertical-align:central;float:left;width:100%;height:210px;margin-top:20px;">
+                            <table style="width:100%;">
+                                <thead>
+                                    <tr>
+                                        <th>Exception</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr ng-repeat="exception in allExceptionsOutProc">
+                                        <td>
+                                            <div style="margin-top:15px">
+                                                <div class="label label-primary">{{ exception.ProcessName }}</div> <strong style='margin-left:10px'>{{ exception.ExceptionType}} </strong> <div class="label label-warning"> {{ exception.Count }}</div>
+                                                <div style="margin-top:10px;color:#1630b3;margin-bottom:20px">{{ exception.ExceptionMessage}}</div>
+                                            </div>
+                                            <div style="display: block;max-height: 300px;overflow-y: auto;-ms-overflow-style: -ms-autohiding-scrollbar;">
+                                                <table class="table">
+                                                    <tr ng-repeat="stackObject in exception.StackTrace track by $index">
+                                                        <td>
+                                                            <div style="font-family:monospace;color:brown;margin-bottom:5px">Stack Trace {{  $index + 1}} </div>
+                                                            <ul>
+                                                                <li ng-repeat="stack in stackObject.StackTrace track by $index" style="list-style-type: none; padding: 1px;font-family:monospace">
+                                                                    {{ stack }}
+                                                                </li>
+                                                            </ul>
+                                                        </td>
+                                                    </tr>
+                                                </table>
+                                            </div>
+
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="cpuStacks" class="tab-pane fade in" ng-class="{'active' : traceInformation.ContainsIisEvents == false}">
+                    <div>
+                        <div style="margin-top: 20px;">CPU % (Machine Wide) : <strong>{{ traceInformation.CPUMetricPerInterval*100 | number:2 }} %</strong></div>
+
+                        <div class="sectionDescription" ng-if="processes.length == 0" style="margin-top:20px">
+                            None of the processes in this trace are consuming more than 2% of CPU during the trace duration.
+                        </div>
+
+                        <div ng-if="processes.length > 0">
+                            <div class="sectionHeading">CPU Usage by Process</div>
+                            <div class="sectionDescription">
+                                <div style="height:30px">The below table shows all processes that consumed more than 2% of CPU during the trace duration.</div>
+                                <table style="width:60%" class="table table-sm">
+                                    <thead class="thead-inverse">
+                                        <tr>
+                                            <th>Id</th>
+                                            <th>Process</th>
+                                            <th>Site</th>
+                                            <th>CPU %</th>
+                                            <th>CPU Ms</th>
+                                            <th>Stack Traces</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr ng-repeat="process in processes" ng-class="{'active' : process.Id === traceInformation.ProcessId}">
+                                            <td>{{process.Id}}</td>
+                                            <td>
+                                                {{process.Name}}
+                                                <span ng-if="process.Id === traceInformation.ProcessId" class="label label-primary" style="background-color:green">This Process</span>
+                                                <span ng-if="process.SiteName.indexOf('~') > -1" class="label label-primary">kudu</span>
+                                            </td>
+                                            <td>{{process.SiteName}}</td>
+                                            <td>{{(process.CPUMSec /traceInformation.CPUTimeTotalMetrics) * traceInformation.CPUMetricPerInterval * 100 | number:2}} %</td>
+                                            <td>{{process.CPUMSec}}</td>
+                                            <td>
+                                                <button ng-show="process.Id === traceInformation.ProcessId || process.IsCoreProcess" class="btn btn-primary" ng-click="showCpuStacks(process);updateCpuStacks();">Stack</button>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+
+                    </div>
+                    <div id="divCpuStacks" ng-show="selectedCpuProcess !=null">
+                        <div class="sectionHeading">
+                            <div class="label label-primary" style="font-size:medium">
+                                CPU Stacks - {{selectedCpuProcess.Name}} ({{selectedCpuProcess.Id}})
+                            </div>
+                        </div>
+                        <div class="sectionDescription" style="height:30px">This process is consuming <b>{{(selectedCpuProcess.CPUMSec / traceInformation.CPUTimeTotalMetrics) * traceInformation.CPUMetricPerInterval * 100 | number:2}} %</b> of the CPU. The below table shows a breakdown of the threads consuming {{ selectedCpuProcess.CPUMSec }} ms on the CPU.</div>
+
+                        <div style="width: 100%; float:left; border: solid 1px #CCC;width:100%;overflow-x: scroll;border-right: 1px solid silver;border-left: 1px solid silver;max-height: 600px;">
+                            <table id="TreeViewer" style="width:100%">
+                                <tr>
+                                    <td>
+
+                                        <fieldset id="group2" style="height:30px;vertical-align:middle">
+                                            <label class="switch" style="margin-top:5px">
+                                                <span class="caption" style="margin-top:-2px; margin-left: 5px ; margin-right:5px">( Just My Code  </span>
+                                                <input type="checkbox" id="cbJustMyCodeCPU" ng-click="updateCpuStacks();">
+                                                <span class="check"></span>
+                                                <span class="caption" style="margin-top:-2px">.NET Framework )</span>
+                                            </label>
+                                        </fieldset>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <div class="container">
+                                            <div id="cpuStacksViewerTreeDiv" style="width:100%;display: table-cell;font-family:monospace"></div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</body>
+</html>

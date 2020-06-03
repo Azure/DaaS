@@ -1,0 +1,536 @@
+﻿@{
+    var daasDisabled = Environment.GetEnvironmentVariable("WEBSITE_DAAS_DISABLED");
+    if (daasDisabled != null && daasDisabled.Equals("True", StringComparison.OrdinalIgnoreCase))
+    {
+        <!DOCTYPE html>
+            <html>
+                <head>
+                    <title>Site Diagnostics</title>
+                    <link href="~/Content/img/favicon.ico" rel="icon" type="image/x-icon">
+                    <link href="~/Content/Site.css" rel="stylesheet">
+                </head>
+                <body>
+                    <div style="display:block;" id="disabled-overlay">
+                        <div id="disabled-container">
+                            <div id="disabled-content">
+                                <span id="disabled-message">Site Diagnostics is disabled because the app setting WEBSITE_DAAS_DISABLED has been added for this Web App. <br /><br />Please remove this app setting or set it to False for diagnostics to work.</span>
+                                <div id="disabled-button" onclick="document.location.href='https://portal.azure.com';">Go to Azure Portal</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="top-bar">
+                        <div id="top-bar-title-container">
+                            <div class="top-bar-title">Site Diagnostics</div>
+                            <div class="top-bar-preview-tag">Preview</div>
+                        </div>
+                    </div>
+                </body>
+            </html>
+    }
+    else
+    {
+        var daasPortalEnabled = false;
+        var daasPortalEnabledSetting = Environment.GetEnvironmentVariable("WEBSITE_DAAS_PORTAL_ENABLED");
+        if (daasPortalEnabledSetting != null && daasPortalEnabledSetting.Equals("True", StringComparison.OrdinalIgnoreCase))
+        {
+            daasPortalEnabled = true;
+        }
+        if (!daasPortalEnabled)
+        {
+            <!DOCTYPE html>
+            <html>
+                <head>
+                    <title>Site Diagnostics</title>
+                    <link href="~/Content/img/favicon.ico" rel="icon" type="image/x-icon">
+                    <link href="~/Content/Site.css" rel="stylesheet">
+                </head>
+                <body>
+                    <div style="display:block;" id="disabled-overlay">
+                        <div id="disabled-container">
+                            <div id="disabled-content">
+                                <span id="disabled-message">Site Diagnostics portal is deprecated. <br /><br />To run the diagnostic tools, go to <b>Azure portal</b> and click on <b>Diagnose and Solve</b> blade for the Web App. <br /><br /></span>
+                                <div id="disabled-button" onclick="document.location.href='https://portal.azure.com';">Go to Azure Portal</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="top-bar">
+                        <div id="top-bar-title-container">
+                            <div class="top-bar-title">Site Diagnostics</div>
+                            <div class="top-bar-preview-tag">Preview</div>
+                        </div>
+                    </div>
+                </body>
+            </html>
+        }
+        else
+        {
+            var computeMode = Environment.GetEnvironmentVariable("WEBSITE_COMPUTE_MODE");
+            if (computeMode != null && !computeMode.Equals("Dedicated", StringComparison.OrdinalIgnoreCase))
+            {
+                <!DOCTYPE html>
+                <html>
+                    <head>
+                        <title>Site Diagnostics</title>
+                        <link href="~/Content/img/favicon.ico" rel="icon" type="image/x-icon">
+                        <link href="~/Content/Site.css" rel="stylesheet">
+                    </head>
+                    <body>
+                        <div style="display:block;" id="disabled-overlay">
+                            <div id="disabled-container">
+                                <div id="disabled-content">
+                                    <span id="disabled-message">Site Diagnostics is only supported on websites running in Basic or Standard mode</span>
+                                    <div id="disabled-button" onclick="document.location.href='/';">Go to Kudu</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="top-bar">
+                            <div id="top-bar-title-container">
+                                <div class="top-bar-title">Site Diagnostics</div>
+                                <div class="top-bar-preview-tag">Preview</div>
+                            </div>
+                        </div>
+                    </body>
+                </html>
+            }
+            else
+            {
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Site Diagnostics</title>
+                    <link href="~/Content/img/favicon.ico" rel="icon" type="image/x-icon">
+                    <script src="//ajax.aspnetcdn.com/ajax/jQuery/jquery-2.1.1.min.js"></script>
+                    <link rel="stylesheet" href="//ajax.aspnetcdn.com/ajax/jquery.ui/1.10.4/themes/redmond/jquery-ui.css" />
+                    <!--<link rel="stylesheet" href="//ajax.aspnetcdn.com/ajax/jquery.ui/1.10.4/themes/smoothness/jquery-ui.css" />-->
+                    <script src="//ajax.aspnetcdn.com/ajax/jquery.ui/1.10.4/jquery-ui.js"></script>
+                    <!--<link href="~/Content/jquery-ui-timepicker-addon.css" rel="stylesheet" />
+                    <script src="~/Scripts/jquery-ui-timepicker-addon.js"></script>-->
+                    <link href="~/Content/Site.css" rel="stylesheet">
+                    <script src="~/Scripts/DaaS.js"></script>
+                </head>
+                <body>
+                    <div id="reports-download-overlay">
+                        <div id="reports-download-container">
+                            <div id="reports-download-content">
+                                <span id="reports-download-message"></span>
+                                <div id="reports-download-button"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="express-launch-overlay">
+                        <div id="express-launch-container">
+                            <div id="express-launch-content">
+                                <span id="express-launch-message"></span>
+                                <div id="express-launch-button"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="express-confirmation-overlay">
+                        <div id="express-confirmation-container">
+                            <div id="express-confirmation-content">
+                                <span id="express-confirmation-message"></span>
+                                <div id="express-confirmation-button-continue">YES</div>
+                                <div id="express-confirmation-button-cancel">NO</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="confirmation-overlay">
+                        <div id="confirmation-container">
+                            <div id="confirmation-content">
+                                <span id="confirmation-message"></span>
+                                <div id="confirmation-button-continue">YES</div>
+                                <div id="confirmation-button-cancel">NO</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="wizard-overlay" style="display:none">
+                        <div id="wizard-container">
+                            <div id="wizard-content">
+                                <div id="wizard-trigger-blade">
+                                    <div class="wizard-blade-left-strip">
+                                        <span class="wizard-blade-number">1</span>
+                                    </div>
+                                    <div class="wizard-blade-center-strip">
+                                        <span class="wizard-blade-header">New Diagnostics Session</span>
+                                        <span class="wizard-blade-title">When should the analysis be run?</span>
+                                        <select id="wizard-trigger-list">
+                                            <option>Live</option>
+                                            <option>Scheduled</option>
+                                            <!--<option>Condition Based</option>-->
+                                        </select>
+                                        <div id="live-trigger-inputs">
+                                            <span id="live-trigger-timespan-label">Timespan:</span>
+                                            <select id="live-trigger-timespan-hours">
+                                                @for (int i = 0; i < 24; i++)
+                                                {
+                                                    <option>@Html.Raw(i.ToString("D2"))</option>
+                                                }
+                                            </select>
+                                            <span id="live-trigger-timespan-hours-label">h</span>
+                                            <select id="live-trigger-timespan-minutes">
+                                                @for (int i = 0; i < 60; i++)
+                                                {
+                                                    <option>@Html.Raw(i.ToString("D2"))</option>
+                                                }
+                                            </select>
+                                            <span id="live-trigger-timespan-minutes-label">m</span>
+                                            <select id="live-trigger-timespan-seconds">
+                                                @for (int i = 0; i < 60; i++)
+                                                {
+                                                    <option>@Html.Raw(i.ToString("D2"))</option>
+                                                }
+                                            </select>
+                                            <span id="live-trigger-timespan-seconds-label">s</span>
+                                            <span id="live-trigger-timespan-error">*Timespan must be at least one second</span>
+                                        </div>
+                                        <div id="scheduled-trigger-inputs">
+                                            <span id="scheduled-trigger-startdate-label">Start Date:</span>
+                                            <input id="scheduled-trigger-startdate" readonly="readonly" />
+                                            <span id="scheduled-trigger-startdate-error">*Start Date cannot be empty</span>
+                                            <span id="scheduled-trigger-starttime-label">Start Time (UTC):</span>
+                                            <select id="scheduled-trigger-starttime">
+                                                @for (int i = 0; i < 24; i++)
+                                                {
+                                                    for (int j = 0; j < 60; j += 5)
+                                                    {
+                                                        <option>@Html.Raw(string.Format("{0:D2}:{1:D2}:00", i, j))</option>
+                                                    }
+                                                }
+                                            </select>
+                                            <span id="scheduled-trigger-starttime-error">*Start Time cannot be in the past</span>
+                                            <span id="scheduled-trigger-timespan-label">Timespan:</span>
+                                            <select id="scheduled-trigger-timespan-hours">
+                                                @for (int i = 0; i < 24; i++)
+                                                {
+                                                    <option>@Html.Raw(i.ToString("D2"))</option>
+                                                }
+                                            </select>
+                                            <span id="scheduled-trigger-timespan-hours-label">h</span>
+                                            <select id="scheduled-trigger-timespan-minutes">
+                                                @for (int i = 0; i < 60; i++)
+                                                {
+                                                    <option>@Html.Raw(i.ToString("D2"))</option>
+                                                }
+                                            </select>
+                                            <span id="scheduled-trigger-timespan-minutes-label">m</span>
+                                            <select id="scheduled-trigger-timespan-seconds">
+                                                @for (int i = 0; i < 60; i++)
+                                                {
+                                                    <option>@Html.Raw(i.ToString("D2"))</option>
+                                                }
+                                            </select>
+                                            <span id="scheduled-trigger-timespan-seconds-label">s</span>
+                                            <span id="scheduled-trigger-timespan-error">*Timespan must be at least one second</span>
+                                        </div>
+                                        <div id="conditional-trigger-inputs">
+                                            <span id="conditional-trigger-timespan-label">Timespan:</span>
+                                            <select id="conditional-trigger-timespan-hours">
+                                                @for (int i = 0; i < 24; i++)
+                                                {
+                                                    <option>@Html.Raw(i.ToString("D2"))</option>
+                                                }
+                                            </select>
+                                            <span id="conditional-trigger-timespan-hours-label">h</span>
+                                            <select id="conditional-trigger-timespan-minutes">
+                                                @for (int i = 0; i < 60; i++)
+                                                {
+                                                    <option>@Html.Raw(i.ToString("D2"))</option>
+                                                }
+                                            </select>
+                                            <span id="conditional-trigger-timespan-minutes-label">m</span>
+                                            <select id="conditional-trigger-timespan-seconds">
+                                                @for (int i = 0; i < 60; i++)
+                                                {
+                                                    <option>@Html.Raw(i.ToString("D2"))</option>
+                                                }
+                                            </select>
+                                            <span id="conditional-trigger-timespan-seconds-label">s</span>
+                                            <span id="conditional-trigger-timespan-error">*Timespan must be at least one second</span>
+                                            <div id="conditional-trigger-statuscodes-label">Status Codes</div>
+                                            <div id="conditional-trigger-requesttime-label">Request Time</div>
+                                            <div id="conditional-trigger-memory-label">Memory</div>
+                                        </div>
+                                        <div class="trigger-info-box" id="trigger-warning-box-live">
+                                            <div class="info-box-heading">Live Trigger</div>
+                                            <div class="info-box-strip-warning"></div>
+                                            <span class="info-box-text">Warning Info For Live Trigger</span>
+                                        </div>
+                                        <div class="trigger-info-box" id="trigger-info-box-live">
+                                            <div class="info-box-heading">Live Trigger</div>
+                                            <div class="info-box-strip-help"></div>
+                                            <span class="info-box-text">Diagnostics will be run immediately upon submission. The types of data to analyze and instances to analyze can be selected in the next steps.</span>
+                                        </div>
+                                        <div class="trigger-info-box" id="trigger-warning-box-scheduled">
+                                            <div class="info-box-heading">Scheduled Trigger</div>
+                                            <div class="info-box-strip-warning"></div>
+                                            <span class="info-box-text">At the scheduled time, diagnostis will be run on all running instances of the web site. Note that this may impact site performance.</span>
+                                        </div>
+                                        <div class="trigger-info-box" id="trigger-info-box-scheduled">
+                                            <div class="info-box-heading">Scheduled Trigger</div>
+                                            <div class="info-box-strip-help"></div>
+                                            <span class="info-box-text">Diagnostics will be run at a scheduled future time. The types of data to analyze can be selected in the next step, but the instances to analyze cannot be selected.</span>
+                                        </div>
+                                        <div class="trigger-info-box" id="trigger-warning-box-conditional">
+                                            <div class="info-box-heading">Conditional Trigger</div>
+                                            <div class="info-box-strip-warning"></div>
+                                            <span class="info-box-text">This setting may impact site performance by causing diagnostics to run on all instances, or by placing extra load on an already-loaded site instance.</span>
+                                        </div>
+                                        <div class="trigger-info-box" id="trigger-info-box-conditional">
+                                            <div class="info-box-heading">Conditional Trigger</div>
+                                            <div class="info-box-strip-help"></div>
+                                            <span class="info-box-text">Diagnostics will be run on any or all site instance based on triggers conditions satisfied by each given instance. The types of data to analyze can be selected in the next step. These triggers will persistent until explicitly disabled.</span>
+                                        </div>
+                                        <div class="wizard-next-button"></div>
+                                        <div class="wizard-exit-button"></div>
+                                    </div>
+                                    <div id="wizard-trigger-blade-shield">
+                                        <span id="wizard-trigger-blade-shield-message"></span>
+                                        <div id="wizard-trigger-blade-shield-button"></div>
+                                    </div>
+                                    <div class="wizard-blade-right-strip">
+                                        <span class="wizard-blade-number">1</span>
+                                    </div>
+                                </div>
+                                <div id="wizard-diagnosers-blade">
+                                    <div class="wizard-blade-left-strip">
+                                        <span class="wizard-blade-number">2</span>
+                                    </div>
+                                    <div class="wizard-blade-center-strip">
+                                        <span class="wizard-blade-header">New Diagnostics Session</span>
+                                        <span class="wizard-blade-title">What type of data should be analyzed?</span>
+                                        <div id="wizard-diagnosers-box">
+                                            <div id="wizard-diagnosers-checklist" class="checklist-container">
+                                            </div>
+                                        </div>
+                                        <span id="wizard-diagnosers-box-error">*At least one type of data must be selected</span>
+                                        <div class="wizard-prev-button"></div>
+                                        <div class="wizard-next-button"></div>
+                                        <div class="wizard-exit-button"></div>
+                                    </div>
+                                    <div class="wizard-blade-right-strip">
+                                        <span class="wizard-blade-number">2</span>
+                                    </div>
+                                </div>
+                                <div id="wizard-instances-blade">
+                                    <div class="wizard-blade-left-strip">
+                                        <span class="wizard-blade-number">3</span>
+                                    </div>
+                                    <div class="wizard-blade-center-strip">
+                                        <span class="wizard-blade-header">New Diagnostics Session</span>
+                                        <span class="wizard-blade-title">Which site instances should be analyzed?</span>
+                                        <div id="wizard-instances-box">
+                                            <div id="wizard-instances-checklist" class="checklist-container">
+                                            </div>
+                                        </div>
+                                        <div class="instances-info-box" id="instances-warning-box-normal">
+                                            <div class="info-box-heading">Instance Selection</div>
+                                            <div class="info-box-strip-warning"></div>
+                                            <span class="info-box-text">Setting diagnostics to run on all site instances may impact site performance.</span>
+                                        </div>
+                                        <div id="wizard-instances-box-shield"></div>
+                                        <div class="instances-info-box" id="instances-info-box-normal">
+                                            <div class="info-box-heading">Instance Selection</div>
+                                            <div class="info-box-strip-help"></div>
+                                            <span class="info-box-text">Diagnostics will be run on all selected site instances.</span>
+                                        </div>
+                                        <div class="instances-info-box" id="instances-info-box-disabled-scheduled">
+                                            <div class="info-box-heading">Instance Selection Disabled</div>
+                                            <div class="info-box-strip-help"></div>
+                                            <span class="info-box-text">Instance selection is disabled when scheduled trigger is used.</span>
+                                        </div>
+                                        <div class="instances-info-box" id="instances-info-box-disabled-conditional">
+                                            <div class="info-box-heading">Instance Selection Disabled</div>
+                                            <div class="info-box-strip-help"></div>
+                                            <span class="info-box-text">Instance selection is disabled when condition-based trigger is used.</span>
+                                        </div>
+                                        <div class="wizard-prev-button"></div>
+                                        <div class="wizard-next-button"></div>
+                                        <div class="wizard-exit-button"></div>
+                                    </div>
+                                    <div class="wizard-blade-right-strip">
+                                        <span class="wizard-blade-number">3</span>
+                                    </div>
+                                </div>
+                                <div id="wizard-actions-blade">
+                                    <div class="wizard-blade-left-strip">
+                                        <span class="wizard-blade-number">4</span>
+                                    </div>
+                                    <div class="wizard-blade-center-strip">
+                                        <span class="wizard-blade-header">New Diagnostics Session</span>
+                                        <span class="wizard-blade-title">What actions should be performed?</span>
+                                        <div id="wizard-actions-list">
+                                            <input id="action-troubleshoot" type="radio" value="troubleshoot" name="actions">
+                                            <div id="action-troubleshoot-label">Collect & Analyze</div>
+                                            <input id="action-collectonly" type="radio" value="collectonly" name="actions">
+                                            <div id="action-collectonly-label">Collect Only</div>
+                                            <input id="action-restart" type="checkbox" value="restart" name="restartsite">
+                                            <div id="action-restart-label">Restart Site</div>
+                                        </div>
+                                        <div class="action-info-box" id="action-warning-box-troubleshoot">
+                                            <div class="info-box-heading">Collect &amp; Analyze</div>
+                                            <div class="info-box-strip-warning"></div>
+                                            <span class="info-box-text">Warning Info For Troubleshoot Action</span>
+                                        </div>
+                                        <div class="action-info-box" id="action-info-box-troubleshoot">
+                                            <div class="info-box-heading">Collect &amp; Analyze</div>
+                                            <div class="info-box-strip-help"></div>
+                                            <span class="info-box-text">Select this option to run full diagnostics (data collection and analysis).</span>
+                                        </div>
+                                        <div class="action-info-box" id="action-warning-box-collectonly">
+                                            <div class="info-box-heading">Collect Only</div>
+                                            <div class="info-box-strip-warning"></div>
+                                            <span class="info-box-text">Warning Info For CollectOnly Action</span>
+                                        </div>
+                                        <div class="action-info-box" id="action-info-box-collectonly">
+                                            <div class="info-box-heading">Collect Only</div>
+                                            <div class="info-box-strip-help"></div>
+                                            <span class="info-box-text">Select this option to perform data collection only.</span>
+                                        </div>
+                                        <div class="action-info-box" id="action-warning-box-restart">
+                                            <div class="info-box-heading">Restart</div>
+                                            <div class="info-box-strip-warning"></div>
+                                            <span class="info-box-text">This may cause site downtime.</span>
+                                        </div>
+                                        <div class="action-info-box" id="action-info-box-restart">
+                                            <div class="info-box-heading">Restart</div>
+                                            <div class="info-box-strip-help"></div>
+                                            <span class="info-box-text">Check this option to cause force a restart of any instance that satisfies the trigger conditions.</span>
+                                        </div>
+                                        <div class="wizard-prev-button"></div>
+                                        <div class="wizard-next-button"></div>
+                                        <div class="wizard-exit-button"></div>
+                                    </div>
+                                    <div class="wizard-blade-right-strip">
+                                        <span class="wizard-blade-number">4</span>
+                                    </div>
+                                </div>
+                                <div id="wizard-storage-blade">
+                                    <div class="wizard-blade-left-strip">
+                                        <span class="wizard-blade-number">5</span>
+                                    </div>
+                                    <div class="wizard-blade-center-strip">
+                                        <span class="wizard-blade-header">New Diagnostics Session</span>
+                                        <span class="wizard-blade-title">Blob Storage Configuration</span>
+                                        <span id="storage-current-sasuri-label">Current SaS URI:</span>
+                                        <input id="storage-current-sasuri" value="" disabled="disabled" />
+                                        <select id="wizard-sasurioptions-list">
+                                            <option>Continue Using Current Settings</option>
+                                            <option>Provide SaS URI</option>
+                                            <option>Provide Account Information</option>
+                                            <option>Do Not Use Blob Storage</option>
+                                        </select>
+                                        <div id="providesasuri-storage-inputs">
+                                            <span id="providesasuri-storage-sasuri-label">SaS URI:</span>
+                                            <input id="providesasuri-storage-sasuri" />
+                                            <span id="providesasuri-storage-sasuri-error">*SaS URI cannot be empty</span>
+                                        </div>
+                                        <div id="generatesasuri-storage-inputs">
+                                            <span id="generatesasuri-storage-storageaccount-label">Storage Account:</span>
+                                            <input id="generatesasuri-storage-storageaccount" />
+                                            <span id="generatesasuri-storage-storageaccount-error">*Storage Account cannot be empty</span>
+                                            <span id="generatesasuri-storage-storagecontainer-label">Storage Container:</span>
+                                            <input id="generatesasuri-storage-storagecontainer" />
+                                            <span id="generatesasuri-storage-storagecontainer-error">*Storage Container cannot be empty</span>
+                                            <span id="generatesasuri-storage-storagekey-label">Storage Account Key:</span>
+                                            <input id="generatesasuri-storage-storagekey" />
+                                            <span id="generatesasuri-storage-storagekey-error">*Storage Account Key cannot be empty</span>
+                                        </div>
+                                        <div class="storage-info-box" id="storage-info-box-leavecurrentsettings">
+                                            <div class="info-box-heading">Use Current Settings</div>
+                                            <div class="info-box-strip-help"></div>
+                                            <span class="info-box-text">Select this option to continue using your current storage settings.</span>
+                                        </div>
+                                        <div class="storage-info-box" id="storage-info-box-providesasuri">
+                                            <div class="info-box-heading">Set SaS URI</div>
+                                            <div class="info-box-strip-help"></div>
+                                            <span class="info-box-text">Select this option to configure a blob storage container by providing a SaS URI.</span>
+                                        </div>
+                                        <div class="storage-info-box" id="storage-info-box-generatesasuri">
+                                            <div class="info-box-heading">Generate SaS URI</div>
+                                            <div class="info-box-strip-help"></div>
+                                            <span class="info-box-text">Select this option to configure a blob storage container by providing storage account information.</span>
+                                        </div>
+                                        <div class="storage-info-box" id="storage-info-box-noblobstorage">
+                                            <div class="info-box-heading">Disable Blob Storage</div>
+                                            <div class="info-box-strip-help"></div>
+                                            <span class="info-box-text">Select this option to disable blob storage for this session (as well as any future sessions) until blob storage is explicitly re-enabled.</span>
+                                        </div>
+                                        <div class="wizard-prev-button"></div>
+                                        <div class="wizard-submit-button"></div>
+                                        <div class="wizard-exit-button"></div>
+                                    </div>
+                                    <div id="wizard-storage-blade-shield">
+                                        <span id="wizard-storage-blade-shield-message"></span>
+                                        <span id="wizard-storage-blade-shield-sub-message"></span>
+                                        <div id="wizard-storage-blade-shield-button"></div>
+                                    </div>
+                                    <div class="wizard-blade-right-strip">
+                                        <span class="wizard-blade-number">5</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="top-bar">
+                        <div id="top-bar-title-container">
+                            <div class="top-bar-title">Site Diagnostics</div>
+                            <div class="top-bar-preview-tag">Preview</div>
+                        </div>
+                    </div>
+                    <div id="container">
+                        @{
+                            var HttpLogEanble = Environment.GetEnvironmentVariable("WEBSITE_HTTPLOGGING_ENABLED");
+                            if (HttpLogEanble != null && !HttpLogEanble.Equals("1", StringComparison.OrdinalIgnoreCase))
+                            {
+                                <br /><img src="/DaaS/Content/Img/warningorange.png" /><span style="font-weight: bold;"> Uh oh: </span><span> Http Logging is turned off for your site. You can turn it on by navigating to the Azure Portal, going to the Configuration section of your site, and setting Web Server Logging to FileSystem</span>
+                            }
+                        }
+                        <div id="launch-controls">
+                            <div id="launch-controls-live-diagnose">
+                                <div id="launch-controls-live-diagnose-button"></div>
+                                <div class="launch-controls-label">Diagnose Now</div>
+                                <div class="launch-controls-help-text">
+                                    Launch a diagnostics session to run immediately, using default settings:<br><br>
+                                    • Timespan: 2 minutes<br>
+                                    • Diagnosers: all diagnosers<br>
+                                    • Instances: all running instances<br>
+                                    • Actions: collect and analyze<br>
+                                    • Storage: configured storage setting (last used)
+                                </div>
+                                <div class="launch-controls-help-open-button"></div>
+                            </div>
+                            <div id="launch-controls-scheduled-diagnose">
+                                <div id="launch-controls-scheduled-diagnose-button"></div>
+                                <div class="launch-controls-label">Schedule Analysis</div>
+                                <div class="launch-controls-help-text">
+                                    Schedule a diagnostics session to run immediately or at at scheduled time, using custom settings.<br><br>
+                                    Customizable settings include StartTime, Timespan, Diagnosers, Instances, Actions and Storage.
+                                </div>
+                                <div class="launch-controls-help-open-button"></div>
+                            </div>
+                        </div>
+                        <div id="viewer">
+                            <div id="viewer-title-scroll-hider"></div>
+                            <div id="viewer-title">
+                                <div class="column-full"><span id="viewer-title-text">Sessions</span></div>
+                            </div>
+                            <div id="viewer-back-arrow"></div>
+                            <div id="viewer-headings-scroll-hider"></div>
+                            <div id="viewer-headings">
+                                <div class="column-spacer"></div>
+                                <div class="column-left"><span id="viewer-heading-first-text">StartTime</span></div>
+                                <div class="column-third"><span>Collection Status</span></div>
+                                <div class="column-third"><span>Analysis Status</span></div>
+                            </div>
+                            <div id="session-container" style="display:none"></div>
+                            <div id="session-shield"></div>
+                            <div id="sessions-container" style="display:block"></div>
+                            <div id="sessions-shield"></div>
+                        </div>
+                    </div>
+                </body>
+            </html>
+            }
+        }
+    }
+}

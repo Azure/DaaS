@@ -1,0 +1,285 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<DiagnosticSettings>
+  <!--
+    Valid variables are:
+      - outputDir
+      - logFile
+      - startTime
+      - endTime
+      - diagnosticToolsPath
+      - TEMP
+      - ProgramFiles
+      - ProgramFiles(x86)
+  -->
+
+  <!-- Each Diagnoser contains a collector and an analyzer that have
+         been defined in the Collectors and Analyzers lists -->
+  <Diagnosers>
+
+    <Diagnoser Name="Event Viewer Logs" Description="Collects and analyzes the Event Viewer logs" ProcessCleanupOnCancel ="LogAnalysisWorker">
+      <Collector Name="EventViewer"/>
+      <Analyzer Name="EventViewerLogAnalyzer" />
+    </Diagnoser>
+
+    <Diagnoser Name="Memory Dump" Description="Takes memory dumps of the process hosting your Web App and analyzes them for errors." ProcessCleanupOnCancel ="DumpAnalyzer,MemoryDumpCollector,ProcDump">
+      <Collector Name="MemoryDumpCollector"/>
+      <Analyzer Name="DumpAnalyzer"/>
+    </Diagnoser>
+
+    <Diagnoser Name="Http Logs" Description="Collects and analyzes the http logs" ProcessCleanupOnCancel ="LogAnalysisWorker">
+      <Collector Name="HttpLogsCollector" />
+      <Analyzer Name="HttpLogAnalyzer" />
+    </Diagnoser>
+
+    <Diagnoser Name="PHP Error Logs" Description="Collects and analyzes the PHP error logs" ProcessCleanupOnCancel ="LogAnalysisWorker">
+      <Collector Name="PhpErrorLogCollector" />
+      <Analyzer Name="PHPErrorLogAnalyzer" />
+    </Diagnoser>
+
+    <Diagnoser Name="PHP Process Report" Description="Analyze live PHP processes and generate report for process, thread and call stack information" ProcessCleanupOnCancel ="PhpReportGen">
+      <Collector Name="NoOpCollector" />
+      <Analyzer Name="PHPProcessReportsAnalyzer" />
+    </Diagnoser>
+
+    <Diagnoser Name="CLR Profiler" Description="Collects and Analyzes IIS and .NET ETW information to identify slow performance issues" ProcessCleanupOnCancel="ClrProfilingCollector,ClrProfilingAnalyzer">
+      <Collector Name="CLRProfilingCollector" />
+      <Analyzer Name="CLRProfilingAnalyzer" />
+    </Diagnoser>
+
+    <Diagnoser Name="CLR Profiler with Thread Stacks" Description="Collects and Analyzes IIS and .NET ETW information to identify slow performance issues and also collects raw thread stacks to identify slow issues or hangs or deadlocks" ProcessCleanupOnCancel="ClrProfilingCollector,ClrProfilingAnalyzer,StackTracer32,StackTracer64">
+      <Collector Name="CLRProfilingCollectorWithStacks" />
+      <Analyzer Name="CLRProfilingAnalyzerWithStacks" />
+    </Diagnoser>
+
+     <Diagnoser Name="CLR Profiler CPUStacks" Description="Collects .NET ETW information to identify threads consuming High CPU" ProcessCleanupOnCancel="ClrProfilingCollector,ClrProfilingAnalyzer">
+      <Collector Name="CLRProfilingCollectorCpuStacks" />
+      <Analyzer Name="CLRProfilingAnalyzerCpuStacks" />
+    </Diagnoser>
+
+    <Diagnoser Name="JAVA Thread Dump" Description="Collects JSTACK output of all Java.exe processes running for this WebApp and analyzes the same" ProcessCleanupOnCancel="jStackParser,jstack">
+      <Collector Name="JStackCollector" />
+      <Analyzer Name="JStackAnalyzer" />
+    </Diagnoser>
+
+    <Diagnoser Name="JAVA Memory Statistics" Description="Collects a memory and object statistics report using JMAP of all Java.exe processes running for this WebApp" ProcessCleanupOnCancel="jMap">
+      <Collector Name="JMapStatsCollector" />
+      <Analyzer Name="JMapStatsAnalyzer" />
+    </Diagnoser>
+
+    <Diagnoser Name="JAVA Memory Dump" Description="Collects a binary memory dump using JMAP of all Java.exe processes running for this WebApp" ProcessCleanupOnCancel="jMap">
+      <Collector Name="JMapDumpCollector" />
+      <Analyzer Name="JMapDumpAnalyzer" />
+    </Diagnoser>
+
+    <Diagnoser Name="JAVA Flight Recorder" Description="Collects a jfr log for the Java.exe process using Java Flight Recorder tool (jcmd.exe)" ProcessCleanupOnCancel="jMap">
+      <Collector Name="JCmdCollector" />
+      <Analyzer Name="JCmdAnalyzer" />
+    </Diagnoser>
+
+    <!--
+   This diagnoser is to be used only for troubleshooting DAAS and not a site
+   <Diagnoser Name="Mock" Description="Mock" ProcessCleanupOnCancel="">
+     <Collector Name="MockCollector" />
+     <Analyzer Name="MockAnalyzer" />
+   </Diagnoser>
+      -->
+
+
+ </Diagnosers>
+
+  <!-- Specifiying outputDir is required -->
+  <Collectors>
+    <!-- RangeCollectors run once at the end of the timerange that they are supposed to collect data for -->
+    <!-- SnapShot collectors run once at the beginning of the specified time range -->
+
+    <RangeCollector Name="EventViewer">
+      <Warning>No event logs have been collected so far</Warning>
+      <Command>perl</Command>
+      <Arguments>"%diagnosticToolsPath%\EventLogCollector.pl" %outputDir%</Arguments>
+      <PreValidationCommand>%ProgramFiles(x86)%\git\usr\bin\perl.exe</PreValidationCommand>
+      <PreValidationArguments>"%diagnosticToolsPath%\EventLogCollector.pl" "-checkExists"</PreValidationArguments>
+    </RangeCollector>
+
+    <RangeCollector Name="PhpErrorLogCollector">
+      <Warning>No php error logs have been collected so far. Please make sure that PHP error logging is turned ON inside .user.ini in D:\home\site\wwwroot by setting log_errors = On</Warning>
+      <Command>perl</Command>
+      <Arguments>"%diagnosticToolsPath%\PHPErrorLogCollector.pl" %outputDir%</Arguments>
+      <PreValidationCommand>%ProgramFiles(x86)%\git\usr\bin\perl.exe</PreValidationCommand>
+      <PreValidationArguments>"%diagnosticToolsPath%\PHPErrorLogCollector.pl" "-checkExists"</PreValidationArguments>
+    </RangeCollector>
+
+    <RangeCollector Name="HttpLogsCollector">
+      <Warning>Http Logs are not available since http logging is not enabled for your Web App.  You can turn it on by navigating to the Azure Portal, going to the Configuration section of your Web App, and setting Web Server Logging to FileSystem </Warning>
+      <Command>perl</Command>
+      <Arguments>"%diagnosticToolsPath%\HttpLogCollector.pl" %outputDir% %startTime% %endTime%</Arguments>
+      <PreValidationCommand>D:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe</PreValidationCommand>
+      <PreValidationArguments>-File "%diagnosticToolsPath%\HttpLogValidator.ps1"</PreValidationArguments>
+    </RangeCollector>
+
+    <RangeCollector Name="NoOpCollector">
+      <Warning></Warning>
+      <Command>cmd.exe</Command>
+      <Arguments>/c echo No files needed to be collected > "%outputDir%\No_Log_Collected.log"</Arguments>
+    </RangeCollector>
+
+
+    <!-- Snapshot Collectors are run twice. Once at the beginning and once at the end of each timespan-->
+    <SnapshotCollector Name="ProcDump">
+      <Command>%diagnosticToolsPath%\procdump.exe</Command>
+      <Arguments>-accepteula w3wp %outputDir%</Arguments>
+    </SnapshotCollector>
+
+    <SnapshotCollector Name="NetCoreStdoutCollector">
+      <Command>%diagnosticToolsPath%\StdoutCollector.exe</Command>
+      <Arguments>%startTime% %endTime% %outputDir%</Arguments>
+    </SnapshotCollector>
+
+    <SnapshotCollector Name="MemoryDumpCollector">
+      <Command>%diagnosticToolsPath%\MemoryDumpCollector.exe</Command>
+      <Arguments>-ProcessName w3wp -OutputDir %outputDir% -Child -CdbDir "%diagnosticToolsPath%"</Arguments>
+    </SnapshotCollector>
+
+    <SnapshotCollector Name="CLRProfilingCollector">
+      <Command>%diagnosticToolsPath%\clrprofiler\ClrProfilingCollector.exe</Command>
+      <Arguments>%outputDir%</Arguments>
+    </SnapshotCollector>
+
+    <SnapshotCollector Name="CLRProfilingCollectorWithStacks">
+      <Command>%diagnosticToolsPath%\clrprofiler\ClrProfilingCollector.exe</Command>
+      <Arguments>%outputDir% collectRawStacks</Arguments>
+    </SnapshotCollector>
+
+    <SnapshotCollector Name="CLRProfilingCollectorCpuStacks">
+      <Command>%diagnosticToolsPath%\clrprofiler\ClrProfilingCollector.exe</Command>
+      <Arguments>%outputDir% cpuStacksOnly</Arguments>
+    </SnapshotCollector>
+
+    <SnapshotCollector Name="JStackCollector">
+      <Warning>This tool collects data for Web App using Java and we found that java.exe was not running so this tool cannot run. If this is a Java based Web App, make sure that the java process is running by browsing the app and then execute the tool again.</Warning>
+      <Command>D:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe</Command>
+      <Arguments>-File "%diagnosticToolsPath%\javatools\collectJstack.ps1" %outputDir%</Arguments>
+      <PreValidationCommand>D:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe</PreValidationCommand>
+      <PreValidationArguments>-File "%diagnosticToolsPath%\JavaValidator.ps1"</PreValidationArguments>
+    </SnapshotCollector>
+
+    <SnapshotCollector Name="JMapDumpCollector">
+      <Warning>This tool collects data for Web App using Java and we found that java.exe was not running so this tool cannot run. If this is a Java based Web App, make sure that the java process is running by browsing the app and then execute the tool again.</Warning>
+      <Command>D:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe</Command>
+      <Arguments>-File "%diagnosticToolsPath%\javatools\collectJMap.ps1" %outputDir%</Arguments>
+      <PreValidationCommand>D:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe</PreValidationCommand>
+      <PreValidationArguments>-File "%diagnosticToolsPath%\JavaValidator.ps1"</PreValidationArguments>
+    </SnapshotCollector>
+
+    <SnapshotCollector Name="JMapStatsCollector">
+      <Warning>This tool collects data for Web App using Java and we found that java.exe was not running so this tool cannot run. If this is a Java based Web App, make sure that the java process is running by browsing the app and then execute the tool again.</Warning>
+      <Command>D:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe</Command>
+      <Arguments>-File "%diagnosticToolsPath%\javatools\collectJMap.ps1" "%outputDir%" text</Arguments>
+      <PreValidationCommand>D:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe</PreValidationCommand>
+      <PreValidationArguments>-File "%diagnosticToolsPath%\JavaValidator.ps1"</PreValidationArguments>
+    </SnapshotCollector>
+
+    <SnapshotCollector Name="JCmdCollector">
+      <Warning>This tool collects data for Web App using Java and we found that java.exe was not running so this tool cannot run. If this is a Java based Web App, make sure that the java process is running by browsing the app and then execute the tool again.</Warning>
+      <Command>D:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe</Command>
+      <Arguments>-File "%diagnosticToolsPath%\javatools\collectjCmd.ps1" "%outputDir%" text</Arguments>
+      <PreValidationCommand>D:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe</PreValidationCommand>
+      <PreValidationArguments>-File "%diagnosticToolsPath%\JavaValidator.ps1"</PreValidationArguments>
+    </SnapshotCollector>
+
+    <SnapshotCollector Name="MockCollector">
+      <Command>cmd.exe</Command>
+      <Arguments>/c echo No files needed to be collected > "%outputDir%\%COMPUTERNAME%_No_Log_Collected.log"</Arguments>
+    </SnapshotCollector>
+
+  </Collectors>
+
+  <!-- Specifiying logFile and outputDir are required -->
+  <Analyzers>
+
+    <Analyzer Name="DumpAnalyzer">
+      <Command>D:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe</Command>
+      <Arguments>-File "%diagnosticToolsPath%\DumpAnalyzer.ps1" "%logFile%" "%outputDir%"</Arguments>
+     </Analyzer>
+
+    <Analyzer Name="HttpLogAnalyzer">
+      <Command>%diagnosticToolsPath%\LogAnalyzer\LogAnalysisWorker.exe</Command>
+      <Arguments>%logFile% %outputDir%</Arguments>
+    </Analyzer>
+
+    <Analyzer Name="EventViewerLogAnalyzer">
+      <Command>%diagnosticToolsPath%\LogAnalyzer\LogAnalysisWorker.exe</Command>
+      <Arguments>%logFile% %outputDir%</Arguments>
+    </Analyzer>
+
+    <Analyzer Name="PHPErrorLogAnalyzer">
+      <Command>%diagnosticToolsPath%\LogAnalyzer\LogAnalysisWorker.exe</Command>
+      <Arguments>%logFile% %outputDir%</Arguments>
+    </Analyzer>
+
+    <Analyzer Name="PHPProcessReportsAnalyzer">
+      <Command>"%diagnosticToolsPath%\PHPProcessAnalyzer\PhpReportGen.exe"</Command>
+      <Arguments>%outputDir%  "%ProgramFiles(x86)%\PHP\v5.6\Debug;%ProgramFiles(x86)%\PHP\v5.5\Debug;%ProgramFiles(x86)%\PHP\v5.4\Debug;%ProgramFiles(x86)%\PHP\v5.3\Debug" </Arguments>
+    </Analyzer>
+
+    <Analyzer Name="CLRProfilingAnalyzer">
+      <Command>"%diagnosticToolsPath%\clrprofiler\CLRProfilingAnalyzer.exe"</Command>
+      <Arguments>"%logFile%" "%outputDir%"</Arguments>
+    </Analyzer>
+
+    <Analyzer Name="CLRProfilingAnalyzerWithStacks">
+      <Command>"%diagnosticToolsPath%\clrprofiler\CLRProfilingAnalyzer.exe"</Command>
+      <Arguments>"%logFile%" "%outputDir%"</Arguments>
+    </Analyzer>
+
+    <Analyzer Name="CLRProfilingAnalyzerCpuStacks">
+      <Command>"%diagnosticToolsPath%\clrprofiler\CLRProfilingAnalyzer.exe"</Command>
+      <Arguments>"%logFile%" "%outputDir%"</Arguments>
+    </Analyzer>
+
+    <Analyzer Name="JStackAnalyzer">
+      <Command>"%diagnosticToolsPath%\javatools\jStackParser.exe"</Command>
+      <Arguments>"%logFile%" "%outputDir%"</Arguments>
+    </Analyzer>
+
+    <Analyzer Name="JMapDumpAnalyzer">
+      <Command>D:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe</Command>
+      <Arguments>-File "%diagnosticToolsPath%\javatools\analyzeJavaTool.ps1" "%logFile%" "%outputDir%" "jmapAnalysis.html"</Arguments>
+    </Analyzer>
+
+    <Analyzer Name="JMapStatsAnalyzer">
+      <Command>D:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe</Command>
+      <Arguments>-File "%diagnosticToolsPath%\javatools\analyzeJavaTool.ps1" "%logFile%" "%outputDir%" "jmapAnalysis.html"</Arguments>
+    </Analyzer>
+
+    <Analyzer Name="JCmdAnalyzer">
+      <Command>D:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe</Command>
+      <Arguments>-File "%diagnosticToolsPath%\javatools\analyzeJavaTool.ps1" "%logFile%" "%outputDir%" "jcmdAnalysis.html"</Arguments>
+    </Analyzer>
+
+    <Analyzer Name="MockAnalyzer">
+      <Command>D:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe</Command>
+      <Arguments>-File "%diagnosticToolsPath%\mock.ps1" "%logFile%" "%outputDir%"</Arguments>
+    </Analyzer>
+
+  </Analyzers>
+
+  <Settings>
+    <LeaseDurationInSeconds>15</LeaseDurationInSeconds>
+    <HeartBeatLifeTimeInSeconds>300</HeartBeatLifeTimeInSeconds>
+    <FrequencyToCheckForNewSessionsAtInSeconds>30</FrequencyToCheckForNewSessionsAtInSeconds>
+    <MaxDiagnosticToolRetryCount>3</MaxDiagnosticToolRetryCount>
+
+      <!-- The below set of settings can be overriden if required.
+    Please note, some of these will have adverse effect on disk space used by DaaS on your App
+    <MaxAnalyzerTimeInMinutes>25</MaxAnalyzerTimeInMinutes>
+    <MaxSessionTimeInMinutes>60</MaxSessionTimeInMinutes>
+    <MaxNumberOfDaysForSessions>20</MaxNumberOfDaysForSessions>
+    <MaxDiagnosticSessionsToKeep>10</MaxDiagnosticSessionsToKeep>
+    <MaxSessionCountInThresholdPeriod>5</MaxSessionCountInThresholdPeriod>
+    <MaxSessionCountThresholdPeriodInMinutes>120</MaxSessionCountThresholdPeriodInMinutes>
+    <MaxSessionsPerDay>6</MaxSessionsPerDay>
+  -->
+
+  </Settings>
+
+</DiagnosticSettings>

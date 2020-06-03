@@ -1,0 +1,1573 @@
+﻿.ui-datepicker .ui-datepicker-buttonpane button.ui-datepicker-current {
+    float:left;
+    background: #900;
+    display: none;
+}
+
+.ui-datepicker {
+	width: 220px;
+    padding: 0;
+	display: none;
+}
+
+.ui-datepicker table {
+	width: 100%;
+	font-size: 8px;
+	border-collapse: collapse;
+	margin: 0 0 .4em;
+}
+
+.ui-widget {
+	font-family: Verdana,Arial,sans-serif;
+	font-size: 9px;
+}
+
+.ui-widget-header {
+    border: 1px solid #aaaaaa;
+    background: rgb(100, 160, 255);
+    color: #222222;
+    font-weight: bold;
+}
+
+.ui-state-default, .ui-widget-content .ui-state-default, .ui-widget-header .ui-state-default {
+    border: 1px solid lightgray;
+    background: rgb(100, 160, 255);
+    font-weight: bold;
+    color: black;
+}
+
+.ui-state-default:hover, .ui-widget-content .ui-state-default:hover, .ui-widget-header .ui-state-default:hover {
+    border: 1px solid lightgray;
+    background: rgb(195, 219, 255);
+    font-weight: bold;
+    color: black;
+}
+
+.ui-state-highlight {
+    color: white !important;
+}
+
+.ui-state-active {
+    background: rgb(195, 219, 255) !important;
+}
+
+.ui-widget-header .ui-state-hover {
+    background: rgb(137, 183, 255) !important;
+}
+
+.ui-corner-all {
+    border-radius: 0;
+}
+
+
+
+
+body {
+    margin: 0;
+    border: 0;
+    max-height: 100%;
+    background: #666;
+    color: black;
+    background: #fff;
+    overflow-y: scroll;
+}
+
+/*----------------------------------------------TOP BAR--------------------------------------------------*/
+
+#top-bar {
+    position: fixed;
+    overflow-y: hidden;
+    overflow-x: hidden;
+    left: 0px;
+    top: 0px;
+    height: 50px;
+    width: 100%;
+
+    background-color: rgb(100, 155, 236);
+
+    box-shadow: 0 3px 3px rgba(3, 23, 255, 0.44);
+
+    text-align: center;
+
+    z-index: 1000;
+}
+
+#top-bar-title-container {
+    height: 100%;
+    /*width: 70%;
+    min-width: 850px;*/
+    width: 850px;
+
+    display: inline-block;
+
+    z-index: 1001;
+}
+
+.top-bar-title {
+    float: left;
+    top: 0;
+    padding-top: 10px;
+    height: 40px;
+
+    text-align: left;
+    font-size: 25px;
+    font-family: "Helvetica Neue",Helvetica,Arial,sans-serif;
+    font-weight: bold;
+
+    color: whitesmoke;
+
+    z-index: 1001;
+}
+
+.top-bar-preview-tag {
+    float: left;
+    top: 0;
+    padding-top: 21px;
+    padding-left: 15px;
+    height: 19px;
+
+    text-align: left;
+    background-color: transparent;
+    color: #97c840;
+    font: 15px/15px "Segoe UI",Verdana,Helvetica,Sans-Serif;
+    font-weight: bold;
+    text-transform: uppercase;
+    /*display: inline;*/
+}
+
+/*----------------------------------------------WIZARD--------------------------------------------------*/
+
+#wizard-overlay, #express-launch-overlay, #reports-download-overlay, #confirmation-overlay, #express-confirmation-overlay, #disabled-overlay {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: rgba(0,0,0,.85);
+    z-index: 2000;
+
+    text-align: center;
+    display: none;
+}
+
+
+#wizard-container, #express-launch-container, #reports-download-container, #confirmation-container, #express-confirmation-container, #disabled-container {
+    height: 100%;
+
+    display: inline-block;
+
+    z-index: 2100;
+}
+
+#wizard-container {
+    width: 700px;
+}
+
+#express-launch-container, #reports-download-container {
+    width: 300px;
+}
+
+#confirmation-container, #express-confirmation-container, #disabled-container {
+    width: 300px;
+}
+
+#wizard-content, #express-launch-content, #reports-download-content, #confirmation-content, #express-confirmation-content, #disabled-content {
+    position: absolute;
+    top: 50%;
+
+    z-index: 2200;
+
+    text-align: center;
+}
+
+#wizard-content {
+    height: 400px;
+    width: 700px;
+    margin-top: -200px;
+}
+
+#express-launch-content, #reports-download-content {
+    height: 200px;
+    width: 300px;
+    margin-top: -100px;
+
+    background-color: white;
+    border: 1px solid black;
+    border-radius: 5px;
+}
+
+#confirmation-content, #express-confirmation-content, #disabled-content {
+    height: 300px;
+    width: 440px;
+    margin-top: -80px;
+
+    background-color: white;
+    border: 1px solid black;
+    border-radius: 5px;
+}
+
+#express-confirmation-content {
+    height: 150px;
+    width: 300px;
+    margin-top: -75px;
+}
+
+#confirmation-message, #express-confirmation-message, #disabled-message {
+    position: relative;
+    top: 20px;
+    font-size: 25px;
+}
+
+#confirmation-button-continue, #confirmation-button-cancel, #express-confirmation-button-continue, #express-confirmation-button-cancel, #disabled-button {
+    position: absolute;
+    padding-top: 5px;
+    height: 25px;
+
+    text-align: center;
+
+    background-color: lightgray;
+    border: 1px solid black;
+    border-radius: 5px;
+
+    cursor: pointer;
+}
+
+#confirmation-button-continue, #confirmation-button-cancel, #express-confirmation-button-continue, #express-confirmation-button-cancel {
+    width: 40px;
+    bottom: 25px;
+}
+
+#disabled-button {
+    width: 150px;
+    margin-left: -50px;
+    bottom: 15px;
+}
+
+#confirmation-button-continue:hover, #confirmation-button-cancel:hover, #express-confirmation-button-continue:hover, #express-confirmation-button-cancel:hover, #disabled-button:hover {
+    background-color: darkgray;
+}
+
+#confirmation-button-continue:active, #confirmation-button-cancel:active, #express-confirmation-button-continue:active, #express-confirmation-button-cancel:active, #disabled-button:active {
+    background-color: gray;
+}
+
+#confirmation-button-continue, #express-confirmation-button-continue {
+    left: 25%;
+}
+
+#confirmation-button-cancel, #express-confirmation-button-cancel {
+    right: 25%;
+}
+
+#disabled-button {
+    left: 50%;
+}
+
+#wizard-diagnosers-blade, #wizard-instances-blade, #wizard-trigger-blade, #wizard-actions-blade, #wizard-storage-blade {
+    position: absolute;
+    height: 100%;
+    width: 600px;
+    background-color: whitesmoke;
+}
+
+
+#wizard-trigger-blade {
+    left: 0px;
+    z-index: 2220;
+}
+
+#wizard-trigger-blade .wizard-blade-left-strip, #wizard-trigger-blade .wizard-blade-right-strip {
+    background-color: rgb(128, 179, 255);
+}
+
+
+#wizard-diagnosers-blade {
+    left: 25px;
+    z-index: 2219;
+}
+
+#wizard-diagnosers-blade .wizard-blade-left-strip, #wizard-diagnosers-blade .wizard-blade-right-strip {
+    background-color: rgb(100, 155, 236);
+}
+
+
+#wizard-instances-blade {
+    left: 50px;
+    z-index: 2218;
+}
+
+#wizard-instances-blade .wizard-blade-left-strip, #wizard-instances-blade .wizard-blade-right-strip {
+    background-color: rgb(57, 129, 236);
+}
+
+
+#wizard-actions-blade {
+    left: 75px;
+    z-index: 2217;
+}
+
+#wizard-actions-blade .wizard-blade-left-strip, #wizard-actions-blade .wizard-blade-right-strip {
+    background-color: rgb(23, 111, 241);
+}
+
+
+#wizard-storage-blade {
+    left: 100px;
+    z-index: 2216;
+}
+
+#wizard-storage-blade .wizard-blade-left-strip, #wizard-storage-blade .wizard-blade-right-strip {
+    background-color: rgb(3, 87, 211);
+}
+
+.wizard-blade-center-strip {
+    background-color: white;
+}
+
+.wizard-blade-center-strip, #wizard-trigger-blade-shield, #wizard-storage-blade-shield {
+    position: absolute;
+    height: 100%;
+    left: 25px;
+    right: 25px;
+}
+
+#wizard-trigger-blade-shield, #wizard-storage-blade-shield {
+    background-color: rgba(128, 128, 128, 1);
+    display: none;
+}
+
+#wizard-trigger-blade-shield-message, #wizard-storage-blade-shield-message, #wizard-storage-blade-shield-sub-message, #express-launch-message, #reports-download-message {
+    position: relative;
+    display: block;
+    height: 30px;
+    width: 100%;
+
+    font-size: 25px;
+    text-align: center;
+}
+
+#wizard-trigger-blade-shield-message, #wizard-storage-blade-shield-message {
+    top: 185px;
+}
+
+#wizard-storage-blade-shield-sub-message {
+    top: 210px;
+    font-size: 20px;
+}
+
+#express-launch-message, #reports-download-message {
+    top: 85px;
+}
+
+#wizard-trigger-blade-shield-button, #wizard-storage-blade-shield-button, #express-launch-button, #reports-download-button {
+    position: absolute;
+    height: 10px;
+    width: 10px;
+    top: 5px;
+    right: 5px;
+
+    background-repeat:no-repeat;
+    background-position:center;
+    background-size: 100%;
+
+    background-image: url('/DaaS/Content/img/close.png');
+    display: none;
+
+    cursor: pointer;
+}
+
+.wizard-blade-header, .wizard-blade-title {
+    display: block;
+    position: absolute;
+    left: 10px;
+    word-wrap: break-word;
+    font-family: "Segoe UI Semibold";
+    margin-bottom: 0!important;
+    margin-top: 0!important;
+}
+
+.wizard-blade-header {
+    top: 5px;
+    font-size: 12px!important;
+    color: #a5a5a5!important;
+    text-transform: uppercase;
+}
+
+.wizard-blade-title {
+    top: 25px;
+    font-size: 20px!important;
+}
+
+.wizard-blade-left-strip, .wizard-blade-right-strip {
+    position: absolute;
+    height: 100%;
+    width: 24px;
+}
+
+.wizard-blade-left-strip {
+    left: 0;
+    border-left: 1px solid #222222;
+}
+
+.wizard-blade-right-strip {
+    right: 0;
+    border-right: 1px solid #222222;
+}
+
+.wizard-blade-number {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    bottom: 9px;
+    text-align: center;
+    color: #fff;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.wizard-blade-left-strip .wizard-blade-number {
+    color: gray;
+}
+
+.wizard-prev-button, .wizard-next-button, .wizard-submit-button, .wizard-exit-button {
+    position: absolute;
+
+    background-repeat:no-repeat;
+    background-position:center;
+    background-size: 100%;
+
+    cursor: pointer;
+}
+
+.wizard-prev-button, .wizard-next-button, .wizard-submit-button {
+    height: 30px;
+    width: 30px;
+    bottom: 5px;
+}
+
+.wizard-prev-button {
+    left: 5px;
+    background-image: url('/DaaS/Content/img/back.png');
+}
+
+.wizard-prev-button:hover {
+    background-image: url('/DaaS/Content/img/back-hover.png');
+}
+
+.wizard-prev-button:active {
+    background-image: url('/DaaS/Content/img/back-down.png');
+}
+
+.wizard-next-button, .wizard-submit-button {
+    right: 5px;
+}
+
+.wizard-next-button {
+    background-image: url('/DaaS/Content/img/forward.png');
+}
+
+.wizard-next-button:hover {
+    background-image: url('/DaaS/Content/img/forward-hover.png');
+}
+
+.wizard-next-button:active {
+    background-image: url('/DaaS/Content/img/forward-down.png');
+}
+
+.wizard-submit-button {
+    background-image: url('/DaaS/Content/img/submit.png');
+}
+
+.wizard-submit-button:hover {
+    background-image: url('/DaaS/Content/img/submit-hover.png');
+}
+
+.wizard-submit-button:active {
+    background-image: url('/DaaS/Content/img/submit-down.png');
+}
+
+.wizard-exit-button {
+    top: 5px;
+    right: 5px;
+    height: 10px;
+    width: 10px;
+    background-image: url('/DaaS/Content/img/close.png');
+}
+
+
+
+
+
+
+#wizard-diagnosers-box, #wizard-instances-box, #wizard-instances-box-shield, .trigger-info-box, .diagnoser-info-box, .instances-info-box, .action-info-box, .storage-info-box {
+    position: absolute;
+    top: 70px;
+    bottom: 50px;
+    width: 255px;
+    border: 1px solid lightgray;
+    background-color: white;
+}
+
+#wizard-diagnosers-box, #wizard-instances-box, #wizard-instances-box-shield {
+    left: 10px;
+}
+
+#wizard-diagnosers-box-error {
+    position: absolute;
+    left: 10px;
+    bottom: 40px;
+    text-align: left;
+    white-space:nowrap;
+
+    font-size: 10px;
+    font-weight: bold;
+    color: red;
+    display: none;
+}
+
+#wizard-instances-box-shield {
+    background-color: black;
+    opacity: .5;
+
+    display: none;
+}
+
+.trigger-info-box, .diagnoser-info-box, .instances-info-box, .action-info-box, .storage-info-box {
+    right: 10px;
+    display: none;
+}
+
+
+
+#wizard-actions-list {
+    position: absolute;
+    top: 70px;
+    left: 10px;
+}
+
+#action-troubleshoot {
+    display: block;
+    position: absolute;
+    left: 0px;
+    top: 0px;
+}
+
+#action-troubleshoot-label {
+    position: absolute;
+    left: 25px;
+    text-align: left;
+    white-space:nowrap;
+    top: 0px;
+}
+
+#action-collectonly {
+    display: block;
+    position: absolute;
+    left: 0px;
+    top: 40px;
+}
+
+#action-collectonly-label {
+    position: absolute;
+    left: 25px;
+    text-align: left;
+    white-space:nowrap;
+    top: 40px;
+}
+
+#action-restart {
+    display: block;
+    position: absolute;
+    left: 0px;
+    top: 80px;
+
+    display: none;
+}
+
+#action-restart-label {
+    position: absolute;
+    left: 25px;
+    text-align: left;
+    white-space:nowrap;
+    top: 80px;
+
+    display: none;
+}
+
+
+
+
+#wizard-trigger-list {
+    position: absolute;
+    top: 70px;
+    left: 10px;
+    width: 220px;
+    border: 1px solid lightgray;
+}
+
+#live-trigger-inputs, #scheduled-trigger-inputs, #conditional-trigger-inputs {
+    position: absolute;
+    top: 100px;
+    left: 10px;
+}
+
+#live-trigger-inputs {
+    display: block;
+}
+
+#live-trigger-timespan-label {
+    position: absolute;
+    left: 0;
+    text-align: left;
+    white-space:nowrap;
+    top: 10px;
+}
+
+#live-trigger-timespan-hours, #live-trigger-timespan-minutes, #live-trigger-timespan-seconds {
+    position: absolute;
+    top: 30px;
+    width: 47px;
+    border: 1px solid lightgray;
+}
+
+#live-trigger-timespan-hours {
+    left: 0px;
+}
+
+#live-trigger-timespan-minutes {
+    left: 81px;
+}
+
+
+#live-trigger-timespan-seconds {
+    left: 162px;
+}
+
+#live-trigger-timespan-hours-label, #live-trigger-timespan-minutes-label, #live-trigger-timespan-seconds-label {
+    position: absolute;
+    top: 30px;
+    width: 10px;
+    text-align: left;
+}
+
+#live-trigger-timespan-hours-label {
+    left: 49px;
+}
+
+
+#live-trigger-timespan-minutes-label {
+    left: 130px;
+}
+
+
+#live-trigger-timespan-seconds-label {
+    left: 211px;
+}
+
+
+
+#live-trigger-timespan-error {
+    position: absolute;
+    left: 0;
+    top: 50px;
+    text-align: left;
+    white-space:nowrap;
+
+    font-size: 10px;
+    font-weight: bold;
+    color: red;
+    display: none;
+}
+
+#scheduled-trigger-inputs {
+    display: none;
+}
+
+#scheduled-trigger-startdate-label {
+    position: absolute;
+    left: 0;
+    text-align: left;
+    white-space:nowrap;
+    top: 10px;
+}
+#scheduled-trigger-startdate {
+    position: absolute;
+    left: 0;
+    top: 30px;
+    width: 220px;
+    border: 1px solid lightgray;
+}
+#scheduled-trigger-startdate-error {
+    position: absolute;
+    left: 0;
+    top: 50px;
+    text-align: left;
+    white-space:nowrap;
+
+    font-size: 10px;
+    font-weight: bold;
+    color: red;
+    display: none;
+}
+#scheduled-trigger-starttime-label {
+    position: absolute;
+    left: 0;
+    text-align: left;
+    white-space:nowrap;
+    top: 65px;
+}
+#scheduled-trigger-starttime {
+    position: absolute;
+    left: 0;
+    top: 85px;
+    width: 220px;
+    border: 1px solid lightgray;
+}
+#scheduled-trigger-starttime-error {
+    position: absolute;
+    left: 0;
+    top: 105px;
+    text-align: left;
+    white-space:nowrap;
+
+    font-size: 10px;
+    font-weight: bold;
+    color: red;
+    display: none;
+}
+#scheduled-trigger-timespan-label {
+    position: absolute;
+    left: 0;
+    text-align: left;
+    white-space:nowrap;
+    top: 120px;
+}
+#scheduled-trigger-timespan-hours, #scheduled-trigger-timespan-minutes, #scheduled-trigger-timespan-seconds {
+    position: absolute;
+    top: 140px;
+    width: 47px;
+    border: 1px solid lightgray;
+}
+#scheduled-trigger-timespan-hours {
+    left: 0px;
+}
+#scheduled-trigger-timespan-minutes {
+    left: 81px;
+}
+#scheduled-trigger-timespan-seconds {
+    left: 162px;
+}
+#scheduled-trigger-timespan-hours-label, #scheduled-trigger-timespan-minutes-label, #scheduled-trigger-timespan-seconds-label {
+    position: absolute;
+    top: 140px;
+    width: 10px;
+    text-align: left;
+}
+#scheduled-trigger-timespan-hours-label {
+    left: 49px;
+}
+#scheduled-trigger-timespan-minutes-label {
+    left: 130px;
+}
+#scheduled-trigger-timespan-seconds-label {
+    left: 211px;
+}
+#scheduled-trigger-timespan-error {
+    position: absolute;
+    left: 0;
+    top: 160px;
+    text-align: left;
+    white-space:nowrap;
+
+    font-size: 10px;
+    font-weight: bold;
+    color: red;
+    display: none;
+}
+
+#conditional-trigger-inputs {
+    display: none;
+}
+
+#conditional-trigger-timespan-label {
+    position: absolute;
+    left: 0;
+    text-align: left;
+    white-space:nowrap;
+    top: 10px;
+}
+#conditional-trigger-timespan-hours, #conditional-trigger-timespan-minutes, #conditional-trigger-timespan-seconds {
+    position: absolute;
+    top: 30px;
+    width: 47px;
+    border: 1px solid lightgray;
+}
+#conditional-trigger-timespan-hours {
+    left: 0px;
+}
+#conditional-trigger-timespan-minutes {
+    left: 81px;
+}
+#conditional-trigger-timespan-seconds {
+    left: 162px;
+}
+#conditional-trigger-timespan-hours-label, #conditional-trigger-timespan-minutes-label, #conditional-trigger-timespan-seconds-label {
+    position: absolute;
+    top: 30px;
+    width: 10px;
+    text-align: left;
+}
+#conditional-trigger-timespan-hours-label {
+    left: 49px;
+}
+#conditional-trigger-timespan-minutes-label {
+    left: 130px;
+}
+#conditional-trigger-timespan-seconds-label {
+    left: 211px;
+}
+#conditional-trigger-timespan-error {
+    position: absolute;
+    left: 0;
+    top: 50px;
+    text-align: left;
+    white-space:nowrap;
+
+    font-size: 10px;
+    font-weight: bold;
+    color: red;
+    display: none;
+}
+#conditional-trigger-statuscodes-label {
+    position: absolute;
+    left: 0;
+    text-align: left;
+    white-space:nowrap;
+    top: 80px;
+}
+#conditional-trigger-requesttime-label {
+    position: absolute;
+    left: 0;
+    text-align: left;
+    white-space:nowrap;
+    top: 110px;
+}
+#conditional-trigger-memory-label {
+    position: absolute;
+    left: 0;
+    text-align: left;
+    white-space:nowrap;
+    top: 140px;
+}
+
+
+
+#storage-current-sasuri-label {
+    position: absolute;
+    top: 70px;
+    left: 10px;
+    text-align: left;
+    white-space:nowrap;
+}
+
+#storage-current-sasuri {
+    display: block;
+    position: absolute;
+    top: 90px;
+    left: 10px;
+    width: 220px;
+    border: 1px solid lightgray;
+}
+
+#wizard-sasurioptions-list {
+    position: absolute;
+    top: 140px;
+    left: 10px;
+    width: 220px;
+    border: 1px solid lightgray;
+}
+
+#providesasuri-storage-inputs, #generatesasuri-storage-inputs {
+    position: absolute;
+    top: 170px;
+    left: 10px;
+}
+
+#providesasuri-storage-inputs {
+    display: block;
+}
+
+#providesasuri-storage-sasuri-label {
+    position: absolute;
+    left: 0;
+    text-align: left;
+    white-space:nowrap;
+    top: 10px;
+}
+#providesasuri-storage-sasuri {
+    position: absolute;
+    left: 0;
+    top: 30px;
+    width: 220px;
+    border: 1px solid lightgray;
+}
+#providesasuri-storage-sasuri-error {
+    position: absolute;
+    left: 0;
+    top: 50px;
+    text-align: left;
+    white-space:nowrap;
+
+    font-size: 10px;
+    font-weight: bold;
+    color: red;
+    display: none;
+}
+
+#generatesasuri-storage-inputs {
+    display: none;
+}
+
+
+#generatesasuri-storage-storageaccount-label {
+    position: absolute;
+    left: 0;
+    text-align: left;
+    white-space:nowrap;
+    top: 10px;
+}
+#generatesasuri-storage-storageaccount {
+    position: absolute;
+    left: 0;
+    top: 30px;
+    width: 220px;
+    border: 1px solid lightgray;
+}
+#generatesasuri-storage-storageaccount-error {
+    position: absolute;
+    left: 0;
+    top: 50px;
+    text-align: left;
+    white-space:nowrap;
+
+    font-size: 10px;
+    font-weight: bold;
+    color: red;
+    display: none;
+}
+#generatesasuri-storage-storagecontainer-label {
+    position: absolute;
+    left: 0;
+    text-align: left;
+    white-space:nowrap;
+    top: 65px;
+}
+#generatesasuri-storage-storagecontainer {
+    position: absolute;
+    left: 0;
+    top: 85px;
+    width: 220px;
+    border: 1px solid lightgray;
+}
+#generatesasuri-storage-storagecontainer-error {
+    position: absolute;
+    left: 0;
+    top: 105px;
+    text-align: left;
+    white-space:nowrap;
+
+    font-size: 10px;
+    font-weight: bold;
+    color: red;
+    display: none;
+}
+#generatesasuri-storage-storagekey-label {
+    position: absolute;
+    left: 0;
+    text-align: left;
+    white-space:nowrap;
+    top: 120px;
+}
+#generatesasuri-storage-storagekey {
+    position: absolute;
+    left: 0;
+    top: 140px;
+    width: 220px;
+    border: 1px solid lightgray;
+}
+#generatesasuri-storage-storagekey-error {
+    position: absolute;
+    left: 0;
+    top: 160px;
+    text-align: left;
+    white-space:nowrap;
+
+    font-size: 10px;
+    font-weight: bold;
+    color: red;
+    display: none;
+}
+
+
+
+
+
+
+.checklist-container {
+    position: absolute;
+    top: 0px;
+    bottom: 0px;
+    padding-top: 5px;
+    padding-bottom: 5px;
+    width: 100%;
+    overflow-y: scroll;
+}
+
+.checklist-item {
+    float: left;
+    height: 30px;
+    width: 100%;
+}
+
+.checklist-item-container {
+    position: relative;
+    left: 5%;
+    width: 95%;
+    text-align: left;
+}
+
+.checklist-item-label {
+    display: block;
+    position: absolute;
+    left: 0px;
+    width: 65%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.checklist-item-input {
+    display: block;
+    position: absolute;
+    top: 1px;
+    right: 2%;
+}
+
+.info-button, .warning-button {
+    display: block;
+    position: absolute;
+    top: 3px;
+    height: 13px;
+    width: 13px;
+    background-repeat:no-repeat;
+    background-position:center;
+    background-size: 100%;
+}
+
+.info-button {
+    right: 15%;
+    background-image: url('/DaaS/Content/img/infoBlue.png');
+}
+
+.warning-button {
+    right: 25%;
+    background-image: url('/DaaS/Content/img/warningOrange.png');
+}
+
+.info-box-strip-help, .info-box-strip-warning {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 20px;
+    background-repeat:no-repeat;
+    background-position:center;
+    opacity: .5;
+}
+
+.info-box-strip-help {
+    background-color: rgb(100, 160, 255);
+    background-image: url('/DaaS/Content/img/infoWhite.png');
+}
+
+.info-box-strip-warning {
+    background-color: orange;
+    background-image: url('/DaaS/Content/img/warningWhite.png');
+}
+
+.info-box-heading {
+	position: absolute;
+    left: 20px;
+    right: 0px;
+    height: 19px;
+    border-bottom: 1px solid lightgray;
+	font-weight: bold;
+}
+
+.info-box-text {
+    position: absolute;
+    top: 20px;
+    bottom: 0;
+    left: 20px;
+    right: 0;
+    padding: 10px;
+    text-align: left;
+    overflow-y: auto;
+}
+
+
+
+/*----------------------------------------------Container--------------------------------------------------*/
+
+#container {
+    position: relative;
+    overflow-y: hidden;
+    overflow-x: hidden;
+    top: 50px;
+    margin: auto;
+    height: 770px;
+    /*width: 70%;
+    min-width: 860px;*/
+    width: 860px;
+}
+
+
+#messages {
+    position: absolute;
+    top: 10px;
+    width: 96%;
+    left: 2%;
+}
+
+/*----------------------------------------------Launcher Controls--------------------------------------------------*/
+
+#launch-controls {
+    position: absolute;
+    top: 50px;
+	height: 260px;
+    width: 850px;
+}
+
+#launch-controls-live-diagnose, #launch-controls-scheduled-diagnose {
+	position: absolute;
+	top: 20px;
+	height: 220px;
+	width: 400px;
+    border: 1px solid rgba(0, 0, 0, 0.3);
+    border-radius: 6px 6px 6px 6px;
+    box-shadow: 0 3px 3px rgba(0, 0, 0, 0.3), 0 -1px 3px rgba(0, 0, 0, 0.3);
+    background-color: whitesmoke;
+    cursor: pointer;
+}
+
+#launch-controls-live-diagnose:hover, #launch-controls-scheduled-diagnose:hover {
+	background-color: rgb(197, 196, 196);
+}
+
+#launch-controls-live-diagnose {
+	left: 5px;
+}
+
+#launch-controls-scheduled-diagnose {
+	right: 5px;
+}
+
+#launch-controls-live-diagnose-button, #launch-controls-scheduled-diagnose-button {
+	position: absolute;
+	top: 5px;
+	left: 110px;
+	height: 180px;
+	width: 180px;
+
+    background-repeat:no-repeat;
+    background-position:center;
+    background-size: 100%;
+
+}
+
+#launch-controls-live-diagnose-button {
+    background-image: url('/DaaS/Content/img/express-start.png');
+}
+
+#launch-controls-scheduled-diagnose-button {
+    background-image: url('/DaaS/Content/img/custom-start.png');
+}
+
+.launch-controls-label {
+	position: absolute;
+	bottom: 5px;
+	width: 100%;
+	text-align: center;
+	font-weight: bold;
+	/*cursor: pointer;*/
+}
+
+/*.launch-controls-label:hover {
+	color: #666666;
+}*/
+
+.launch-controls-help-open-button, .launch-controls-help-close-button {
+	position: absolute;
+	top: 5px;
+	right: 5px;
+	height: 15px;
+	width: 15px;
+	cursor: pointer;
+
+    background-repeat:no-repeat;
+    background-position:center;
+    background-size: 100%;
+}
+
+.launch-controls-help-open-button {
+    background-image: url('/DaaS/Content/img/questionBlue.png');
+}
+
+.launch-controls-help-close-button {
+    background-image: url('/DaaS/Content/img/close.png');
+}
+
+.launch-controls-help-text {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	background-color: rgb(100, 155, 236);
+    color: white;
+	display: none;
+	border-radius: 5px;
+	padding: 20px;
+    cursor: auto;
+}
+
+/*----------------------------------------------Viewer--------------------------------------------------*/
+
+#viewer {
+    position: absolute;
+    top: 310px;
+    left: 5px;
+    bottom: 0;
+    right: 0;
+    height: 448px;
+    width: 850px;
+    overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, 0.3);
+    border-radius: 6px 6px 6px 6px;
+    box-shadow: 0 3px 3px rgba(0, 0, 0, 0.3), 0 -1px 3px rgba(0, 0, 0, 0.3);
+}
+
+#sessions-container, #session-container, #sessions-shield, #session-shield {
+    position: absolute;
+    top: 60px;
+    bottom: 0px;
+    width: 100%;
+
+    overflow-y: scroll;
+	
+	cursor: default;
+	
+	background-color: white;
+
+    display: none;
+}
+
+#sessions-container, #sessions-shield {
+    z-index: 100;
+}
+
+#session-container, #session-shield {
+    z-index: 200;
+}
+
+#sessions-shield, #session-shield {
+    background-color: white;
+    background-repeat:no-repeat;
+    background-position:center;
+    background-image: url('/DaaS/Content/img/spinner.gif');
+}
+
+#viewer-back-arrow {
+    position:absolute;
+    top: 4px;
+    left: 4px;
+    height: 22px;
+    width: 22px;
+    cursor: pointer;
+    display: none;
+
+    background-repeat:no-repeat;
+    background-position:center;
+    background-size: 100%;
+    background-image: url('/DaaS/Content/img/back-white.png');
+}
+
+#viewer-title, #viewer-title-scroll-hider {
+    position: absolute;
+    top: 0;
+    height: 30px;
+    background-color: rgb(100, 155, 236);
+}
+
+#viewer-headings, #viewer-headings-scroll-hider {
+    position: absolute;
+    top: 30px;
+    height: 30px;
+    background-color: gray;
+}
+
+#viewer-title, #viewer-headings {
+	width: 100%;
+	overflow-y: scroll;
+}
+
+#viewer-title-scroll-hider, #viewer-headings-scroll-hider {
+    right: 0px;
+    width: 5%;
+    z-index: 2;
+}
+
+.textcenter {
+    text-align: center;
+}
+
+.textleft {
+    text-align: left;
+}
+
+.textbold {
+    font-weight: bold;
+}
+
+.expand-button, .contract-button {
+    display: block;
+    position: relative;
+    top: 50%;
+    left: 40%;
+    margin-top: -5px;
+    margin-left: -5px;
+    height: 10px;
+    width: 10px;
+    background-repeat:no-repeat;
+    background-position:center;
+    background-size: 100%;
+    cursor: pointer;
+}
+
+.expand-button {
+    background-image: url('/DaaS/Content/img/plusBlack.png');
+}
+
+.contract-button {
+    background-image: url('/DaaS/Content/img/minusBlack.png');
+}
+
+.column-spacer, .column-left, .column-third, .column-full, .column {
+    float: left;
+    height: 100%;
+}
+
+.column-spacer span, .column-left span, .column-third span, .column-full span, .column span, .column-third a {
+    display: block;
+    /*width: 0px;*/
+    height: 20px;
+    top: 50%;
+    margin-top: -10px;
+    position: relative;
+
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.column-third span, .column-full span, .column-third a {
+    width: 100%;
+    text-align: center;
+}
+
+.column-third a {
+    text-overflow: ellipsis;
+    overflow: hidden;
+}
+
+.column-spacer {
+    min-width: 34px;
+    width: 4%;
+}
+
+.column-left {
+    min-width: 238px;
+    width: 28%;
+}
+
+.column-third {
+    min-width: 272px;
+    width: 32%;
+}
+
+.column-full {
+    min-width: 816px;
+    width: 96%;
+}
+
+.column {
+    min-width: 170px;
+    width: 20%;
+}
+
+/*#viewer-title div,*/ #viewer-headings div {
+    text-decoration: underline;
+}
+
+#viewer-title, #viewer-headings, .session-summary {
+    font-weight: bold;
+}
+
+.expandable-reports, .expandable-logs {
+    float: left;
+    width: 100%;
+}
+
+.report, .logs {
+    display: none;
+}
+
+.start-analysis-button {
+    cursor: pointer;
+}
+
+.start-analysis-button:hover {
+    color: #0066FF;
+}
+
+.session {
+    float: left;
+    width: 100%;
+}
+
+.session-summary, .session-diagnoser, .log, .report {
+    float: left;
+    height: 40px;
+    width: 100%;
+}
+
+/*.session:hover {
+	background-color: rgb(211, 229, 255);
+}*/
+
+.session:hover .session-summary {
+	background-color: rgb(240, 238, 173);
+}
+
+.session:hover .session-diagnoser {
+	background-color: rgb(241, 241, 226);
+}
+
+.session:hover .session-diagnoser:hover {
+	background-color: rgb(240, 239, 215);
+}
+
+
+.session-summary:hover, .session-diagnoser:hover {
+    /*color: rgb(0,0,255);*/
+    /*font-size: 17px;*/
+    font-style: italic;
+    /*text-shadow: 1px 1px 1px rgb(100, 160, 255);*/
+    /*text-shadow: 1px 1px 1px darkgray;*/
+}
+
+.session-summary {
+    z-index: 1;
+}
+
+.session-diagnoser {
+    display: none;
+}
+
+.log, .report {
+    display: none;
+}
+
+.status-running-icon, .status-waiting-icon, .status-error-icon, .status-aborted-icon, .status-unknown-icon, .status-notrequested-icon, .log-icon, .report-icon, .session-drilldown-button {
+    display: block;
+    position: relative;
+    top: 50%;
+
+    background-repeat:no-repeat;
+    background-position:center;
+    background-size: 100%;
+}
+
+.status-running-icon, .status-waiting-icon, .status-error-icon, .status-aborted-icon, .status-unknown-icon, .status-notrequested-icon, .log-icon, .report-icon {
+    left: 50%;
+    height: 30px;
+    width: 30px;
+    margin-top: -15px;
+    margin-left: -15px;
+}
+
+.status-running-icon {
+    background-image: url('/DaaS/Content/img/running.gif');
+}
+
+.status-waiting-icon {
+    background-image: url('/DaaS/Content/img/waiting.gif');
+}
+
+.status-error-icon {
+    background-image: url('/DaaS/Content/img/bangRed.png');
+}
+
+.status-aborted-icon {
+    background-image: url('/DaaS/Content/img/bangBlack.png');
+}
+
+.status-unknown-icon {
+    background-image: url('/DaaS/Content/img/questionBlue.png');
+}
+
+.status-notrequested-icon {
+    background-image: url('/DaaS/Content/img/minusBlack.png');
+}
+
+.log-icon {
+    background-image: url('/DaaS/Content/img/file.png');
+}
+
+.report-icon {
+    background-image: url('/DaaS/Content/img/file.png');
+}
+
+.session-drilldown-button {
+    left: 97%;
+    height: 20px;
+    width: 20px;
+    margin-top: -10px;
+    margin-left: -20px;
+    background-image: url('/DaaS/Content/img/forward.png');
+    cursor: pointer;
+}
+
+
+
+.submitbutton, .cancelbutton {
+    position: absolute;
+    bottom: 40px;
+    padding-top: 10px;
+
+    text-align: center;
+    font-size: 35px;
+    font-weight: bold;
+    
+    border: 1px solid gray;
+
+    background-color: darkgray;
+}
+
+.submitbutton {
+    left: 55%;
+    right: 30%;
+}
+
+.cancelbutton {
+    left: 80%;
+    right: 5%;
+}

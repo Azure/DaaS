@@ -1,0 +1,26 @@
+﻿<div>
+    This request is spending time in <strong>AspNetCore</strong> module and we didn't find any <strong>ASP.NET Core ETW events</strong> in this trace file.
+    <br /><br />
+    To use this profiler effectively with <strong>ASP.NET Core apps</strong>, you need to do two things <strong>if your ASP.NET Core verison is below ASP.NET Core 2.2.0 Preview 3</strong> :-
+    <br /><br />
+    <ol>
+        <li>
+            Add below code in the Program.cs as mentioned in <a href="https://docs.microsoft.com/en-us/aspnet/core/fundamentals/logging/?view=aspnetcore-2.2" target="_blank">Logging in ASP.NET Core</a> article
+            <pre style='margin-top:15px'>   logging.AddEventSourceLogger(); </pre>
+        </li>
+
+        <li>
+            Update the default <code>LogLevel</code> in <code>appsettings.json</code> to <code>Information</code>, like below
+            <br />
+
+            <pre style='margin-top:15px'>
+            "Logging": {
+                "LogLevel": {
+                  "Default": "Information"
+                }
+            }
+      </pre>
+        </li>
+    </ol>
+    Alternatively, you can also configure <strong>Application Insights and additional logging for ASP.NET core </strong>by following <a href="https://blogs.msdn.microsoft.com/webdev/2017/08/14/announcing-asp-net-core-2-0/">this</a> article.
+</div>

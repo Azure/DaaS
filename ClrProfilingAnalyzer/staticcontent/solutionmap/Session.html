@@ -1,0 +1,17 @@
+﻿This request is stuck in the
+<b>ASP.NET SessionState Module</b>. This can happen under the following conditions:
+<ol>
+    <li>
+        Multiple requests came for the same session ID. When this happens ASP.NET serializes the requests and executes only one request at a given point of time. This happens most commonly if your Web Application is making AJAX calls to web pages or Web API in the same application OR if you are running a stress test and you end up passing the same Session ID in all the requests.
+    </li>
+    <li>
+        You are storing session data in an OutProc session store (for e.g. a SQL Server or Redis Cache) and the SessionState provider is introducing a delay.
+    </li>
+</ol>
+
+<b>Recommendations</b>
+<ol>
+    <li>Evaluate if there is session state required for your application</li>
+    <li>For pages not modifying Session State, mark the <strong>EnableSessionState</strong> property at the Page level to <strong>ReadOnly</strong>. For more details check <a href="https://msdn.microsoft.com/en-us/library/system.web.configuration.pagessection.enablesessionstate(v=vs.110).aspx">this</a> article.</li>
+    <li>If you are using an <strong>OutProc</strong> Session state provider, then check if the provider is behaving normally</li>
+</ol>

@@ -1,0 +1,33 @@
+* --------- General Info -----------
+vertarget
+*
+* ------ Current Actions for Hang Mode ----
+*  Name: Stacks
+*  Name: Loaded Modules
+*  Name: Handle
+*  Name: Thread CPU Usage Information
+*  Name: PHP Call Stacks
+*  Name: PHP Request Info
+*  Name: PHP Core Global
+* ------ Thread stack backtrace information ------
+~0kb250
+*
+* ------ Loaded modules ------
+lm
+*
+* ------ Handle information ------
+!handle 0 0
+*
+* ------ Thread CPU Usage Information ------
+!runaway
+*
+* ------ PHP Call Stacks ------
+!phpexts.dpcs
+*
+* ------ PHP Request Info ------
+!phpexts.dcri
+*
+* ------ PHP Core Global ------
+!phpexts.dpcg
+*
+q

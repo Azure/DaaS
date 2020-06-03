@@ -1,0 +1,41 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<DiagnosticSettings>
+  <!--
+    Valid variables are:
+      - outputDir
+      - logFile
+      - startTime
+      - endTime
+      - diagnosticToolsPath
+      - TEMP
+      - ProgramFiles
+      - ProgramFiles(x86)
+  -->
+
+  <!-- Each Diagnoser contains a collector and an analyzer that have
+         been defined in the Collectors and Analyzers lists -->
+  <Diagnosers>
+  </Diagnosers>
+
+  <Collectors>
+  </Collectors>
+
+  <Analyzers>
+  </Analyzers>
+
+    <!-- The below set of settings can be overriden if required. 
+    Please note, some of these will have adverse effect on disk space used by DaaS on your App
+    -->
+  <!--
+  <Settings>
+    <MaxAnalyzerTimeInMinutes>25</MaxAnalyzerTimeInMinutes>
+    <MaxSessionTimeInMinutes>60</MaxSessionTimeInMinutes>
+    <MaxNumberOfDaysForSessions>20</MaxNumberOfDaysForSessions>
+    <MaxDiagnosticSessionsToKeep>10</MaxDiagnosticSessionsToKeep>
+    <MaxSessionCountInThresholdPeriod>5</MaxSessionCountInThresholdPeriod>
+    <MaxSessionCountThresholdPeriodInMinutes>120</MaxSessionCountThresholdPeriodInMinutes>
+    <MaxSessionsPerDay>6</MaxSessionsPerDay>
+  </Settings>
+  -->
+
+</DiagnosticSettings>
