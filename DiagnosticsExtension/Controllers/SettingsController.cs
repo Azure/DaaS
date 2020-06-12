@@ -51,18 +51,28 @@ namespace DiagnosticsExtension.Controllers
             {
                 container.ListBlobs();
             }
-            catch
+            catch (Exception ex)
             {
+                DaaS.Logger.LogErrorEvent("Encountered exception while validating SAS URI", ex);
                 return false;
             }
 
             return true;
         }
 
-        private static string GenerateContainerSasUri(string accountName, string accountKey, string containerName)
+        private static string GenerateContainerSasUri(string accountName, string accountKey, string containerName, string endpointSuffix)
         {
-            Microsoft.WindowsAzure.Storage.Auth.StorageCredentials credentials = new Microsoft.WindowsAzure.Storage.Auth.StorageCredentials(accountName, accountKey);
-            CloudStorageAccount storageAccount = new CloudStorageAccount(credentials, true);
+            StorageCredentials credentials = new StorageCredentials(accountName, accountKey);
+            CloudStorageAccount storageAccount;
+            if (string.IsNullOrWhiteSpace(endpointSuffix))
+            {
+                storageAccount = new CloudStorageAccount(credentials, useHttps: true);
+            }
+            else
+            {
+                storageAccount = new CloudStorageAccount(credentials, endpointSuffix, useHttps:true);
+            }
+
             CloudBlobClient blobClient = storageAccount.CreateCloudBlobClient();
 
             CloudBlobContainer container = blobClient.GetContainerReference(containerName);
@@ -70,9 +80,11 @@ namespace DiagnosticsExtension.Controllers
 
             //Set the expiry time and permissions for the container.
             //In this case no start time is specified, so the shared access signature becomes valid immediately.
-            SharedAccessBlobPolicy sasConstraints = new SharedAccessBlobPolicy();
-            sasConstraints.SharedAccessExpiryTime = new DateTime(9999, 12, 31, 23, 59, 59, 999, new GregorianCalendar(GregorianCalendarTypes.USEnglish), DateTimeKind.Utc);
-            sasConstraints.Permissions = SharedAccessBlobPermissions.Write | SharedAccessBlobPermissions.Read | SharedAccessBlobPermissions.List | SharedAccessBlobPermissions.Delete;
+            SharedAccessBlobPolicy sasConstraints = new SharedAccessBlobPolicy
+            {
+                SharedAccessExpiryTime = new DateTime(9999, 12, 31, 23, 59, 59, 999, new GregorianCalendar(GregorianCalendarTypes.USEnglish), DateTimeKind.Utc),
+                Permissions = SharedAccessBlobPermissions.Write | SharedAccessBlobPermissions.Read | SharedAccessBlobPermissions.List | SharedAccessBlobPermissions.Delete
+            };
 
             //Generate the shared access signature on the container, setting the constraints directly on the signature.
             string sasContainerToken = container.GetSharedAccessSignature(sasConstraints);
@@ -81,46 +93,44 @@ namespace DiagnosticsExtension.Controllers
             return container.Uri + sasContainerToken;
         }
 
-        public bool Post([FromBody] Settings input)
+        public HttpResponseMessage Post([FromBody] Settings settings)
         {
-            //Simulate Delay
-            //System.Threading.Thread.Sleep(20000);
-
             try
             {
                 SessionController sessionController = new SessionController();
-                if (input.BlobSasUri != "")
+                if (settings.BlobSasUri != "")
                 {
-                    if (input.BlobSasUri == "clear")
+                    if (settings.BlobSasUri == "clear")
                     {
                         sessionController.BlobStorageSasUri = "";
                     }
                     else
                     {
-                        if (!ValidateContainerSasUri(input.BlobSasUri))
-                            return false;
-                        sessionController.BlobStorageSasUri = input.BlobSasUri;
+                        if (!ValidateContainerSasUri(settings.BlobSasUri))
+                            return Request.CreateResponse(HttpStatusCode.OK, false);
+                        sessionController.BlobStorageSasUri = settings.BlobSasUri;
                     }
 
-                    return true;
+                    return Request.CreateResponse(HttpStatusCode.OK, true);
                 }
                 else
                 {
-                    var sasUri = GenerateContainerSasUri(input.BlobAccount, input.BlobKey, input.BlobContainer);
+                    var sasUri = GenerateContainerSasUri(settings.BlobAccount, settings.BlobKey, settings.BlobContainer, settings.EndpointSuffix);
                     if (sasUri != null)
                     {
                         sessionController.BlobStorageSasUri = sasUri;
-                        return true;
+                        return Request.CreateResponse(HttpStatusCode.OK, true);
                     }
                     else
                     {
-                        return false;
+                        return Request.CreateResponse(HttpStatusCode.OK, false);
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                return false;
+                DaaS.Logger.LogErrorEvent("Encountered exception while changing settings", ex);
+                return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, ex.Message);
             }
         }
     }

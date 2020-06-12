@@ -252,6 +252,8 @@ namespace DiagnosticsExtension.Models
         public string BlobKey;
         [DataMember]
         public string BlobAccount;
+        [DataMember]
+        public string EndpointSuffix;
     }
 
     public class PrivateSetting
