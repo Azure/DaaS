@@ -116,7 +116,7 @@ namespace DiagnosticsExtension.Controllers
                 else
                 {
                     var sasUri = GenerateContainerSasUri(settings.BlobAccount, settings.BlobKey, settings.BlobContainer, settings.EndpointSuffix);
-                    if (sasUri != null)
+                    if (!string.IsNullOrWhiteSpace(sasUri))
                     {
                         sessionController.BlobStorageSasUri = sasUri;
                         return Request.CreateResponse(HttpStatusCode.OK, true);
