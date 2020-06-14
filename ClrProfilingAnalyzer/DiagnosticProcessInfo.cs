@@ -1,4 +1,11 @@
-﻿using Microsoft.Diagnostics.Tracing.Etlx;
+//-----------------------------------------------------------------------
+// <copyright file="DiagnosticProcessInfo.cs" company="Microsoft Corporation">
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See LICENSE in the project root for license information.
+// </copyright>
+//-----------------------------------------------------------------------
+
+using Microsoft.Diagnostics.Tracing.Etlx;
 using System;
 
 namespace ClrProfilingAnalyzer

@@ -1,4 +1,11 @@
-﻿using ClrProfilingAnalyzer.Parser;
+//-----------------------------------------------------------------------
+// <copyright file="RequestFailureDetails.cs" company="Microsoft Corporation">
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See LICENSE in the project root for license information.
+// </copyright>
+//-----------------------------------------------------------------------
+
+using ClrProfilingAnalyzer.Parser;
 using Microsoft.Diagnostics.Tracing.Parsers;
 using System.Collections.Generic;
 

@@ -1,4 +1,11 @@
-﻿using DiagnosticsExtension.Models;
+//-----------------------------------------------------------------------
+// <copyright file="SessionsController.cs" company="Microsoft Corporation">
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See LICENSE in the project root for license information.
+// </copyright>
+//-----------------------------------------------------------------------
+
+using DiagnosticsExtension.Models;
 using DaaS;
 using DaaS.Diagnostics;
 using DaaS.Sessions;
