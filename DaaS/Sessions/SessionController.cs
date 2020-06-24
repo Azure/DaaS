@@ -421,31 +421,56 @@ namespace DaaS.Sessions
                 //
                 // First delete all files in the Directory
                 // 
-                foreach (string file in Directory.GetFiles(path))
-                {
-                    try
-                    {
-                        RetryHelper.RetryOnException("Recursively deleting files...", () =>
-                        {
-                            System.IO.File.Delete(file);
-                        }, 
-                        TimeSpan.FromSeconds(2), 
-                        times: 5, 
-                        logAllExceptions:false, 
-                        throwAfterRetry: false);
-                    }
-                    catch (Exception)
-                    {
-                    }
 
+                string[] files = null;
+                try
+                {
+                    files = Directory.GetFiles(path);
                 }
-                
+                catch (Exception)
+                {
+                }
+                if (files != null)
+                {
+                    foreach (string file in files)
+                    {
+                        try
+                        {
+                            RetryHelper.RetryOnException("Recursively deleting files...", () =>
+                            {
+                                System.IO.File.Delete(file);
+                            },
+                            TimeSpan.FromSeconds(2),
+                            times: 5,
+                            logAllExceptions: false,
+                            throwAfterRetry: false);
+                        }
+                        catch (Exception)
+                        {
+                        }
+
+                    }
+                }
+
                 //
                 // Delete all child Directories
                 // 
-                foreach (string directory in Directory.GetDirectories(path))
+
+                string[] directories = null;
+                try
                 {
-                    RecursiveDelete(directory);
+                    directories = Directory.GetDirectories(path);
+                }
+                catch (Exception)
+                {
+                }
+
+                if (directories != null)
+                {
+                    foreach (string directory in directories)
+                    {
+                        RecursiveDelete(directory);
+                    }
                 }
 
                 try
