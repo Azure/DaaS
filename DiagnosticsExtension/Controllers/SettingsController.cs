@@ -18,6 +18,7 @@ using System.Net.Http;
 using System.Web.Http;
 using System.Globalization;
 using Microsoft.WindowsAzure.Storage.Auth;
+using DaaS;
 
 namespace DiagnosticsExtension.Controllers
 {
@@ -77,7 +78,7 @@ namespace DiagnosticsExtension.Controllers
             }
             else
             {
-                storageAccount = new CloudStorageAccount(credentials, endpointSuffix, useHttps:true);
+                storageAccount = new CloudStorageAccount(credentials, endpointSuffix, useHttps: true);
             }
 
             CloudBlobClient blobClient = storageAccount.CreateCloudBlobClient();
@@ -104,8 +105,21 @@ namespace DiagnosticsExtension.Controllers
         {
             try
             {
+                //
+                // If the user is trying to change the Storage Account, make
+                // sure that there is no active CPU monitoring session in progress
+                //
+                if (!string.IsNullOrWhiteSpace(settings.BlobAccount)
+                    && !string.IsNullOrWhiteSpace(settings.BlobContainer)
+                    && !string.IsNullOrWhiteSpace(settings.BlobKey)
+                    && !string.IsNullOrWhiteSpace(DaaS.Configuration.Settings.Instance.BlobStorageSas)
+                    && IsCpuMonitoringSessionActive())
+                {
+                    return Request.CreateErrorResponse(HttpStatusCode.Conflict, "It is not possible to change the storage account because there is an active CPU Monitoring session using this storage account");
+                }
+
                 SessionController sessionController = new SessionController();
-                if (settings.BlobSasUri != "")
+                if (!string.IsNullOrWhiteSpace(settings.BlobSasUri))
                 {
                     if (settings.BlobSasUri == "clear")
                     {
@@ -139,6 +153,12 @@ namespace DiagnosticsExtension.Controllers
                 DaaS.Logger.LogErrorEvent("Encountered exception while changing settings", ex);
                 return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, ex.Message);
             }
+        }
+
+        private bool IsCpuMonitoringSessionActive()
+        {
+            var monitoringController = new MonitoringSessionController();
+            return monitoringController.GetActiveSession() != null;
         }
     }
 }

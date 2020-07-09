@@ -48,6 +48,7 @@ namespace MemoryDumpCollector
         //limit the number of crash mode debuggers we launch on each worker
         private static int _maxDebuggers = 10;
         private static List<int> _processesToIgnore = new List<int>();
+        private static readonly string[] _additionalProcesses = new string[] { "java" };
 
         static void Main(string[] args)
         {
@@ -116,7 +117,11 @@ namespace MemoryDumpCollector
                 }
 
                 List<Process> requestedProcesses =
-                    Process.GetProcesses().Where(p => p.ProcessName.Equals(_processName, StringComparison.OrdinalIgnoreCase) && !_processesToIgnore.Contains(p.Id)).ToList();
+                    Process.GetProcesses().Where(p => p.ProcessName.Equals(_processName, StringComparison.OrdinalIgnoreCase) 
+                        && !_processesToIgnore.Contains(p.Id)).ToList();
+
+                var additionalProcesses = Process.GetProcesses().Where(p => _additionalProcesses.Contains(p.ProcessName, StringComparer.OrdinalIgnoreCase));
+                requestedProcesses = requestedProcesses.Union(additionalProcesses).ToList();
 
                 if (requestedProcesses.Count == 0)
                 {

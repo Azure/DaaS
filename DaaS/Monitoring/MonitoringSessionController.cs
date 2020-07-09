@@ -399,7 +399,6 @@ namespace DaaS
 
         public MonitoringSession GetActiveSession()
         {
-            var sessions = new List<MonitoringSession>();
             string cpuMonitorPath = GetCpuMonitoringPath(MonitoringSessionDirectories.Active);
             var existingFiles = FileSystemHelpers.GetFilesInDirectory(cpuMonitorPath, "*.json", false, SearchOption.TopDirectoryOnly);
 
