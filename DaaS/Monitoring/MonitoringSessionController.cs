@@ -226,35 +226,42 @@ namespace DaaS
         {
             var filesCollected = new List<MonitoringFile>();
 
-            if (string.IsNullOrWhiteSpace(blobSasUri))
+            try
             {
-                string folderName = CpuMonitoring.GetLogsFolderForSession(sessionId);
-                if (FileSystemHelpers.DirectoryExists(folderName))
+                if (string.IsNullOrWhiteSpace(blobSasUri))
                 {
-                    var logFiles = FileSystemHelpers.GetFilesInDirectory(folderName, "*.dmp", false, SearchOption.TopDirectoryOnly);
-                    foreach (var fileName in logFiles)
+                    string folderName = CpuMonitoring.GetLogsFolderForSession(sessionId);
+                    if (FileSystemHelpers.DirectoryExists(folderName))
                     {
-                        string relativePath = MonitoringFile.GetRelativePath(sessionId, Path.GetFileName(fileName));
+                        var logFiles = FileSystemHelpers.GetFilesInDirectory(folderName, "*.dmp", false, SearchOption.TopDirectoryOnly);
+                        foreach (var fileName in logFiles)
+                        {
+                            string relativePath = MonitoringFile.GetRelativePath(sessionId, Path.GetFileName(fileName));
+                            filesCollected.Add(new MonitoringFile(fileName, relativePath));
+                        }
+                    }
+                }
+                else
+                {
+                    string directoryPath = Path.Combine("Monitoring", "Logs", sessionId);
+                    List<string> files = new List<string>();
+                    var dir = BlobController.GetBlobDirectory(directoryPath, blobSasUri);
+                    foreach (
+                        IListBlobItem item in
+                            dir.ListBlobs(useFlatBlobListing: true))
+                    {
+                        var relativePath = item.Uri.ToString().Replace(item.Container.Uri.ToString() + "/", "");
+                        string fileName = item.Uri.Segments.Last();
                         filesCollected.Add(new MonitoringFile(fileName, relativePath));
                     }
                 }
             }
-            else
+            catch (Exception ex)
             {
-                string directoryPath = Path.Combine("Monitoring", "Logs", sessionId);
-                List<string> files = new List<string>();
-                var dir = BlobController.GetBlobDirectory(directoryPath, blobSasUri);
-                foreach (
-                    IListBlobItem item in
-                        dir.ListBlobs(useFlatBlobListing: true))
-                {
-                    var relativePath = item.Uri.ToString().Replace(item.Container.Uri.ToString() + "/", "");
-                    string fileName = item.Uri.Segments.Last();
-                    filesCollected.Add(new MonitoringFile(fileName, relativePath));
-                }
+                Logger.LogCpuMonitoringErrorEvent("Failed while getting the list of logs collected for the session", ex, sessionId);
             }
+            
             return filesCollected;
-
         }
 
         internal void AddReportToLog(string sessionId, string logfileName, string reportFilePath, List<string> errors, bool shouldUpdateSessionStatus = true)
@@ -368,18 +375,25 @@ namespace DaaS
 
         private void MoveMonitoringLogsToSession(string sessionId)
         {
-            string logsFolderPath = CpuMonitoring.GetLogsFolderForSession(sessionId);
-            string monitoringFolderActive = GetCpuMonitoringPath(MonitoringSessionDirectories.Active);
-            var filesCollected = FileSystemHelpers.GetFilesInDirectory(monitoringFolderActive, "*.log", false, SearchOption.TopDirectoryOnly);
-            foreach (string monitoringLog in filesCollected)
+            try
             {
-                string fileName = Path.GetFileName(monitoringLog);
-                fileName = Path.Combine(logsFolderPath, fileName);
-                Logger.LogCpuMonitoringVerboseEvent($"Moving {monitoringLog} to {fileName}", sessionId);
-                RetryHelper.RetryOnException("Moving monitoring log to logs folder...", () =>
+                string logsFolderPath = CpuMonitoring.GetLogsFolderForSession(sessionId);
+                string monitoringFolderActive = GetCpuMonitoringPath(MonitoringSessionDirectories.Active);
+                var filesCollected = FileSystemHelpers.GetFilesInDirectory(monitoringFolderActive, "*.log", false, SearchOption.TopDirectoryOnly);
+                foreach (string monitoringLog in filesCollected)
                 {
-                    FileSystemHelpers.MoveFile(monitoringLog, fileName);
-                }, TimeSpan.FromSeconds(5), 5);
+                    string fileName = Path.GetFileName(monitoringLog);
+                    fileName = Path.Combine(logsFolderPath, fileName);
+                    Logger.LogCpuMonitoringVerboseEvent($"Moving {monitoringLog} to {fileName}", sessionId);
+                    RetryHelper.RetryOnException("Moving monitoring log to logs folder...", () =>
+                    {
+                        FileSystemHelpers.MoveFile(monitoringLog, fileName);
+                    }, TimeSpan.FromSeconds(5), 5);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogCpuMonitoringErrorEvent("Failed while moving monitoring logs for the session", ex, sessionId);
             }
         }
 
