@@ -182,6 +182,7 @@
     <Compile Include="Controllers\BlobInfoController.cs" />
     <Compile Include="Controllers\CertificateTestController.cs" />
     <Compile Include="Controllers\CpuMonitoringController.cs" />
+    <Compile Include="Controllers\CrashMonitoringController.cs" />
     <Compile Include="Controllers\DaasAdministerController.cs" />
     <Compile Include="Controllers\DatabaseTestController.cs" />
     <Compile Include="Controllers\DownloadFileController.cs" />

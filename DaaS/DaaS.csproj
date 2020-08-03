@@ -50,6 +50,8 @@
     <Compile Include="ApplicationInfo\RuntimeFramework.cs" />
     <Compile Include="ApplicationInfo\WebConfigSection.cs" />
     <Compile Include="ConversionUtils.cs" />
+    <Compile Include="CrashMonitoring\CrashController.cs" />
+    <Compile Include="CrashMonitoring\CrashMonitoringFile.cs" />
     <Compile Include="DaasEventSource.cs" />
     <Compile Include="DaaSFileInfo.cs" />
     <Compile Include="DelegatingStream.cs" />
