@@ -23,6 +23,7 @@ namespace DiagnosticsExtension.Controllers
     public class EventsController : ApiController
     {
         public string EventLogFile = Path.Combine(Environment.GetEnvironmentVariable("HOME"), "Logfiles" , "eventlog.xml");
+        public string EventLogArchiveFile = Path.Combine(Environment.GetEnvironmentVariable("HOME"), "Logfiles", "eventlog.prev.xml");
         public string EventLogFilePath = Path.Combine(Environment.GetEnvironmentVariable("HOME"), "Logfiles");
 
         public async Task<HttpResponseMessage> Get()
@@ -30,7 +31,7 @@ namespace DiagnosticsExtension.Controllers
             var events = new List<ServerSideEvent>();
             try
             {
-                events = await EventLogParser.GetEvents(EventLogFile);
+                events = await EventLogParser.GetEvents(EventLogFile, EventLogArchiveFile);
                 return Request.CreateResponse(HttpStatusCode.OK, events);
             }
             catch (XmlException)
