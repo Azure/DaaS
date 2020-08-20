@@ -208,7 +208,7 @@ namespace DiagnosticsExtension
 
             InitializeKnownResourceTypes();
 
-            if (!string.IsNullOrEmpty(eventLogArchivePath))
+            if (!string.IsNullOrEmpty(eventLogArchivePath) && File.Exists(eventLogArchivePath))
             {
                 string archiveText = string.Empty;
                 XmlDocument archiveDom = null;
