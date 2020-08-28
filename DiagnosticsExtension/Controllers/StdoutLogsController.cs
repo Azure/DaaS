@@ -25,35 +25,45 @@ namespace DiagnosticsExtension.Controllers
     {
         [HttpGet]
         [Route("api/stdoutlogs")]
-        public async Task<IHttpActionResult> Get()
+        public async Task<HttpResponseMessage> Get()
         {
-            var logFilePath = Path.Combine(Environment.GetEnvironmentVariable("HOME"), "Logfiles");
-            var directory = new DirectoryInfo(logFilePath);
-
-            var results = await LogsParser.GetStdoutLogFilesAsync(maxPayloadBytes: 10 * LogsParser.MB);
-            return Ok(results);
+            try
+            {
+                var results = await LogsParser.GetStdoutLogFilesAsync(maxPayloadBytes: 10 * LogsParser.MB);
+                return Request.CreateResponse(HttpStatusCode.OK, results);
+            }
+            catch(Exception ex)
+            {
+                return Request.CreateErrorResponse(HttpStatusCode.Conflict, ex.Message);
+            }
         }
 
         [HttpGet]
         [Route("api/settings/stdout")]
-        public IHttpActionResult GetSettings()
+        public HttpResponseMessage GetSettings()
         {
-            var webConfig = GetWebConfig();
-            if (webConfig == null)
-                return NotFound();
+            try
+            {
+                var webConfig = GetWebConfig();
+                if (webConfig == null)
+                    return Request.CreateErrorResponse(HttpStatusCode.NotFound, "The web.config does not exist");
 
-            ParseAspNetCoreSettings(webConfig, out bool isAspNetCore, out var stdoutLogEnabled, out var _);
-
-            return Ok(new LogsSettings(isAspNetCore, stdoutLogEnabled));
+                ParseAspNetCoreSettings(webConfig, out bool isAspNetCore, out var stdoutLogEnabled, out var _);
+                return Request.CreateResponse(HttpStatusCode.OK, new LogsSettings(isAspNetCore, stdoutLogEnabled));
+            }
+            catch(Exception ex)
+            {
+                return Request.CreateErrorResponse(HttpStatusCode.BadRequest, ex.Message);
+            }
         }
 
         [HttpPut]
         [Route("api/settings/stdout")]
-        public IHttpActionResult PutSettings([FromBody]LogsSettings value, [FromUri]int ttl = 600)
+        public HttpResponseMessage PutSettings([FromBody]LogsSettings value, [FromUri]int ttl = 600)
         {
             if (CheckIfEnvironmentVariableExists("WEBSITE_RUN_FROM_PACKAGE", "1") || CheckIfEnvironmentVariableExists("WEBSITE_LOCAL_CACHE_OPTION", "Always"))
             {
-                return Content(HttpStatusCode.Conflict, "Either LocalCache is enabled or site is running in RunFromPackage mode so cannot modify web.config");
+                return Request.CreateErrorResponse(HttpStatusCode.Conflict, "Either LocalCache is enabled or site is running in RunFromPackage mode so cannot modify web.config");
             }
 
             var fixedTtl = FixTtlRange(ttl);
@@ -64,14 +74,14 @@ namespace DiagnosticsExtension.Controllers
             var currentSettings = new LogsSettings(isAspNetCore, stdoutLogEnabled);
 
             if (value.Stdout == currentSettings.Stdout)
-                return Ok(currentSettings);
+                return Request.CreateResponse(HttpStatusCode.OK, currentSettings);
 
             EditAspNetCoreSetting(webConfig, value.Stdout == LoggingState.Enabled);
 
             if (value.Stdout == LoggingState.Enabled)
                 StartShutoffTimer(fixedTtl);
-            
-            return Ok(
+
+            return Request.CreateResponse(HttpStatusCode.OK,
                 new
                 {
                     Ttl = value.Stdout == LoggingState.Disabled ? -1 : fixedTtl,

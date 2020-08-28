@@ -19,41 +19,23 @@ namespace DiagnosticsExtension.Controllers
 {
     public class DiagnosersController : ApiController
     {
-        public IEnumerable<DiagnoserDetails> Get()
+        public HttpResponseMessage Get()
         {
-            List<DiagnoserDetails> retVal = new List<DiagnoserDetails>();
-
             try
             {
+                List<DiagnoserDetails> retVal = new List<DiagnoserDetails>();
                 SessionController sessionController = new SessionController();
-
                 foreach (Diagnoser diagnoser in sessionController.GetAllDiagnosers())
                 {
                     retVal.Add(new DiagnoserDetails(diagnoser));
                 }
+                return Request.CreateResponse(HttpStatusCode.OK, retVal);
             }
             catch (Exception ex)
             {
                 DaaS.Logger.LogErrorEvent("Encountered exception while getting diagnosers", ex);
-                throw;
+                return Request.CreateErrorResponse(HttpStatusCode.OK, ex.Message);
             }
-            
-            return retVal;
         }
-
-        //// POST api/values
-        //public void Post([FromBody]string value)
-        //{
-        //}
-
-        //// PUT api/values/5
-        //public void Put(int id, [FromBody]string value)
-        //{
-        //}
-
-        //// DELETE api/values/5
-        //public void Delete(int id)
-        //{
-        //}
     }
 }

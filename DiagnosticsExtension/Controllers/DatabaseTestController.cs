@@ -14,6 +14,8 @@ using System.Data.Odbc;
 using System.Data.SqlClient;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Threading.Tasks;
 using System.Web.Http;
 using Microsoft.WindowsAzure.Storage;
@@ -85,6 +87,15 @@ namespace DiagnosticsExtension.Controllers
 
         public string ConnectionString { get; internal set; }
     }
+
+    public class DatabaseTestResponse
+    {
+        public IEnumerable<DatabaseConnection> Connections { get; set; }
+        public string ConfigException { get; set; }
+    }
+
+
+    [RoutePrefix("api/databasetest")]
     public class DatabaseTestController : ApiController
     {
         private const string AppSettingPrefix = "APPSETTING_";
@@ -106,8 +117,37 @@ namespace DiagnosticsExtension.Controllers
         private const string CustomPrefix = "CUSTOMCONNSTR_";
 
         // GET api/databasetest
-        public async Task<IEnumerable<DatabaseConnection>> Get()
+        public async Task<HttpResponseMessage> Get()
         {
+            try
+            {
+                var response = await GetConnectionsResponse();
+                return Request.CreateResponse(HttpStatusCode.OK, response.Connections);
+            }
+            catch (Exception ex)
+            {
+                return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, ex.Message);
+            }
+        }
+
+        // GET api/databasetest/v2
+        [Route("v2")]
+        public async Task<HttpResponseMessage> GetV2()
+        {
+            try
+            {
+                var response = await GetConnectionsResponse();
+                return Request.CreateResponse(HttpStatusCode.OK, response);
+            }
+            catch (Exception ex)
+            {
+                return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, ex.Message);
+            }
+        }
+
+        private async Task<DatabaseTestResponse> GetConnectionsResponse()
+        {
+            DatabaseTestResponse response = new DatabaseTestResponse();
             List<DatabaseConnection> connections = new List<DatabaseConnection>();
             foreach (System.Collections.DictionaryEntry envVar in Environment.GetEnvironmentVariables())
             {
@@ -179,22 +219,28 @@ namespace DiagnosticsExtension.Controllers
                 }
             }
 
-            List<DatabaseConnection> connectionsWebConfig = CheckConnectionstringsInSiteWebConfig();
-            foreach (var c in connectionsWebConfig)
+            try
             {
-                var connMatching = connections.FirstOrDefault(x => x.Name == c.Name);
-                if (connMatching != null)
+                var connectionsWebConfig = CheckConnectionstringsInSiteWebConfig();
+                foreach (var c in connectionsWebConfig)
                 {
-                    connMatching.DummyValueExistsInWebConfig = true;
-                }
-                else
-                {
-                    connections.Add(c);
+                    var connMatching = connections.FirstOrDefault(x => x.Name == c.Name);
+                    if (connMatching != null)
+                    {
+                        connMatching.DummyValueExistsInWebConfig = true;
+                    }
+                    else
+                    {
+                        connections.Add(c);
+                    }
                 }
             }
-
+            catch (Exception ex)
+            {
+                response.ConfigException = "Failed while reading connections from web.config file. " + ex.Message;
+            }
+           
             var tasks = new List<Task<TestConnectionData>>();
-
             foreach (var c in connections)
             {
                 if (c.IsEnvironmentVariable)
@@ -221,9 +267,8 @@ namespace DiagnosticsExtension.Controllers
             }
 
             LogConnectionStatsToKusto(connections);
-
-            return connections;
-
+            response.Connections = connections;
+            return response;
         }
 
         private void LogConnectionStatsToKusto(List<DatabaseConnection> connections)
@@ -273,12 +318,14 @@ namespace DiagnosticsExtension.Controllers
                 {
                     if (c.ElementInformation != null)
                     {
-                        DatabaseConnection connection = new DatabaseConnection();
-                        connection.ConnectionString = c.ConnectionString;
-                        //connection.MaskedConnectionString = MaskPasswordFromConnectionString(c.ConnectionString);
-                        connection.Instance = Environment.MachineName;
-                        connection.ProviderName = (string.IsNullOrWhiteSpace(c.ProviderName)) ? defaultProviderName : c.ProviderName;
-                        connection.Name = c.Name;
+                        DatabaseConnection connection = new DatabaseConnection
+                        {
+                            ConnectionString = c.ConnectionString,
+                            //connection.MaskedConnectionString = MaskPasswordFromConnectionString(c.ConnectionString);
+                            Instance = Environment.MachineName,
+                            ProviderName = (string.IsNullOrWhiteSpace(c.ProviderName)) ? defaultProviderName : c.ProviderName,
+                            Name = c.Name
+                        };
                         if (c.ElementInformation != null)
                         {
                             if (c.ElementInformation.Source == null)
@@ -312,9 +359,11 @@ namespace DiagnosticsExtension.Controllers
 
         private async Task<TestConnectionData> TestConnectionAsync(string connectionString, string providerName, string name)
         {
-            TestConnectionData data = new TestConnectionData();
-            data.ConnectionString = connectionString;
-            data.Name = name;
+            TestConnectionData data = new TestConnectionData
+            {
+                ConnectionString = connectionString,
+                Name = name
+            };
             if (providerName.Equals("System.Data.EntityClient", StringComparison.OrdinalIgnoreCase) || connectionString.StartsWith("metadata=res://", StringComparison.OrdinalIgnoreCase))
             {
                 data.IsEntityFramework = true;
@@ -342,10 +391,11 @@ namespace DiagnosticsExtension.Controllers
 
         private async Task<TestConnectionData> TestConnectionAsync(string connectionString, string name, DatabaseType databaseType = DatabaseType.Dynamic)
         {
-            TestConnectionData data = new TestConnectionData();
-            data.ConnectionString = connectionString;
-            data.Name = name;
-            CloudStorageAccount csa = null;
+            TestConnectionData data = new TestConnectionData
+            {
+                ConnectionString = connectionString,
+                Name = name
+            };
 
             try
             {
@@ -393,7 +443,7 @@ namespace DiagnosticsExtension.Controllers
                     }
                 }
                 else if (databaseType == DatabaseType.NotSupported)
-                {                    
+                {
                     throw new Exception("This type of connection string is not yet supported by this tool");
                 }
 
@@ -422,7 +472,7 @@ namespace DiagnosticsExtension.Controllers
                             data.Succeeded = true;
                         }
                     }
-                    else if (CloudStorageAccount.TryParse(connectionString, out csa))
+                    else if (CloudStorageAccount.TryParse(connectionString, out CloudStorageAccount csa))
                     {
                         data.IsAzureStorage = true;
                         var cloudTableClient = csa.CreateCloudTableClient();

@@ -10,11 +10,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Net;
-using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Security.Policy;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using DaaS;
@@ -112,7 +108,11 @@ namespace MemoryDumpCollector
                                 || p.ProcessName.Equals("SnapshotHolder_x64", StringComparison.OrdinalIgnoreCase) 
                                 || p.ProcessName.Equals("DaasConsole", StringComparison.OrdinalIgnoreCase) 
                                 || p.ProcessName.Equals("SnapshotUploader64", StringComparison.OrdinalIgnoreCase)
-                                || p.ProcessName.Equals("SnapshotUploader86", StringComparison.OrdinalIgnoreCase))
+                                || p.ProcessName.Equals("SnapshotUploader86", StringComparison.OrdinalIgnoreCase)
+                                || p.ProcessName.Equals("procdump", StringComparison.OrdinalIgnoreCase)
+                                || p.ProcessName.Equals("procdump64", StringComparison.OrdinalIgnoreCase)
+                                || p.ProcessName.Equals("crashmon", StringComparison.OrdinalIgnoreCase)
+                                )
                                 .Select(p => p.Id));
                 }
 

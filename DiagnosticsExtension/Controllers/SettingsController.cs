@@ -50,18 +50,14 @@ namespace DiagnosticsExtension.Controllers
 
         private static bool ValidateContainerSasUri(string uri)
         {
-            //Try performing container operations with the SAS provided.
-
-            //Return a reference to the container using the SAS URI.
-            CloudBlobContainer container = new CloudBlobContainer(new Uri(uri));
-
             try
             {
+                CloudBlobContainer container = new CloudBlobContainer(new Uri(uri));
                 container.ListBlobs();
             }
             catch (Exception ex)
             {
-                DaaS.Logger.LogErrorEvent("Encountered exception while validating SAS URI", ex);
+                Logger.LogErrorEvent("Encountered exception while validating SAS URI", ex);
                 return false;
             }
 

@@ -30,7 +30,6 @@ namespace DiagnosticsExtension.Controllers
             {
                 return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, ex);
             }
-            
         }
 
         [HttpPost]

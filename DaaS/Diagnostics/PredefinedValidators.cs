@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.Caching;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
@@ -20,6 +21,8 @@ namespace DaaS
     {
         const string JavaToolsMissingMessage = "We identified the JDK tools required to collect diagnostics information are missing for the current version of JAVA runtime used for the app. Please download the JAVA SDK for the correct version for Java and run the tools manually via KUDU console.";
         const string JavaToolsUseFlightRecorder = "Your app is using a Java version that supports Java Flight Recorder tool (jcmd.exe). It is strongly recommended to use Java Flight recorder to debug Java issues.";
+        private const string MemoryCacheKey = "JarFilePath";
+
         private bool CheckFileInLogFilesDirectory(string fileName)
         {
             string homePath = Environment.GetEnvironmentVariable("HOME_EXPANDED");
@@ -28,19 +31,11 @@ namespace DaaS
             {
                 return false;
             }
-            else
-            {
-                string strEventLogXmlPath = Path.Combine(homePath, "LogFiles", fileName);
-                if (File.Exists(strEventLogXmlPath))
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
-            }
+
+            string strEventLogXmlPath = Path.Combine(homePath, "LogFiles", fileName);
+            return File.Exists(strEventLogXmlPath);
         }
+
         public bool EventViewerValidator(out string AdditionalError)
         {
             AdditionalError = string.Empty;
@@ -49,25 +44,22 @@ namespace DaaS
 
         public bool JMapDumpCollectorValidator(out string AdditionalError)
         {
-            bool toolsExist = CheckJavaProcessAndTools("jmap.exe", out AdditionalError);
-            return toolsExist;
+            return CheckJavaProcessAndTools("jmap.exe", out AdditionalError);
         }
 
         public bool JMapStatsCollectorValidator(out string AdditionalError)
         {
-            bool toolsExist = CheckJavaProcessAndTools("jmap.exe", out AdditionalError);
-            return toolsExist;
+            return CheckJavaProcessAndTools("jmap.exe", out AdditionalError);
         }
 
         public bool JStackCollectorValidator(out string AdditionalError)
         {
-            bool toolsExist = CheckJavaProcessAndTools("jstack.exe", out AdditionalError);
-            return toolsExist;
+            return CheckJavaProcessAndTools("jstack.exe", out AdditionalError);
         }
+
         public bool JCmdCollectorValidator(out string AdditionalError)
         {
-            bool toolsExist = CheckJavaProcessAndTools("jcmd.exe", out AdditionalError);
-            return toolsExist;
+            return CheckJavaProcessAndTools("jcmd.exe", out AdditionalError);
         }
 
         private string GetJavaFolderPathFromConfig(out bool pathInConfigNotJavaExe)
@@ -104,7 +96,7 @@ namespace DaaS
             {
                 return false;
             }
-                
+
             var javaFolderPath = GetJavaFolderPathFromConfig(out bool pathInConfigNotJavaExe);
             if (!string.IsNullOrWhiteSpace(javaFolderPath))
             {
@@ -122,8 +114,12 @@ namespace DaaS
             }
             else
             {
-                var rtJarHandle = GetOpenFileHandles(javaProcess.Id).Where(x => x.EndsWith(@"\jre\lib\rt.jar")).FirstOrDefault();
-                if (rtJarHandle != null && rtJarHandle.Length > 0)
+                //
+                // Try to get the path of rt.jar by running KuduHandles on java.exe
+                //
+
+                var rtJarHandle = GetJarFileHandle(javaProcess.Id);
+                if (!string.IsNullOrWhiteSpace(rtJarHandle) && rtJarHandle.Length > 0)
                 {
                     var parentPath = rtJarHandle.Replace(@"\jre\lib\rt.jar", "").Replace("c:", "d:");
                     var javaToolPath = Path.Combine(parentPath, "bin", toolName);
@@ -140,6 +136,11 @@ namespace DaaS
                 }
                 else
                 {
+                    //
+                    // We failed to get the path of rt.jar from KuduHandles.exe
+                    // Fallback to Environment variables
+                    //
+
                     var javaHome = Environment.GetEnvironmentVariable("JAVA_HOME");
                     if (javaHome == null)
                     {
@@ -163,7 +164,28 @@ namespace DaaS
                 }
             }
         }
-        
+
+        private string GetJarFileHandle(int processId)
+        {
+            ObjectCache cache = MemoryCache.Default;
+            if (cache[MemoryCacheKey] == null)
+            {
+                var jarFilePath = GetOpenFileHandles(processId).Where(x => x.EndsWith(@"\jre\lib\rt.jar")).FirstOrDefault();
+                var cacheValue = string.IsNullOrWhiteSpace(jarFilePath) ? "EMPTY" : jarFilePath;
+                var cachePolicy = new CacheItemPolicy
+                {
+                    AbsoluteExpiration = new DateTimeOffset(DateTime.UtcNow.AddMinutes(5))
+                };
+                cache.Add(MemoryCacheKey, cacheValue, cachePolicy);
+                return jarFilePath;
+            }
+            else
+            {
+                var valueFromCache = (string)cache[MemoryCacheKey];
+                return valueFromCache == "EMPTY" ? string.Empty : valueFromCache;
+            }
+        }
+
         private string GetAdditionalError(string toolName, string jcmdPath)
         {
             string additionalError = JavaToolsMissingMessage;
@@ -180,14 +202,7 @@ namespace DaaS
         public bool HttpLogsCollectorValidator()
         {
             string httploggingEnabled = Environment.GetEnvironmentVariable("WEBSITE_HTTPLOGGING_ENABLED");
-            if (httploggingEnabled != null && httploggingEnabled.ToString() == "1")
-            {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
+            return (httploggingEnabled != null && httploggingEnabled.ToString() == "1");
         }
 
         public bool PhpErrorLogCollectorValidator()
@@ -197,24 +212,23 @@ namespace DaaS
 
         private IEnumerable<string> GetOpenFileHandles(int processId)
         {
-            MemoryStream outputStream = null;
-            MemoryStream errorStream = null;
+            MemoryStream outputStream;
+            MemoryStream errorStream;
 
             try
             {
                 var cancellationTokenSource = new CancellationTokenSource();
-                Process process = new Process();
-
-                ProcessStartInfo pinfo = new ProcessStartInfo
+                Process process = new Process
                 {
-                    FileName = "KuduHandles.exe",
-                    Arguments = processId.ToString()
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "KuduHandles.exe",
+                        Arguments = processId.ToString(),
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true
+                    }
                 };
-
-                process.StartInfo = pinfo;
-                process.StartInfo.UseShellExecute = false;
-                process.StartInfo.RedirectStandardOutput = true;
-                process.StartInfo.RedirectStandardError = true;
 
                 outputStream = new MemoryStream();
                 errorStream = new MemoryStream();
@@ -226,8 +240,9 @@ namespace DaaS
                     MemoryStreamExtensions.CopyStreamAsync(process.StandardOutput.BaseStream, outputStream, cancellationTokenSource.Token),
                     MemoryStreamExtensions.CopyStreamAsync(process.StandardError.BaseStream, errorStream, cancellationTokenSource.Token)
                 };
-                process.WaitForExit(5 * 1000);
-                if (process!= null && !process.HasExited)
+
+                process.WaitForExit(2 * 1000);
+                if (process != null && !process.HasExited)
                 {
                     process.SafeKillProcess();
                 }
@@ -251,15 +266,15 @@ namespace DaaS
                 }
                 else
                 {
-                    return output.Split(new[] { System.Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries).ToList();
+                    return output.Split(new[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries).ToList();
                 }
 
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-
-                throw;
+                Logger.LogErrorEvent("Unhandled exception in GetOpenFileHandles method", ex);
             }
+            return Enumerable.Empty<string>();
         }
     }
 }
