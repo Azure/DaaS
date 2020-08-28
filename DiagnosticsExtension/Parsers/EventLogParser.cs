@@ -196,9 +196,10 @@ namespace DiagnosticsExtension
             return returnValue;
         }
 
-        public static async Task<List<ServerSideEvent>> GetEvents(string eventLogPath)
+        public static async Task<List<ServerSideEvent>> GetEvents(string eventLogPath, string eventLogArchivePath = null)
         {
             var events = new List<ServerSideEvent>();
+            XmlNodeList archiveXmlList = null;
 
             if (!File.Exists(eventLogPath))
             {
@@ -206,6 +207,24 @@ namespace DiagnosticsExtension
             }
 
             InitializeKnownResourceTypes();
+
+            if (!string.IsNullOrEmpty(eventLogArchivePath) && File.Exists(eventLogArchivePath))
+            {
+                string archiveText = string.Empty;
+                XmlDocument archiveDom = null;
+
+                await RetryHelper.RetryOnExceptionAsync<IOException>(10, TimeSpan.FromSeconds(1), async () =>
+                {
+                    archiveText = await FileSystemHelpers.ReadAllTextFromFileAsync(eventLogArchivePath);
+                });
+
+                if (!string.IsNullOrWhiteSpace(archiveText))
+                {
+                    archiveDom = new XmlDocument();
+                    archiveDom.LoadXml(archiveText);
+                    archiveXmlList = archiveDom.SelectNodes("/Events/Event");
+                }
+            }
 
             string fileText = string.Empty;
             await RetryHelper.RetryOnExceptionAsync<IOException>(10, TimeSpan.FromSeconds(1), async() => 
@@ -218,10 +237,19 @@ namespace DiagnosticsExtension
                 return events;
             }
 
-            XmlDocument dom = new XmlDocument();
-            dom.LoadXml(fileText);
+            XmlDocument currentDom = new XmlDocument();
+            currentDom.LoadXml(fileText);
 
-            XmlNodeList xmlList = dom.SelectNodes("/Events/Event");
+            XmlNodeList currentXmlList = currentDom.SelectNodes("/Events/Event");
+            List<XmlNode> xmlList;
+            if (archiveXmlList == null || archiveXmlList.Count == 0)
+            {
+                xmlList = new List<XmlNode>(currentXmlList.Cast<XmlNode>());
+            }
+            else
+            {
+                xmlList = new List<XmlNode>(archiveXmlList.Cast<XmlNode>().Concat(currentXmlList.Cast<XmlNode>()));
+            }
 
             for (int i = (xmlList.Count - 1); i >= 0; i--)
             {
