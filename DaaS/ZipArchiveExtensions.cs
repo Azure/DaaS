@@ -44,7 +44,7 @@ namespace DaaS
             {
                 fileStream = file.OpenRead();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 // tolerate if file in use.
                 // for simplicity, any exception.

@@ -36,7 +36,6 @@ namespace DaaS.Storage
                 _relativePath = value.ConvertForwardSlashesToBackSlashes();
             }
         }
-
         protected internal virtual StorageLocation StorageLocation
         {
             get

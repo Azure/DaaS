@@ -198,7 +198,7 @@ namespace ConsoleTester
             {
                 sessionId = args[argNum];
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 Console.WriteLine("Session Id not specified");
                 return argNum;

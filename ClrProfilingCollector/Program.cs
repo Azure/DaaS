@@ -144,11 +144,10 @@ namespace ClrProflingCollector
             Logger.LogInfo(string.Format("Started sleeping for {0} seconds", sleepDuration));
 
             Logger.LogStatus($"Profiler session started. Profiler will stop automatically after {sleepDuration} seconds. At this point, please reproduce the problem or browse to your WebApp to ensure that requests get captured in the trace");
-            while (sleepDuration != 0)
+            if (sleepDuration > 0)
             {
-                Thread.Sleep(10 * 1000);
-                sleepDuration = sleepDuration - 10;
-                Logger.LogInfo(string.Format("{0} seconds remaining", sleepDuration));
+                Thread.Sleep((int)sleepDuration * 1000);
+                Logger.LogDiagnoserEvent("Profiler done sleeping");
             }
 
             var stopProfilingTime = DateTime.Now;

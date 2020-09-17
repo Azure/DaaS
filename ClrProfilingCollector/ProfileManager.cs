@@ -163,7 +163,7 @@ namespace ClrProflingCollector
 
             if (Int32.TryParse(iisProfilingDurationInSeconds, out timeout))
             {
-                if (timeout < _maxProfilingDuration.TotalSeconds)
+                if (timeout <= _maxProfilingDuration.TotalSeconds)
                 {
                     iisProfilingDuration = TimeSpan.FromSeconds(timeout);
                 }

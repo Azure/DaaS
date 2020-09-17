@@ -123,7 +123,7 @@ namespace DiagnosticsExtension.Controllers
                     scmHostName = hostName.Replace(siteName + ".", siteName + ".scm.");
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 scmHostName = String.Concat(session.SiteName.ToLowerInvariant(), ".scm.azurewebsites.net");
             }
