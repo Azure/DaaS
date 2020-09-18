@@ -39,6 +39,7 @@ namespace DiagnosticsExtension.Controllers
                 retVal.Status = session.Status;
                 retVal.DiagnoserSessions = new List<string>(session.GetDiagnoserSessions().Select(p => p.Diagnoser.Name));
                 retVal.HasBlobSasUri = !string.IsNullOrWhiteSpace(session.BlobSasUri);
+                retVal.BlobStorageHostName = session.BlobStorageHostName;
             }
             catch (FileNotFoundException fex)
             {
@@ -68,7 +69,7 @@ namespace DiagnosticsExtension.Controllers
                 retVal.EndTime = session.EndTime.ToString("yyyy-MM-dd HH:mm:ss");
                 retVal.Status = session.Status;
                 retVal.HasBlobSasUri = !string.IsNullOrWhiteSpace(session.BlobSasUri);
-
+                retVal.BlobStorageHostName = session.BlobStorageHostName;
 
                 foreach (DiagnoserSession diagSession in session.GetDiagnoserSessions())
                 {

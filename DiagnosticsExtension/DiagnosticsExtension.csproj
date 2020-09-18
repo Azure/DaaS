@@ -204,6 +204,7 @@
     <Compile Include="Controllers\TestingController.cs" />
     <Compile Include="LoggingHandler.cs" />
     <Compile Include="Models\LogsSettings.cs" />
+    <Compile Include="Models\SasUriResponse.cs" />
     <Compile Include="Parsers\EventLogParser.cs" />
     <Compile Include="Parsers\FrebFile.cs" />
     <Compile Include="Models\FrebLogFileEntry.cs" />

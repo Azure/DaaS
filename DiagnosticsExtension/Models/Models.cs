@@ -66,6 +66,8 @@ namespace DiagnosticsExtension.Models
         public List<String> DiagnoserSessions = new List<String>();
         [DataMember]
         public bool HasBlobSasUri;
+        [DataMember]
+        public string BlobStorageHostName;
 
         public void AddDiagnoser(String diagnoserName)
         {
@@ -91,6 +93,8 @@ namespace DiagnosticsExtension.Models
         public bool HasBlobSasUri;
         [DataMember]
         public List<DiagnoserSessionDetails> DiagnoserSessions = new List<DiagnoserSessionDetails>();
+        [DataMember]
+        public string BlobStorageHostName;
 
         public void AddDiagnoser(DiagnoserSessionDetails diagnoserSessionDetails)
         {

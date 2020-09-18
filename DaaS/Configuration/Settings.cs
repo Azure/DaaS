@@ -49,6 +49,7 @@ namespace DaaS.Configuration
         internal const string Name = "Name";
         internal const string Description = "Description";
         internal const string ProcessCleanupOnCancel = "ProcessCleanupOnCancel";
+        internal const string DiagnoserRequiresStorage = "DiagnoserRequiresStorage";
     }
 
     static class DaaSSettings
@@ -73,6 +74,7 @@ namespace DaaS.Configuration
         const string PrivateSettingsFilePath = @"PrivateSettings.xml";
         const string DefaultSettingsFileName = @"DiagnosticSettings.xml";
 
+        public const string WebSiteDaasStorageSasUri = "%WEBSITE_DAAS_STORAGE_SASURI%";
         public const string CancelledDir = @"Cancelled";
 
         public static Settings Instance = new Settings();
@@ -92,6 +94,26 @@ namespace DaaS.Configuration
             {
                 SaveSetting(DaaSSettings.BlobStorageSas, value);
             }
+        }
+
+        public string BlobStorageSasSpecifiedAt
+        {
+            get
+            {
+                if (IsBlobSasUriConfiguredAsEnvironmentVariable())
+                {
+                    return "EnvironmentVariable";
+                }
+                else
+                {
+                    return !string.IsNullOrWhiteSpace(Infrastructure.Settings.BlobStorageSas) ? "PrivateSettings.xml" : string.Empty;
+                }
+            }
+        }
+
+        internal bool IsBlobSasUriConfiguredAsEnvironmentVariable()
+        {
+            return !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(WebSiteDaasStorageSasUri.Replace("%", "")));
         }
 
         internal string GetRootStoragePathForLocation(StorageLocation location)
@@ -178,6 +200,9 @@ namespace DaaS.Configuration
         }
 
         private string _tempDir;
+
+        
+
         internal string TempDir
         {
             get
@@ -584,6 +609,15 @@ namespace DaaS.Configuration
                 if (processCleanupOnExitXml != null)
                 {
                     diagnoser.ProcessCleanupOnCancel = processCleanupOnExitXml.Value;
+                }
+
+                var diagnoserRequiresStorageXml = diagnoserXml.Attribute(SettingsXml.DiagnoserRequiresStorage);
+                if (diagnoserRequiresStorageXml != null)
+                {
+                    if (bool.TryParse(diagnoserRequiresStorageXml.Value, out bool diagnoserRequiresStorage))
+                    {
+                        diagnoser.DiagnoserRequiresStorage = diagnoserRequiresStorage;
+                    }
                 }
 
                 var collectorName = diagnoserXml.Element(SettingsXml.Collector).Attribute(SettingsXml.Name).Value;

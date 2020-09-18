@@ -31,6 +31,7 @@ namespace DaaS.Sessions
     {
         private static readonly object _daasVersionUpdateLock = new object();
         private static bool _daasVersionCheckInProgress = false;
+
         public string BlobStorageSasUri
         {
             get
@@ -40,6 +41,14 @@ namespace DaaS.Sessions
             set
             {
                 Infrastructure.Settings.BlobStorageSas = value;
+            }
+        }
+
+        public string BlobStorageSasSpecifiedAt
+        {
+            get
+            {
+                return Infrastructure.Settings.BlobStorageSasSpecifiedAt;
             }
         }
 
@@ -161,6 +170,7 @@ namespace DaaS.Sessions
             string description = null,
             string blobSasUri = "")
         {
+            bool sasUriInEnvironmentVariable = false;
             var daasDisabled = Environment.GetEnvironmentVariable("WEBSITE_DAAS_DISABLED");
             if (daasDisabled != null && daasDisabled.Equals("True", StringComparison.OrdinalIgnoreCase))
             {
@@ -173,13 +183,31 @@ namespace DaaS.Sessions
                 throw new AccessViolationException("DaaS is only supported on websites running in Basic or Standard mode");
             }
 
+
+            //
+            // If a SAS URI is specified at the session level, that takes precedence over 
+            // every other place
+            //
             if (!string.IsNullOrWhiteSpace(blobSasUri))
             {
-                var message = BlobController.ValidateBlobSasUri(blobSasUri);
-                if (!string.IsNullOrWhiteSpace(message))
+                if (!BlobController.ValidateBlobSasUri(blobSasUri, out Exception exceptionStorage))
                 {
-                    throw new ApplicationException($"BlobSasUri specified is invalid. Failed with error - {message}");
+                    throw new ApplicationException($"BlobSasUri specified is invalid. Failed with error - {exceptionStorage.Message}");
                 }
+            }
+
+            //
+            // If no SAS URI is specfied, check if the diagnosers requires a storage account. If yes, 
+            // we need to check if the SAS URI is configured an an environment variable and populate 
+            // it here
+            //
+            if (string.IsNullOrWhiteSpace(blobSasUri) 
+                && diagnosers.Any(x => x.DiagnoserRequiresStorage)
+                && Settings.Instance.IsBlobSasUriConfiguredAsEnvironmentVariable())
+            {
+
+                blobSasUri = Settings.WebSiteDaasStorageSasUri;
+                sasUriInEnvironmentVariable = true;
             }
 
             // Make sure there is no Active Session for any of the
@@ -224,10 +252,11 @@ namespace DaaS.Sessions
             var session = new Session(diagnosers, utcStartTime, utcEndTime, sessionType, instancesToRun)
             {
                 Description = description,
-                BlobSasUri = blobSasUri
+                BlobSasUri = blobSasUri,
+                BlobStorageHostName = BlobController.GetBlobStorageHostName(blobSasUri)
             };
             session.Save();
-            Logger.LogNewSession(session.SessionId.ToString(), sessionType.ToString(), string.Join(",", diagnosers.Select(x => x.Name)), string.Join(",", session.InstancesSpecified.Select(x => x.Name).ToArray()), invokedViaDaasConsole, !string.IsNullOrWhiteSpace(session.BlobSasUri));
+            Logger.LogNewSession(session.SessionId.ToString(), sessionType.ToString(), string.Join(",", diagnosers.Select(x => x.Name)), string.Join(",", session.InstancesSpecified.Select(x => x.Name).ToArray()), invokedViaDaasConsole, !string.IsNullOrWhiteSpace(session.BlobSasUri), sasUriInEnvironmentVariable);
             return session;
         }
 

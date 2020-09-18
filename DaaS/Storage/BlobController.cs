@@ -24,6 +24,7 @@ namespace DaaS.Storage
             CloudBlobDirectory dirBlob = null;
             if (!string.IsNullOrWhiteSpace(blobSasUri))
             {
+                blobSasUri = GetActualBlobSasUri(blobSasUri);
                 if (!Containers.ContainsKey(blobSasUri))
                 {
                     try
@@ -60,22 +61,83 @@ namespace DaaS.Storage
             }
         }
 
-        public static string ValidateBlobSasUri(string blobSasUri)
+        public static bool ValidateBlobSasUri(string blobSasUri, out Exception exceptionContactingStorage)
         {
-            var message = string.Empty;
-            
+            exceptionContactingStorage = null;
+            blobSasUri = GetActualBlobSasUri(blobSasUri);
             try
             {
                 var container = new CloudBlobContainer(new Uri(blobSasUri));
                 var blobList = container.ListBlobsSegmented("", true, BlobListingDetails.None, 1, null, null, null);
                 blobList.Results.Count();
+                return true;
             }
             catch (Exception ex)
             {
-                message = ex.Message;
+                exceptionContactingStorage = ex;
+                Logger.LogErrorEvent("Encountered exception while validating SAS URI", ex);
+                return false;
+            }
+        }
+
+        internal static string GetBlobStorageHostName(string blobSasUri)
+        {
+            if (string.IsNullOrWhiteSpace(blobSasUri))
+            {
+                return string.Empty;
+            }
+            try
+            {
+                blobSasUri = GetActualBlobSasUri(blobSasUri);
+                if (Uri.TryCreate(blobSasUri, UriKind.Absolute, out Uri uri))
+                {
+                    return uri.Host;
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogErrorEvent("Exception while trying to parse Uri for BLOB", ex);
+            }
+            
+            return string.Empty;
+        }
+
+        public static string GetPermanentStoragePathOnBlob(string relativeFilePath, string blobSasUri)
+        {
+            if (string.IsNullOrWhiteSpace(blobSasUri))
+            {
+                throw new Exception("Blob storage isn't configured. Can't access a file from blob storage");
+            }
+            
+            blobSasUri = GetActualBlobSasUri(blobSasUri);
+            var blobUriSections = blobSasUri.Split('?');
+            if (blobSasUri.Length <= 2)
+            {
+                throw new Exception("Invalid blob storage SaS Uri configured");
             }
 
-            return message;
+            var path = blobUriSections[0] + "/" + relativeFilePath.ConvertBackSlashesToForwardSlashes() + "?" +
+                       string.Join("?", blobUriSections, 1, blobUriSections.Length - 1);
+
+            return path;
+        }
+
+        internal static string GetActualBlobSasUri(string blobSasUri)
+        {
+            //
+            // BlobSasUri could be set to %WEBSITE_DAAS_STORAGE_SASURI%
+            //
+
+            if (string.IsNullOrWhiteSpace(blobSasUri))
+            {
+                return string.Empty;
+            }
+
+            if (blobSasUri.StartsWith("%"))
+            {
+                blobSasUri = Environment.ExpandEnvironmentVariables(blobSasUri);
+            }
+            return blobSasUri;
         }
     }
 }

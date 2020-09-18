@@ -6,6 +6,7 @@
 //-----------------------------------------------------------------------
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -24,7 +25,12 @@ namespace DiagnosticsExtension.Controllers
             try
             {
                 var sessions = monitoringController.GetAllCompletedSessions();
-                return Request.CreateResponse(HttpStatusCode.OK, sessions);
+                var sessionsResponse = new List<MonitoringSessionResponse>();
+                foreach(var s in sessions)
+                {
+                    sessionsResponse.Add(new MonitoringSessionResponse(s));
+                }
+                return Request.CreateResponse(HttpStatusCode.OK, sessionsResponse);
             }
             catch (Exception ex)
             {
@@ -40,7 +46,7 @@ namespace DiagnosticsExtension.Controllers
             try
             {
                 var session = monitoringController.GetSession(sessionId);
-                return Request.CreateResponse(HttpStatusCode.OK, session);
+                return Request.CreateResponse(HttpStatusCode.OK, new MonitoringSessionResponse(session));
             }
             catch (Exception ex)
             {
@@ -57,7 +63,7 @@ namespace DiagnosticsExtension.Controllers
             var monitoringController = new MonitoringSessionController();
             try
             {
-                var session = monitoringController.GetActiveSession();
+                var session = new MonitoringSessionResponse(monitoringController.GetActiveSession());
                 return Request.CreateResponse(HttpStatusCode.OK, session);
             }
             catch (Exception ex)
@@ -76,9 +82,10 @@ namespace DiagnosticsExtension.Controllers
             var monitoringController = new MonitoringSessionController();
             try
             {
-                activeSession.Session = monitoringController.GetActiveSession();
-                if (activeSession.Session != null)
+                var session = monitoringController.GetActiveSession();
+                if (session != null)
                 {
+                    activeSession.Session = new MonitoringSessionResponse(session);
                     var sessionLogs = monitoringController.GetActiveSessionMonitoringLogs();
                     activeSession.MonitoringLogs = sessionLogs.ToList();
                     activeSession.Session.FilesCollected = monitoringController.GetCollectedLogsForSession(activeSession.Session.SessionId, activeSession.Session.BlobSasUri);
@@ -89,7 +96,7 @@ namespace DiagnosticsExtension.Controllers
             catch (Exception ex)
             {
                 Logger.LogCpuMonitoringErrorEvent("Controller API Failure - GetActiveSessionDetails", ex, string.Empty);
-                return Request.CreateErrorResponse(HttpStatusCode.NotFound, ex.Message);
+                return Request.CreateErrorResponse(HttpStatusCode.NotFound, ex.Message + ex.StackTrace);
             }
         }
 

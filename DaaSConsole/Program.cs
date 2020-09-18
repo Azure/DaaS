@@ -243,10 +243,9 @@ namespace ConsoleTester
 
                 if (!string.IsNullOrWhiteSpace(blobSasUri))
                 {
-                    var message = DaaS.Storage.BlobController.ValidateBlobSasUri(blobSasUri);
-                    if (!string.IsNullOrWhiteSpace(message))
+                    if (!DaaS.Storage.BlobController.ValidateBlobSasUri(blobSasUri, out Exception exStorage))
                     {
-                        throw new ApplicationException($"BlobSasUri specified is invalid. Failed with error - {message}");
+                        throw new ApplicationException($"BlobSasUri specified is invalid. Failed with error - {exStorage.Message}");
                     }
                 }
 
@@ -313,7 +312,7 @@ namespace ConsoleTester
             }
             catch (Exception ex)
             {
-                string logMessage = $"Unhandled exception in DaasConsole.exe - {ex.GetType().ToString()}:{ex.Message}";
+                string logMessage = $"Unhandled exception in DaasConsole.exe - {ex} ";
                 EventLog.WriteEntry("Application", logMessage, EventLogEntryType.Information);
                 Console.WriteLine(logMessage);
                 Logger.LogErrorEvent("Unhandled exception in DaasConsole.exe while collecting logs and taking actions", ex);

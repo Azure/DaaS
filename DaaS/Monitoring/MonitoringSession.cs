@@ -7,6 +7,7 @@
 
 using System;
 using System.Collections.Generic;
+using DaaS.Storage;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 
@@ -25,8 +26,43 @@ namespace DaaS
         CollectAndKill,
         CollectKillAndAnalyze
     }
+
+    public class MonitoringSessionResponse : MonitoringSession
+    {
+        private readonly string _blobSasUri = string.Empty;
+
+        public MonitoringSessionResponse(MonitoringSession s)
+        {
+            Mode = s.Mode;
+            SessionId = s.SessionId;
+            StartDate = s.StartDate;
+            EndDate = s.EndDate;
+            MonitorScmProcesses = s.MonitorScmProcesses;
+            CpuThreshold = s.CpuThreshold;
+            ThresholdSeconds = s.ThresholdSeconds;
+            MonitorDuration = s.MonitorDuration;
+            ActionToExecute = s.ActionToExecute;
+            ArgumentsToAction = s.ArgumentsToAction;
+            MaxActions = s.MaxActions;
+            MaximumNumberOfHours = s.MaximumNumberOfHours;
+            AnalysisStatus = s.AnalysisStatus;
+            FilesCollected = s.FilesCollected;
+            BlobStorageHostName = s.BlobStorageHostName;
+            _blobSasUri = s.BlobSasUri;
+    }
+        public new string BlobSasUri
+        {
+            get
+            {
+                return BlobController.GetActualBlobSasUri(_blobSasUri);
+            }
+        }
+    }
+
     public class MonitoringSession
     {
+        private string _blobSasUri = string.Empty;
+
         [JsonConverter(typeof(StringEnumConverter))]
         public SessionMode Mode { get; set; }
         public string SessionId { get; set; }
@@ -41,7 +77,26 @@ namespace DaaS
         public string ArgumentsToAction { get; set; }
         public int MaxActions { get; set; }
         public int MaximumNumberOfHours { get; set; }
-        public string BlobSasUri { get; set; }
+        public string BlobStorageHostName { get; set; }
+        public string BlobSasUri
+        {
+            get
+            {
+                if (string.IsNullOrEmpty(_blobSasUri) && Configuration.Settings.Instance.IsBlobSasUriConfiguredAsEnvironmentVariable())
+                {
+                    return Configuration.Settings.WebSiteDaasStorageSasUri;
+                }
+                else
+                {
+                    return _blobSasUri;
+                }
+            }
+            set
+            {
+                _blobSasUri = value;
+            }
+        }
+
         [JsonConverter(typeof(StringEnumConverter))]
         public AnalysisStatus AnalysisStatus { get; set; }
         public List<MonitoringFile> FilesCollected { get; set; }
@@ -50,7 +105,7 @@ namespace DaaS
 
     public class ActiveMonitoringSession
     {
-        public MonitoringSession Session { get; set; }
+        public MonitoringSessionResponse Session { get; set; }
         public List<MonitoringLogsPerInstance> MonitoringLogs { get; set; }
     }
 }

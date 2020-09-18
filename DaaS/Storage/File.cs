@@ -68,21 +68,7 @@ namespace DaaS.Storage
 
         internal static string GetPermanentStoragePathOnBlob(string relativeFilePath, string blobSasUri)
         {
-            if (string.IsNullOrWhiteSpace(blobSasUri))
-            {
-                throw new Exception("Blob storage isn't configured. Can't access a file from blob storage");
-            }
-
-            var blobUriSections = blobSasUri.Split('?');
-            if (blobSasUri.Length <= 2)
-            {
-                throw new Exception("Invalid blob storage SaS Uri configured");
-            }
-
-            var path = blobUriSections[0] + "/" + relativeFilePath.ConvertBackSlashesToForwardSlashes() + "?" +
-                       string.Join("?", blobUriSections, 1, blobUriSections.Length - 1);
-
-            return path;
+            return BlobController.GetPermanentStoragePathOnBlob(relativeFilePath, blobSasUri);
         }
 
         internal async virtual Task SaveAsync(Lease lease = null)

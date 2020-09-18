@@ -42,6 +42,7 @@ namespace DaaS.Sessions
         public SessionId SessionId { get; private set; }
         public string Description { get; internal set; }
         public List<Instance> InstancesSpecified { get; private set; }
+        public string BlobStorageHostName { get; internal set; }
         public new string BlobSasUri { get; internal set; }
 
         #region Status Checking
@@ -240,6 +241,7 @@ namespace DaaS.Sessions
                     new XElement(SessionXml.Status, Status),
                     new XElement(SessionXml.Description, Description),
                     new XElement(SessionXml.BlobSasUri, BlobSasUri),
+                    new XElement(SessionXml.BlobStorageHostName, BlobStorageHostName),
                     instancesXml,
                     diagnoserSessionsXml
                     )
@@ -274,6 +276,12 @@ namespace DaaS.Sessions
             if (blobSasUriXml != null)
             {
                 BlobSasUri = blobSasUriXml.Value;
+            }
+
+            var blobStorageHostNameXml = sessionXml.Element(SessionXml.BlobStorageHostName);
+            if (blobStorageHostNameXml != null)
+            {
+                BlobStorageHostName = blobStorageHostNameXml.Value;
             }
 
             var instancesXml = sessionXml.Element(SessionXml.Instances);

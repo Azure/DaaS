@@ -22,7 +22,8 @@ namespace DaaS.Sessions
         public const string EndTime = "EndTime";
         public const string TimeFormat = "O";
         public const string Description = "Description";
-        public const string BlobSasUri = "BlobSasUri"; 
+        public const string BlobSasUri = "BlobSasUri";
+        public const string BlobStorageHostName = "BlobStorageHostName";
         public const string Instances = "Instances";
         public const string InstancesCollected = "InstancesCollected";
         public const string Instance = "Instance";

@@ -25,6 +25,7 @@ namespace DaaS.Diagnostics
 
         internal Collector Collector { get; set; }
         internal Analyzer Analyzer { get; set; }
+        public bool DiagnoserRequiresStorage { get; set; }
 
         public List<String> GetWarnings()
         {

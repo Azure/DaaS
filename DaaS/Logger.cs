@@ -97,7 +97,9 @@ namespace DaaS
                 monitoringSession.ThresholdSeconds,
                 monitoringSession.MonitorScmProcesses,
                 monitoringSession.MaxActions,
-                monitoringSession.MaximumNumberOfHours
+                monitoringSession.MaximumNumberOfHours,
+                monitoringSession.BlobStorageHostName,
+                SasUriEnvironmentVariableExists = Configuration.Settings.Instance.IsBlobSasUriConfiguredAsEnvironmentVariable()
             };
 
             DaasEventSource.Instance.LogNewCpuMonitoringSession(SiteName, _assemblyVersion, monitoringSession.SessionId, monitoringSession.Mode.ToString(), JsonConvert.SerializeObject(details));
@@ -110,7 +112,7 @@ namespace DaaS
             {
                 if (bool.TryParse(Environment.GetEnvironmentVariable("DAAS_DEBUG"), out bool debugMode) && debugMode)
                 {
-                    string message = $"{DateTime.UtcNow.ToString()} [[{_assemblyVersion}]] [{Environment.MachineName}] {string.Format(format, arg)}";
+                    string message = $"{DateTime.UtcNow } [[{_assemblyVersion}]] [{Environment.MachineName}] {string.Format(format, arg)}";
                     Trace.TraceInformation(message);
                 }
             }
@@ -123,7 +125,7 @@ namespace DaaS
         {
             try
             {
-                logMessage = $"{DateTime.UtcNow.ToString()} [[{_assemblyVersion}]] [{Environment.MachineName}] {logMessage}";
+                logMessage = $"{DateTime.UtcNow } [[{_assemblyVersion}]] [{Environment.MachineName}] {logMessage}";
                 Trace.TraceInformation(logMessage);
             }
             catch (Exception)
@@ -157,7 +159,7 @@ namespace DaaS
                 {
                     message = $"{CallerComponent}: {message}";
                 }
-                Trace.TraceError($"{DateTime.UtcNow.ToString()} {message} {exceptionType}:{exceptionMessage} {exceptionStackTrace}");
+                Trace.TraceError($"{DateTime.UtcNow } {message} {exceptionType}:{exceptionMessage} {exceptionStackTrace}");
                 DaasEventSource.Instance.LogErrorEvent(SiteName, _assemblyVersion, message, exceptionType, exceptionMessage, exceptionStackTrace);
             }
             catch (Exception)
@@ -181,13 +183,14 @@ namespace DaaS
             LogDiagnostic("Session [ERR] - {0} {1} {2} {3} {4}", sessionId, message, ex.GetType().ToString(), ex.Message, ex.StackTrace);
         }
 
-        public static void LogNewSession(string sessionId, string mode, string diagnosers, string Instances, bool invokedViaDaasConsole, bool hasblobSasUri)
+        public static void LogNewSession(string sessionId, string mode, string diagnosers, string Instances, bool invokedViaDaasConsole, bool hasblobSasUri, bool sasUriInEnvironmentVariable)
         {
             var details = new
             {
                 Instances,
                 invokedViaDaasConsole,
-                hasblobSasUri
+                hasblobSasUri,
+                sasUriInEnvironmentVariable
             };
 
             DaasEventSource.Instance.LogNewSession(SiteName, _assemblyVersion, sessionId, mode, diagnosers, JsonConvert.SerializeObject(details));

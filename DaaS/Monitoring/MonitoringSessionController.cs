@@ -63,6 +63,7 @@ namespace DaaS
                 monitoringSession.StartDate = DateTime.UtcNow;
                 monitoringSession.EndDate = DateTime.MinValue.ToUniversalTime();
                 monitoringSession.SessionId = monitoringSession.StartDate.ToString(SessionConstants.SessionFileNameFormat);
+                monitoringSession.BlobStorageHostName = BlobController.GetBlobStorageHostName(monitoringSession.BlobSasUri);
                 cpuMonitoringActive = Path.Combine(cpuMonitoringActive, monitoringSession.SessionId + ".json");
                 monitoringSession.ToJsonFile(cpuMonitoringActive);
                 Logger.LogNewCpuMonitoringSession(monitoringSession);
@@ -437,7 +438,7 @@ namespace DaaS
 
             if (GetActiveSession() != null)
             {
-                foreach (var logFile in FileSystemHelpers.GetFilesInDirectory(cpuMonitorPath, "RD*.log", false, SearchOption.TopDirectoryOnly))
+                foreach (var logFile in FileSystemHelpers.GetFilesInDirectory(cpuMonitorPath, "*.log", false, SearchOption.TopDirectoryOnly))
                 {
                     string instanceName = Path.GetFileNameWithoutExtension(logFile);
                     if (activeInstances.Any(x => x.Name.Equals(instanceName, StringComparison.OrdinalIgnoreCase)))

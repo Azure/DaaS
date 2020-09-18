@@ -6,13 +6,11 @@
 //-----------------------------------------------------------------------
 
 using DiagnosticsExtension.Models;
-using Microsoft.WindowsAzure;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
 using DaaS.Sessions;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Web.Http;
@@ -24,6 +22,8 @@ namespace DiagnosticsExtension.Controllers
 {
     public class SettingsController : ApiController
     {
+        [HttpGet]
+        [Route("api/settings")]
         public Settings Get()
         {
             SessionController sessionController = new SessionController();
@@ -48,20 +48,75 @@ namespace DiagnosticsExtension.Controllers
             return settings;
         }
 
-        private static bool ValidateContainerSasUri(string uri)
+        [HttpGet]
+        [Route("api/settings/validatesasuri")]
+        public HttpResponseMessage ValidateSasUri()
         {
-            try
+            var sasUriResponse = new SasUriResponse();
+            SessionController sessionController = new SessionController();
+            sasUriResponse.SpecifiedAt = sessionController.BlobStorageSasSpecifiedAt;
+            string blobSasUri;
+            
+            if (sasUriResponse.SpecifiedAt == "EnvironmentVariable")
             {
-                CloudBlobContainer container = new CloudBlobContainer(new Uri(uri));
-                container.ListBlobs();
+                blobSasUri = Environment.GetEnvironmentVariable(DaaS.Configuration.Settings.WebSiteDaasStorageSasUri.Replace("%", ""));
             }
-            catch (Exception ex)
+            else if (sasUriResponse.SpecifiedAt == "PrivateSettings.xml")
             {
-                Logger.LogErrorEvent("Encountered exception while validating SAS URI", ex);
-                return false;
+                blobSasUri = sessionController.BlobStorageSasUri;
+            }
+            else
+            {
+                return Request.CreateResponse(sasUriResponse);
             }
 
-            return true;
+            if (DaaS.Storage.BlobController.ValidateBlobSasUri(blobSasUri, out Exception exceptionCallingStorage))
+            {
+                try
+                {
+                    Uri u = new Uri(blobSasUri);
+                    sasUriResponse.StorageAccount = u.Host;
+                    sasUriResponse.IsValid = true;
+
+                }
+                catch (Exception ex)
+                {
+                    sasUriResponse.Exception = ex.Message;
+                    sasUriResponse.IsValid = false;
+                }
+            }
+            else
+            {
+                sasUriResponse.IsValid = false;
+                if (Uri.TryCreate(blobSasUri, UriKind.Absolute, out Uri outUri) && (outUri.Scheme == Uri.UriSchemeHttp || outUri.Scheme == Uri.UriSchemeHttps))
+                {
+                    sasUriResponse.StorageAccount = outUri.Host;
+                }
+                if (exceptionCallingStorage != null)
+                {
+                    sasUriResponse.Exception = exceptionCallingStorage.Message;
+                    if (exceptionCallingStorage is StorageException storageEx)
+                    {
+                        if (storageEx.RequestInformation != null)
+                        {
+                            sasUriResponse.ExtendedError = new ExtendedError()
+                            {
+                                HttpStatusCode = storageEx.RequestInformation.HttpStatusCode,
+                                HttpStatusMessage = storageEx.RequestInformation.HttpStatusMessage
+                            };
+
+                            if (storageEx.RequestInformation.ExtendedErrorInformation != null)
+                            {
+                                sasUriResponse.ExtendedError.ErrorCode = storageEx.RequestInformation.ExtendedErrorInformation.ErrorCode;
+                                sasUriResponse.ExtendedError.ErrorMessage = storageEx.RequestInformation.ExtendedErrorInformation.ErrorMessage;
+                                sasUriResponse.ExtendedError.AdditionalDetails = storageEx.RequestInformation.ExtendedErrorInformation.AdditionalDetails;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return Request.CreateResponse(sasUriResponse);
         }
 
         private static string GenerateContainerSasUri(string accountName, string accountKey, string containerName, string endpointSuffix)
@@ -97,6 +152,8 @@ namespace DiagnosticsExtension.Controllers
             return container.Uri + sasContainerToken;
         }
 
+        [HttpPost]
+        [Route("api/settings")]
         public HttpResponseMessage Post([FromBody] Settings settings)
         {
             try
@@ -123,7 +180,7 @@ namespace DiagnosticsExtension.Controllers
                     }
                     else
                     {
-                        if (!ValidateContainerSasUri(settings.BlobSasUri))
+                        if (!DaaS.Storage.BlobController.ValidateBlobSasUri(settings.BlobSasUri, out Exception exceptionCallingStorage))
                             return Request.CreateResponse(HttpStatusCode.OK, false);
                         sessionController.BlobStorageSasUri = settings.BlobSasUri;
                     }

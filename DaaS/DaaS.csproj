@@ -111,34 +111,13 @@
     <None Include="DiagnosticTools\DumpAnalyzer.ps1">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Include="DiagnosticTools\HttpLogValidator.ps1">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
     <None Include="DiagnosticTools\JavaValidator.ps1">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="DiagnosticTools\LogAnalyzer\IISProcessing.ps1">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="DiagnosticTools\LogAnalyzer\LogAnalysisWorker.exe.config">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Include="DiagnosticTools\mock.ps1">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Include="DiagnosticTools\PHPErrorLogCollector.pl">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="DiagnosticTools\EventLogCollector.pl">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="DiagnosticTools\HttpLogValidator.pl">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="DiagnosticTools\HttpLogCollector.pl">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="DiagnosticTools\PHPProcessAnalyzer\PhpReportGen.exe.config">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Include="DiagnosticTools\TestAnalyzer.pl">
@@ -150,90 +129,6 @@
       <SubType>Designer</SubType>
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="DiagnosticTools\PHPProcessAnalyzer\symbols\msvcr90.i386.pdb">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="DiagnosticTools\PHPProcessAnalyzer\symbols\wkernelbase.pdb">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="DiagnosticTools\PHPProcessAnalyzer\symbols\wntdll.pdb">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <None Include="DiagnosticTools\LogAnalyzer\LogAnalysisWorker.exe">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="DiagnosticTools\LogAnalyzer\LogParser.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="DiagnosticTools\LogAnalyzer\LogParser.exe">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="DiagnosticTools\LogAnalyzer\LogTransformer.TraceObjects.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="DiagnosticTools\LogAnalyzer\Microsoft.Support.Cts.Ude.AnnotationRuleRepository.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="DiagnosticTools\LogAnalyzer\RuleRepository-eventlog.xml">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="DiagnosticTools\LogAnalyzer\script\CoreCss_555C9E47.css">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="DiagnosticTools\LogAnalyzer\script\ExtensionsCss_4C90087C.css">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="DiagnosticTools\LogAnalyzer\script\flot\jquery.flot.crosshair.js">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="DiagnosticTools\LogAnalyzer\script\flot\jquery.flot.js">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="DiagnosticTools\LogAnalyzer\script\flot\jquery.flot.pie.js">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="DiagnosticTools\LogAnalyzer\script\flot\jquery.flot.stack.js">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="DiagnosticTools\LogAnalyzer\script\jquery-1.5.1.js">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="DiagnosticTools\LogAnalyzer\script\LiveSiteAssist.css">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="DiagnosticTools\LogAnalyzer\script\plotting.js">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="DiagnosticTools\LogAnalyzer\script\Site.css">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="DiagnosticTools\PHPProcessAnalyzer\cdb.exe">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="DiagnosticTools\PHPProcessAnalyzer\cdbscript.txt">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="DiagnosticTools\PHPProcessAnalyzer\ext.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="DiagnosticTools\PHPProcessAnalyzer\exts.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="DiagnosticTools\PHPProcessAnalyzer\ntsdexts.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="DiagnosticTools\PHPProcessAnalyzer\PHPExts.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="DiagnosticTools\PHPProcessAnalyzer\PhpReportGen.exe">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="DiagnosticTools\PHPProcessAnalyzer\uext.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="DiagnosticTools\Wow64\cdb.exe">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
     <None Include="DiagnosticTools\procdump.exe">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
@@ -242,9 +137,7 @@
   <ItemGroup>
     <WCFMetadata Include="Service References\" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="DiagnosticTools\report\1\" />
-  </ItemGroup>
+  <ItemGroup />
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNet.WebApi.Client">
       <Version>5.2.6</Version>

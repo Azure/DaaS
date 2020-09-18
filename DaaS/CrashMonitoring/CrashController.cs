@@ -5,6 +5,7 @@
 // </copyright>
 //-----------------------------------------------------------------------
 
+using DaaS.Configuration;
 using DaaS.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
 using System;
@@ -25,7 +26,8 @@ namespace DaaS
         {
             bool checkForSiteName = ShouldCheckSiteNameInBlob();
             var filesCollected = new List<CrashMonitoringFile>();
-            var blobSasUri = DaaS.Configuration.Settings.Instance.BlobStorageSas;
+            string blobSasUri = Settings.Instance.IsBlobSasUriConfiguredAsEnvironmentVariable() ? Settings.WebSiteDaasStorageSasUri : Settings.Instance.BlobStorageSas;
+
             if (!string.IsNullOrWhiteSpace(blobSasUri))
             {
                 var dir = BlobController.GetBlobDirectory(DirectoryPath, blobSasUri);

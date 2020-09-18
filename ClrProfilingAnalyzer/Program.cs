@@ -42,7 +42,16 @@ namespace ClrProfilingAnalyzer
     {
         const int MIN_REQUEST_DURATION_IN_MILLISECONDS = 500;
         const int MAX_SLOWEST_REQUESTS_TO_DISPLAY = 100;
-
+        private static readonly string[] ExcludedModulesForLoadingSymbols = new string[]
+        {
+           "authanon", "bcrypt","bcryptprimitives","cachfile","cachhttp"," cachuri","CLBCatQ","cachtokn", "cachrui","iisreqs","iphlpapi",
+            "clrcompression", "clrjit", "combase","compdyn", "compstat", "cryptsp","custerr","defdoc","diasymreader","iisfcgi", "iisfreb",
+            "diprestr","dirlist", "gzip","iis_ssi","iisetw", "iprestr", "loghttp","msvcp140.i386", "msvcr120.i386","ncrypt", "cryptbase",
+            "ncryptsslp","OnDemandConnRouteHelper","protsup", "rsaenh","sechost","shlwapi","static", "ucrtbase", "ucrtbase_clr0400.i386",
+            "vcruntime140.i386", "vcruntime140_clr0400.i386", "version", "wgdi32", "wgdi32full", "wrpcrt4", "wsspicli","wuser32","wwin32u",
+            "modrqflt","msvcp140.i386", "msvcp_win", "ole32", "oleaut32", "shcore", "schannel", "ucrtbase_clr0400.i386", "warmup", "wgdi32full",
+            "aspnet_filter", "cachuri", "cgi", "filter", "msvcr120.i386", " msvcr110.i386","nativerd","redirect", "validcfg"
+        };
         static int m_ProcessId = 0;
         static string m_OutputPath = "";
         static string m_OutputPathWithInstanceName = "";
@@ -671,11 +680,18 @@ namespace ClrProfilingAnalyzer
             {
                 if (process.ProcessID == m_ProcessId)
                 {
+                    int symbolCount = 0;
+                    int totalSymbolCount = process.LoadedModules.Count();
                     foreach (var module in process.LoadedModules)
                     {
-                        if (module.ModuleFile.CodeAddressesInModule != 0)
+                        if (module.ModuleFile.CodeAddressesInModule != 0 && !ExcludedModulesForLoadingSymbols.Any(x => x.ToLower() == module.Name.ToLower()))
                         {
                             dataFile.CodeAddresses.LookupSymbolsForModule(symbolReader, module.ModuleFile);
+                        }
+                        symbolCount++;
+                        if (symbolCount % 50 == 0)
+                        {
+                            Logger.LogStatus($"Loaded {symbolCount} of {totalSymbolCount} symbols...");
                         }
                     }
                 }
