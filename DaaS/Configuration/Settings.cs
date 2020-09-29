@@ -12,30 +12,14 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Text;
 using System.Xml.Linq;
 using DaaS.Diagnostics;
 using DaaS.Storage;
 
 namespace DaaS.Configuration
 {
-    //internal interface ISettings
-    //{
-    //    string BlobStorageSas { get; set; }
-    //    string PermanentStorageRootPath { get; }
-    //    string UserSiteStorageDirectory { get; }
-    //    string InstanceName { get; }
-    //    string SiteName { get; }
-    //    string TempDir { get; }
-    //    string SiteRootDir { get; }
-    //    TimeSpan LeaseDuration { get; }
-    //    TimeSpan LeaseRenewalTime { get; }
-    //    TimeSpan HeartBeatLifeTime { get; }
-    //    TimeSpan FrequencyToCheckForNewSessionsAt { get; }
-
-    //    int MaxDiagnosticToolRetryCount { get; }
-    //    IEnumerable<Diagnoser> GetDiagnosers();
-    //}
-
     static class SettingsXml
     {
         internal const string DiagnosticSettings = "DiagnosticSettings";
@@ -71,6 +55,14 @@ namespace DaaS.Configuration
 
     public class Settings
     {
+        [DllImport("picohelper.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        public extern static bool GetSandboxProperty(
+           string propertyId,
+           byte[] valueBuffer,
+           int valueBufferLength,
+           uint flags,
+           ref int copiedBytes);
+
         const string PrivateSettingsFilePath = @"PrivateSettings.xml";
         const string DefaultSettingsFileName = @"DiagnosticSettings.xml";
 
@@ -111,9 +103,26 @@ namespace DaaS.Configuration
             }
         }
 
-        internal bool IsBlobSasUriConfiguredAsEnvironmentVariable()
+        public static bool IsBlobSasUriConfiguredAsEnvironmentVariable()
         {
-            return !string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(WebSiteDaasStorageSasUri.Replace("%", "")));
+            GetBlobSasUriFromEnvironment(WebSiteDaasStorageSasUri, out bool configuredAsEnvironmentVariable);
+            return configuredAsEnvironmentVariable;
+        }
+
+        public static string GetBlobSasUriFromEnvironment(string environmentVariableName, out bool configuredAsEnvironmentVariable)
+        {
+            int copiedBytes = 0;
+            byte[] valueBuffer = new byte[4096];
+            configuredAsEnvironmentVariable = false;
+            string blobSasUri = environmentVariableName;
+            environmentVariableName = environmentVariableName.Replace("%", "");
+            if (GetSandboxProperty(environmentVariableName, valueBuffer, valueBuffer.Length, 0, ref copiedBytes))
+            {
+                configuredAsEnvironmentVariable = true;
+                blobSasUri = Encoding.Unicode.GetString(valueBuffer, 0, copiedBytes);
+            }
+            
+            return blobSasUri;
         }
 
         internal string GetRootStoragePathForLocation(StorageLocation location)
@@ -150,16 +159,7 @@ namespace DaaS.Configuration
             {
                 if (_instanceName == null)
                 {
-                    //var instanceId = Environment.GetEnvironmentVariable("WEBSITE_INSTANCE_ID");
-                    //if (instanceId != null)
-                    //{
-                    //    // The first 10 characters are enough to get a unique instance name
-                    //    _instanceName = instanceId.Substring(0, 10);
-                    //}
-                    //else
-                    //{
-                        _instanceName = Environment.GetEnvironmentVariable("COMPUTERNAME");
-                    //}
+                    _instanceName = Environment.GetEnvironmentVariable("COMPUTERNAME");
                 }
                 return _instanceName;
             }

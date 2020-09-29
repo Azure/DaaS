@@ -17,6 +17,7 @@ using System.Web.Http;
 using System.Globalization;
 using Microsoft.WindowsAzure.Storage.Auth;
 using DaaS;
+using DaaS.Storage;
 
 namespace DiagnosticsExtension.Controllers
 {
@@ -54,15 +55,16 @@ namespace DiagnosticsExtension.Controllers
         {
             var sasUriResponse = new SasUriResponse();
             SessionController sessionController = new SessionController();
-            sasUriResponse.SpecifiedAt = sessionController.BlobStorageSasSpecifiedAt;
-            string blobSasUri;
             
-            if (sasUriResponse.SpecifiedAt == "EnvironmentVariable")
+            string blobSasUri = DaaS.Configuration.Settings.GetBlobSasUriFromEnvironment(DaaS.Configuration.Settings.WebSiteDaasStorageSasUri, out bool configredAsEnvironment);
+
+            if (configredAsEnvironment)
             {
-                blobSasUri = Environment.GetEnvironmentVariable(DaaS.Configuration.Settings.WebSiteDaasStorageSasUri.Replace("%", ""));
+                sasUriResponse.SpecifiedAt = "EnvironmentVariable";
             }
-            else if (sasUriResponse.SpecifiedAt == "PrivateSettings.xml")
+            else if (!string.IsNullOrEmpty(sessionController.BlobStorageSasUri))
             {
+                sasUriResponse.SpecifiedAt = "PrivateSettings.xml";
                 blobSasUri = sessionController.BlobStorageSasUri;
             }
             else
@@ -70,7 +72,7 @@ namespace DiagnosticsExtension.Controllers
                 return Request.CreateResponse(sasUriResponse);
             }
 
-            if (DaaS.Storage.BlobController.ValidateBlobSasUri(blobSasUri, out Exception exceptionCallingStorage))
+            if (BlobController.ValidateBlobSasUri(blobSasUri, out Exception exceptionCallingStorage))
             {
                 try
                 {

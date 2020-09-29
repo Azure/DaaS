@@ -7,6 +7,7 @@
 
 using System;
 using System.Collections.Generic;
+using DaaS.Configuration;
 using DaaS.Storage;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
@@ -82,7 +83,7 @@ namespace DaaS
         {
             get
             {
-                if (string.IsNullOrEmpty(_blobSasUri) && Configuration.Settings.Instance.IsBlobSasUriConfiguredAsEnvironmentVariable())
+                if (string.IsNullOrEmpty(_blobSasUri) && Settings.IsBlobSasUriConfiguredAsEnvironmentVariable())
                 {
                     return Configuration.Settings.WebSiteDaasStorageSasUri;
                 }

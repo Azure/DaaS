@@ -9,6 +9,7 @@ using System;
 using System.Collections.Concurrent;
 using System.IO;
 using System.Linq;
+using DaaS.Configuration;
 using Microsoft.WindowsAzure.Storage.Blob;
 
 namespace DaaS.Storage
@@ -111,15 +112,17 @@ namespace DaaS.Storage
             
             blobSasUri = GetActualBlobSasUri(blobSasUri);
             var blobUriSections = blobSasUri.Split('?');
-            if (blobSasUri.Length <= 2)
+            if (blobSasUri.Length >= 2)
             {
-                throw new Exception("Invalid blob storage SaS Uri configured");
+                var path = blobUriSections[0] + "/" + relativeFilePath.ConvertBackSlashesToForwardSlashes() + "?" +
+                           string.Join("?", blobUriSections, 1, blobUriSections.Length - 1);
+
+                return path;
             }
-
-            var path = blobUriSections[0] + "/" + relativeFilePath.ConvertBackSlashesToForwardSlashes() + "?" +
-                       string.Join("?", blobUriSections, 1, blobUriSections.Length - 1);
-
-            return path;
+            else
+            {
+                return blobUriSections[0] + "/" + relativeFilePath.ConvertBackSlashesToForwardSlashes();
+            }
         }
 
         internal static string GetActualBlobSasUri(string blobSasUri)
@@ -135,7 +138,7 @@ namespace DaaS.Storage
 
             if (blobSasUri.StartsWith("%"))
             {
-                blobSasUri = Environment.ExpandEnvironmentVariables(blobSasUri);
+                blobSasUri = Settings.GetBlobSasUriFromEnvironment(blobSasUri, out _);
             }
             return blobSasUri;
         }

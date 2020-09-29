@@ -26,7 +26,7 @@ namespace DaaS
         {
             bool checkForSiteName = ShouldCheckSiteNameInBlob();
             var filesCollected = new List<CrashMonitoringFile>();
-            string blobSasUri = Settings.Instance.IsBlobSasUriConfiguredAsEnvironmentVariable() ? Settings.WebSiteDaasStorageSasUri : Settings.Instance.BlobStorageSas;
+            string blobSasUri = Settings.IsBlobSasUriConfiguredAsEnvironmentVariable() ? Settings.WebSiteDaasStorageSasUri : Settings.Instance.BlobStorageSas;
 
             if (!string.IsNullOrWhiteSpace(blobSasUri))
             {

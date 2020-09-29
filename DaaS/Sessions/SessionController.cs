@@ -44,14 +44,6 @@ namespace DaaS.Sessions
             }
         }
 
-        public string BlobStorageSasSpecifiedAt
-        {
-            get
-            {
-                return Infrastructure.Settings.BlobStorageSasSpecifiedAt;
-            }
-        }
-
         public TimeSpan FrequencyToCheckForNewSessionsAt
         {
             get
@@ -203,7 +195,7 @@ namespace DaaS.Sessions
             //
             if (string.IsNullOrWhiteSpace(blobSasUri) 
                 && diagnosers.Any(x => x.DiagnoserRequiresStorage)
-                && Settings.Instance.IsBlobSasUriConfiguredAsEnvironmentVariable())
+                && Settings.IsBlobSasUriConfiguredAsEnvironmentVariable())
             {
 
                 blobSasUri = Settings.WebSiteDaasStorageSasUri;
