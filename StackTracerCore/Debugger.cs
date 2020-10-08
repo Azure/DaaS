@@ -172,7 +172,7 @@ namespace StackTracerCore
 
         static string GetSymbolPath()
         {
-            string path = @"SRV*D:\home\data\DaaS\symbols*http://msdl.microsoft.com/download/symbols";
+            string path = $@"SRV*{DaaS.EnvironmentVariables.DaasSymbolsPath}*http://msdl.microsoft.com/download/symbols";
             return path;
         }
     }

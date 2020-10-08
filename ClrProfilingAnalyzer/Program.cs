@@ -109,7 +109,7 @@ namespace ClrProfilingAnalyzer
             try
             {
                 var homePath = Environment.GetEnvironmentVariable("HOME");
-                var localPath = "d:\\local";
+                var localPath = EnvironmentVariables.Local;
 
                 if (GetDiskFreeSpace(localPath, out ulong freeBytes, out ulong totalBytes))
                 {
@@ -923,7 +923,12 @@ namespace ClrProfilingAnalyzer
                 sitename = sitename.Replace(".azurewebsites.net", ".scm.azurewebsites.net");
             }
 
-            var url = diagSessionPath.ToLower().Replace(@"d:\local\temp\logs\", $"https://{sitename}/api/vfs/Data/Daas/Logs/");
+            var logsDirectory = Path.Combine(EnvironmentVariables.LocalTemp, "logs");
+            if (!logsDirectory.EndsWith("/"))
+            {
+                logsDirectory += "/";
+            }
+            var url = diagSessionPath.ToLower().Replace(logsDirectory.ToLower(), $"https://{sitename}/api/vfs/Data/Daas/Logs/");
             url = url.Replace('\\', '/');
 
             return url;
@@ -1164,9 +1169,9 @@ namespace ClrProfilingAnalyzer
 
                     // Doing this to avoid the PathTooLong exception which happens
                     // while extracing the zip file
-                    if (m_DiagSessionPath.ToLower().StartsWith(@"d:\local\temp"))
+                    if (m_DiagSessionPath.StartsWith(EnvironmentVariables.LocalTemp, StringComparison.OrdinalIgnoreCase))
                     {
-                        unCompressedPath = Path.Combine(@"d:\local\temp", "ETL." + Guid.NewGuid().ToString().Replace("-", ""));
+                        unCompressedPath = Path.Combine(EnvironmentVariables.LocalTemp, "ETL." + Guid.NewGuid().ToString().Replace("-", ""));
                     }
                     else
                     {

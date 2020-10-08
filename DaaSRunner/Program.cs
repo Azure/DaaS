@@ -159,7 +159,7 @@ namespace DaaSRunner
         {
             try
             {
-                Directory.Delete(@"D:\home\data\DaaS\symbols", true);
+                Directory.Delete(DaaS.EnvironmentVariables.DaasSymbolsPath, true);
             }
             catch (Exception)
             {

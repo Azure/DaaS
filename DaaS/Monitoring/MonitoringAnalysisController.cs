@@ -128,7 +128,7 @@ namespace DaaS
             string outputPath = Path.Combine(cpuMonitorPath, analysisRequest.SessionId);
             string inputFile = CacheFileInTempDirectory(analysisRequest);
             string args = $@"-File ""{diagnosticToolsPath}\DumpAnalyzer.ps1"" ""{inputFile}"" ""{outputPath}""";
-            var command = @"D:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe";
+            var command = EnvironmentVariables.PowershellExePath;
 
             Logger.LogCpuMonitoringVerboseEvent($"Powershell started with args [{args}]", analysisRequest.SessionId);
             double secondsWaited = 0;

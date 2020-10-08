@@ -58,6 +58,7 @@
     <Compile Include="DelegatingStream.cs" />
     <Compile Include="Diagnostics\Analyzer.cs" />
     <Compile Include="Diagnostics\Collector.cs" />
+    <Compile Include="EnvironmentVariables.cs" />
     <Compile Include="MemoryStreamExtensions.cs" />
     <Compile Include="Monitoring\AnalysisRequest.cs" />
     <Compile Include="Monitoring\MonitoringAnalysisController.cs" />

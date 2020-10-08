@@ -120,7 +120,7 @@ namespace DaaS
     }
     public static class FileSystemHelpers
     {
-        public static string TmpFolder = "d:\\home\\data";
+        public static string TmpFolder = EnvironmentVariables.DataPath;
 
         private static IFileSystem _default = new FileSystem();
         private static IFileSystem _instance;

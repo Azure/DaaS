@@ -76,7 +76,7 @@
     <!-- SnapShot collectors run once at the beginning of the specified time range -->
 
     <RangeCollector Name="PhpErrorLogCollector">
-      <Warning>No php error logs have been collected so far. Please make sure that PHP error logging is turned ON inside .user.ini in D:\home\site\wwwroot by setting log_errors = On</Warning>
+      <Warning>No php error logs have been collected so far. Please make sure that PHP error logging is turned ON inside .user.ini in \home\site\wwwroot by setting log_errors = On</Warning>
       <Command>perl</Command>
       <Arguments>"%diagnosticToolsPath%\PHPErrorLogCollector.pl" %outputDir%</Arguments>
       <PreValidationCommand>%ProgramFiles(x86)%\git\usr\bin\perl.exe</PreValidationCommand>
@@ -122,33 +122,33 @@
 
     <SnapshotCollector Name="JStackCollector">
       <Warning>This tool collects data for Web App using Java and we found that java.exe was not running so this tool cannot run. If this is a Java based Web App, make sure that the java process is running by browsing the app and then execute the tool again.</Warning>
-      <Command>D:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe</Command>
+      <Command>%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe</Command>
       <Arguments>-File "%diagnosticToolsPath%\javatools\collectJstack.ps1" %outputDir%</Arguments>
-      <PreValidationCommand>D:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe</PreValidationCommand>
+      <PreValidationCommand>%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe</PreValidationCommand>
       <PreValidationArguments>-File "%diagnosticToolsPath%\JavaValidator.ps1"</PreValidationArguments>
     </SnapshotCollector>
 
     <SnapshotCollector Name="JMapDumpCollector">
       <Warning>This tool collects data for Web App using Java and we found that java.exe was not running so this tool cannot run. If this is a Java based Web App, make sure that the java process is running by browsing the app and then execute the tool again.</Warning>
-      <Command>D:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe</Command>
+      <Command>%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe</Command>
       <Arguments>-File "%diagnosticToolsPath%\javatools\collectJMap.ps1" %outputDir%</Arguments>
-      <PreValidationCommand>D:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe</PreValidationCommand>
+      <PreValidationCommand>%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe</PreValidationCommand>
       <PreValidationArguments>-File "%diagnosticToolsPath%\JavaValidator.ps1"</PreValidationArguments>
     </SnapshotCollector>
 
     <SnapshotCollector Name="JMapStatsCollector">
       <Warning>This tool collects data for Web App using Java and we found that java.exe was not running so this tool cannot run. If this is a Java based Web App, make sure that the java process is running by browsing the app and then execute the tool again.</Warning>
-      <Command>D:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe</Command>
+      <Command>%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe</Command>
       <Arguments>-File "%diagnosticToolsPath%\javatools\collectJMap.ps1" "%outputDir%" text</Arguments>
-      <PreValidationCommand>D:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe</PreValidationCommand>
+      <PreValidationCommand>%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe</PreValidationCommand>
       <PreValidationArguments>-File "%diagnosticToolsPath%\JavaValidator.ps1"</PreValidationArguments>
     </SnapshotCollector>
 
     <SnapshotCollector Name="JCmdCollector">
       <Warning>This tool collects data for Web App using Java and we found that java.exe was not running so this tool cannot run. If this is a Java based Web App, make sure that the java process is running by browsing the app and then execute the tool again.</Warning>
-      <Command>D:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe</Command>
+      <Command>%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe</Command>
       <Arguments>-File "%diagnosticToolsPath%\javatools\collectjCmd.ps1" "%outputDir%" text</Arguments>
-      <PreValidationCommand>D:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe</PreValidationCommand>
+      <PreValidationCommand>%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe</PreValidationCommand>
       <PreValidationArguments>-File "%diagnosticToolsPath%\JavaValidator.ps1"</PreValidationArguments>
     </SnapshotCollector>
 
@@ -163,7 +163,7 @@
   <Analyzers>
 
     <Analyzer Name="DumpAnalyzer">
-      <Command>D:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe</Command>
+      <Command>%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe</Command>
       <Arguments>-File "%diagnosticToolsPath%\DumpAnalyzer.ps1" "%logFile%" "%outputDir%"</Arguments>
      </Analyzer>
 
@@ -193,22 +193,22 @@
     </Analyzer>
 
     <Analyzer Name="JMapDumpAnalyzer">
-      <Command>D:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe</Command>
+      <Command>%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe</Command>
       <Arguments>-File "%diagnosticToolsPath%\javatools\analyzeJavaTool.ps1" "%logFile%" "%outputDir%" "jmapAnalysis.html"</Arguments>
     </Analyzer>
 
     <Analyzer Name="JMapStatsAnalyzer">
-      <Command>D:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe</Command>
+      <Command>%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe</Command>
       <Arguments>-File "%diagnosticToolsPath%\javatools\analyzeJavaTool.ps1" "%logFile%" "%outputDir%" "jmapAnalysis.html"</Arguments>
     </Analyzer>
 
     <Analyzer Name="JCmdAnalyzer">
-      <Command>D:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe</Command>
+      <Command>%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe</Command>
       <Arguments>-File "%diagnosticToolsPath%\javatools\analyzeJavaTool.ps1" "%logFile%" "%outputDir%" "jcmdAnalysis.html"</Arguments>
     </Analyzer>
 
     <Analyzer Name="MockAnalyzer">
-      <Command>D:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe</Command>
+      <Command>%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe</Command>
       <Arguments>-File "%diagnosticToolsPath%\mock.ps1" "%logFile%" "%outputDir%"</Arguments>
     </Analyzer>
 

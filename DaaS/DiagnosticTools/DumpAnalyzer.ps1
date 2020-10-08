@@ -3,9 +3,9 @@
 $programfiles = [System.Environment]::ExpandEnvironmentVariables("%ProgramFiles(x86)%")
 [string] $dumpAnalyzerpath = [System.Io.Path]::Combine($programfiles, "DumpAnalyzer")
 
-$symbolpath = "srv*D:\NdpCorePdb*;srv*http://msdl.microsoft.com/download/symbols;%ProgramFiles(x86)%\PHP\v5.6\Debug;%ProgramFiles(x86)%\PHP\v5.5\Debug;%ProgramFiles(x86)%\PHP\v5.4\Debug;%ProgramFiles(x86)%\PHP\v5.3\Debug\" 
-$rules = "CrashHangAnalysis"
-[string] $tempDir = "D:\local\Temp"
+[string] $symbolpath = "srv*$Env:SystemDrive\NdpCorePdb*;srv*http://msdl.microsoft.com/download/symbols;%ProgramFiles(x86)%\PHP\v5.6\Debug;%ProgramFiles(x86)%\PHP\v5.5\Debug;%ProgramFiles(x86)%\PHP\v5.4\Debug;%ProgramFiles(x86)%\PHP\v5.3\Debug\" 
+[string] $rules = "CrashHangAnalysis"
+[string] $tempDir = $Env:TEMP
 
 Add-Type -Path "DAAS.dll"
 [DaaS.Logger]::Init("",$outputPath, "DumpAnalyzer", $true) 
@@ -23,7 +23,7 @@ if ($dumpFileExists)
 	[DaaS.Logger]::LogDiagnoserVerboseEvent("Going to analyze $dumpFile of size $dumpfileSize with rules $rules") } else {
 	[DaaS.Logger]::LogDiagnoserVerboseEvent("$dumpFile does not exist") }
 
-$pathExists = Test-Path "D:\local\Temp\DumpAnalyzer\DumpAnalyzer.exe" 
+$pathExists = Test-Path "$Env:TEMP\DumpAnalyzer\DumpAnalyzer.exe" 
 if ($pathExists -eq $false)
 {
     $dumpAnalyzerTempPath = [System.Io.Path]::Combine($tempDir, "DumpAnalyzer")
@@ -31,7 +31,7 @@ if ($pathExists -eq $false)
     "Copying $dumpAnalyzerpath to $tempDir"
     Copy-Item -Path $dumpAnalyzerpath  -Recurse -Destination $tempDir -Container }
 
-$dumpAnalyzerTempPath = "D:\local\Temp\DumpAnalyzer\DumpAnalyzer.exe"
+$dumpAnalyzerTempPath = "$Env:TEMP\DumpAnalyzer\DumpAnalyzer.exe"
 $cmdToExecute = "Executing: " + $dumpAnalyzerTempPath + " -dumpFile $dumpFile -symbols $symbolpath -Rules $rules -out $outputPath"
 [DaaS.Logger]::LogDiagnoserVerboseEvent($cmdToExecute)
 

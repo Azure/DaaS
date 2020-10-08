@@ -29,7 +29,7 @@ namespace DaaS
         const int MIN_MONITOR_DURATION_IN_SECONDS = 5;
         const int MIN_THRESHOLD_DURATION_IN_SECONDS = 15;
 
-        public const string TempFilePath = @"D:\local\temp\Monitoring\Logs";
+        public readonly static string TempFilePath = Path.Combine(EnvironmentVariables.LocalTemp, "Monitoring", "Logs");
 
         public static string GetCpuMonitoringPath(string folderName = "", bool relativePath = false)
         {

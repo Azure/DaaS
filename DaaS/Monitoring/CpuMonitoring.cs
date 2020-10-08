@@ -94,7 +94,7 @@ namespace DaaS
 
             if (string.IsNullOrWhiteSpace(actionToExecute))
             {
-                actionToExecute = @"D:\devtools\sysinternals\procdump.exe";
+                actionToExecute = EnvironmentVariables.ProcdumpPath;
             }
             if (string.IsNullOrWhiteSpace(argumentsToAction))
             {

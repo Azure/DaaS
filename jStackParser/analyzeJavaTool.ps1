@@ -29,7 +29,9 @@ function GetUrlForFile([string] $filepath)
 			$siteName = $siteName.Replace(".azurewebsites.net", ".scm.azurewebsites.net")
 		}
 
-	$url = $filepath.ToLower().Replace("d:\local\temp\logs\", "https://$siteName/api/vfs/Data/Daas/Logs/")
+	$templogs = "$Env:TEMP\logs\"
+	$templogs = $templogs.ToLower()
+	$url = $filepath.ToLower().Replace($templogs, "https://$siteName/api/vfs/Data/Daas/Logs/")
     $url = $url.Replace('\', '/')
 	return $url
 	}

@@ -49,10 +49,10 @@ namespace ClrProflingCollector
             try
             {
                 AppModelDetector detector = new AppModelDetector();
-                var webconfigPath = new DirectoryInfo(Path.Combine(Environment.GetEnvironmentVariable("HOME_EXPANDED"), "site", "wwwroot"));
-                if (webconfigPath.Exists)
+                var webconfigDirecotryPath = new DirectoryInfo(EnvironmentVariables.WebConfigDirectoryPath);
+                if (webconfigDirecotryPath.Exists)
                 {
-                    var version = detector.Detect(webconfigPath);
+                    var version = detector.Detect(webconfigDirecotryPath);
                     if (!string.IsNullOrWhiteSpace(version.CoreProcessName))
                     {
                         Logger.LogDiagnoserVerboseEvent($".Net Core detected - need to trace {version.CoreProcessName} as well");

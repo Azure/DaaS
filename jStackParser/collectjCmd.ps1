@@ -38,11 +38,11 @@ if ($jcmdExists -eq $true)
     {
 		$jfrFileName = $machineName + "_" + $javaProcess.ToString() + "_jcmd.jfr"
 
-		## For some reason jCMD.exe is not able to write files to d:\local\temp directory
-		## so we generate a file in d:\home\logfiles\ticks folder and move it to TEMP to keep DAAS 
+		## For some reason jCMD.exe is not able to write files to %SystemDrive%\local\temp directory
+		## so we generate a file in %SystemDrive%\home\logfiles\ticks folder and move it to TEMP to keep DAAS 
 		## happy. Later we delete this folder.
 
-		$dirPath = [io.path]::combine("d:\home\logfiles","JFR",(get-date).ticks)
+		$dirPath = [io.path]::combine("$Env:HOME\logfiles","JFR",(get-date).ticks)
 		$dirExists = test-path $dirPath
 		if ($dirExists -eq $false)
 		{

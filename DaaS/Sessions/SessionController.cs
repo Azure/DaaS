@@ -224,7 +224,7 @@ namespace DaaS.Sessions
 
                 if (existingSessions > maxSessionsPerDay)
                 {
-                    throw new AccessViolationException($"The limit of maximum number of DaaS sessions ({maxSessionsPerDay} per day) has been reached. Either disable the autohealing rule, delete existing sessions or increase MaxSessionsPerDay setting in d:\\home\\data\\daas\\PrivateSettings.xml file. (Changing MaxSessionsPerDay setting, requires a restart of the Kudu Site)");
+                    throw new AccessViolationException($"The limit of maximum number of DaaS sessions ({maxSessionsPerDay} per day) has been reached. Either disable the autohealing rule, delete existing sessions or increase MaxSessionsPerDay setting in \\home\\data\\daas\\PrivateSettings.xml file. (Changing MaxSessionsPerDay setting, requires a restart of the Kudu Site)");
                 }
 
                 var sessionThresholdPeriodInMinutes = Infrastructure.Settings.MaxSessionCountThresholdPeriodInMinutes;
@@ -1127,9 +1127,8 @@ namespace DaaS.Sessions
             var daasDisabled = Environment.GetEnvironmentVariable("WEBSITE_DAAS_DISABLED");
             if (daasDisabled != null && daasDisabled.Equals("True", StringComparison.OrdinalIgnoreCase))
             {
-                DeleteWebjobFromAppDataFolderIfExists(@"D:\home\site\wwwroot\App_Data\Jobs\Continuous\DaaS");
-
-                DeleteWebjobFromAppDataFolderIfExists(@"D:\home\site\Jobs\Continuous\DaaS");
+                DeleteWebjobFolderIfExists(EnvironmentVariables.DaasWebJobAppData);
+                DeleteWebjobFolderIfExists(EnvironmentVariables.DaasWebJob);
             }
             else
             {
@@ -1198,7 +1197,7 @@ namespace DaaS.Sessions
                         {
                             Logger.LogVerboseEvent($"Going to update DaaS bits because versionsDifferent = {versionsDifferent} and filesMatching = {filesMatching}");
 
-                            if (DeleteWebjobFromAppDataFolderIfExists(@"D:\home\site\wwwroot\App_Data\Jobs\Continuous\DaaS"))
+                            if (DeleteWebjobFolderIfExists(EnvironmentVariables.DaasWebJobAppData))
                             {
                                 Logger.LogVerboseEvent(@"Deleted daas webjob from App_Data and moving to site\jobs\Continous folder and waiting for 30 seconds before adding the new webjob");
                                 Thread.Sleep(30000);
@@ -1232,7 +1231,7 @@ namespace DaaS.Sessions
                             }
                             catch (Exception ex)
                             {
-                                Logger.LogErrorEvent(@"Failed while copying DAAS bits to d:\home\data\daas\bin directory", ex);
+                                Logger.LogErrorEvent(@"Failed while copying DAAS bits to \home\data\daas\bin directory", ex);
                             }
                         }
 
@@ -1328,7 +1327,7 @@ namespace DaaS.Sessions
             return dllsNeedingUpdate;
         }
 
-        private bool DeleteWebjobFromAppDataFolderIfExists(string fullPath)
+        private bool DeleteWebjobFolderIfExists(string fullPath)
         {
             if (Directory.Exists(fullPath))
             {

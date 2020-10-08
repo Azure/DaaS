@@ -6,15 +6,11 @@
 //-----------------------------------------------------------------------
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Management.Instrumentation;
-using System.Text;
-using System.Threading.Tasks;
 using DaaS.Configuration;
-using DaaS.HeartBeats;
 using DaaS.Leases;
 using DaaS.Storage;
 
@@ -47,12 +43,12 @@ namespace DaaS
         {
             var latestDaasDir = string.Empty;
             bool foundDaasAsPrivateExtension = false;
-            if (Directory.Exists(@"D:\home\SiteExtensions\daas"))
+            if (Directory.Exists(EnvironmentVariables.PrivateSiteExtensionPath) 
+                && Directory.Exists(Path.Combine(EnvironmentVariables.PrivateSiteExtensionPath, "bin"))
+                && Directory.Exists(Path.Combine(EnvironmentVariables.PrivateSiteExtensionPath, "bin", "DiagnosticTools")))
             {
-                foundDaasAsPrivateExtension = Directory.Exists(@"D:\home\SiteExtensions\daas\bin");
-                foundDaasAsPrivateExtension = Directory.Exists(@"D:\home\SiteExtensions\daas\bin\DiagnosticTools");
                 foundDaasAsPrivateExtension = true;
-                latestDaasDir = @"D:\home\SiteExtensions\daas";
+                latestDaasDir = EnvironmentVariables.PrivateSiteExtensionPath;
             }
 
             if (foundDaasAsPrivateExtension == false)
@@ -78,33 +74,21 @@ namespace DaaS
             return latestDaasDir;
         }
 
-        //private static IHeartBeatController _heartBeatController;
-
-        //public static IHeartBeatController HeartBeatController
-        //{
-        //    get { return _heartBeatController ?? (_heartBeatController = HeartBeats.HeartBeatController.Instance); }
-        //    set { _heartBeatController = value; }
-        //}
-
-        //internal static Func<string, string, Task> RunProcessAsync = RunProcessAsyncImplementation;
-
         internal static Func<string, string, string, Process> RunProcess = RunProcessImplementation;
 
         private static Process RunProcessImplementation(string command, string arguments, string sessionId)
         {
+            // Expand the environment varibles just in case the command has %
+            command = Environment.ExpandEnvironmentVariables(command);
+            
             var process = new Process()
             {
                 StartInfo =
                 {
                     FileName = command,
                     Arguments = arguments,
-                    //WindowStyle = ProcessWindowStyle.Hidden,
-                    UseShellExecute = false,                    
-                    //RedirectStandardError = true,
-                    //RedirectStandardOutput = true,
+                    UseShellExecute = false
                 }
-
-                
             };
 
             process.StartInfo.EnvironmentVariables.Add("DAAS_SESSION_ID",sessionId);
@@ -112,52 +96,5 @@ namespace DaaS
             process.Start();
             return process;
         }
-
-        ///// <summary>
-        ///// Used to be able to determine when the process has stopped running without having to depend on a Process type (for testing)
-        ///// </summary>
-        //static Task RunProcessAsyncImplementation(string command, string arguments)
-        //{
-        //    // there is no non-generic TaskCompletionSource
-        //    var tcs = new TaskCompletionSource<bool>();
-
-        //    var process = new Process()
-        //    {
-        //        StartInfo =
-        //        {
-        //            FileName = command,
-        //            Arguments = arguments,
-        //            //WindowStyle = ProcessWindowStyle.Hidden,
-        //            UseShellExecute = false,
-        //            RedirectStandardError = true,
-        //            RedirectStandardOutput = true,
-        //        },
-        //        EnableRaisingEvents = true
-        //    };
-
-        //    process.Exited += (sender, args) =>
-        //    {
-        //        var errorStream = process.StandardError;
-        //        var errorText = errorStream.ReadToEnd();
-        //        if (!string.IsNullOrEmpty(errorText))
-        //        {
-        //            var errorCode = process.ExitCode;
-        //            process.Dispose();
-        //            throw new ApplicationException(
-        //                string.Format(
-        //                "Process {0} exited with error code {1}. Error message: {2}",
-        //                command,
-        //                errorCode,
-        //                errorText));
-        //        }
-
-        //        tcs.SetResult(true);
-        //        process.Dispose();
-        //    };
-
-        //    process.Start();
-
-        //    return tcs.Task;
-        //}
     }
 }

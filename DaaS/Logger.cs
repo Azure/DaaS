@@ -48,7 +48,7 @@ namespace DaaS
 
                 try
                 {
-                    string statusFilePath = Path.GetDirectoryName(outputPath).Replace(@"D:\local\Temp\", @"D:\home\data\DaaS\");
+                    string statusFilePath = Path.GetDirectoryName(outputPath).ToLower().Replace(EnvironmentVariables.LocalTemp.ToLower(), EnvironmentVariables.DaasPath.ToLower());
                     Directory.CreateDirectory(statusFilePath);
                     StatusFile = Path.Combine(statusFilePath, "diagstatus.diaglog");
                     ErrorFilePath = Path.Combine(outputPath, $"{Environment.MachineName}_{CallerComponent}.err.diaglog");
@@ -72,7 +72,7 @@ namespace DaaS
 
                     try
                     {
-                        string statusFilePath = outputPath.Replace(@"D:\local\Temp\", @"D:\home\data\DaaS\");
+                        string statusFilePath = outputPath.ToLower().Replace(EnvironmentVariables.LocalTemp.ToLower(), EnvironmentVariables.DaasPath.ToLower());
                         if (!Directory.Exists(statusFilePath))
                         {
                             Directory.CreateDirectory(statusFilePath);

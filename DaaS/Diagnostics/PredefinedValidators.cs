@@ -66,7 +66,7 @@ namespace DaaS
         {
             pathInConfigNotJavaExe = false;
             string javaExePath = string.Empty;
-            string webConfigPath = @"d:\\home\\site\\wwwroot\\web.config";
+            string webConfigPath = EnvironmentVariables.WebConfigFilePath;
             if (File.Exists(webConfigPath))
             {
                 var xdocument = XDocument.Load(webConfigPath);

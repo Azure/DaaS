@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using Microsoft.Diagnostics.Symbols;
 using System.Reflection;
 using System.Diagnostics;
+using DaaS;
 
 namespace ClrProfilingAnalyzer
 {
@@ -18,8 +19,8 @@ namespace ClrProfilingAnalyzer
     {
         public static SymbolReader GetSymbolReader(string additionalPath, string etlFilePath = null, SymbolReaderOptions symbolFlags = SymbolReaderOptions.None)
         {
-            string localSymbolPath = @"D:\home\data\DaaS\symbols";
-            if (!Directory.Exists(@"D:\home\data\DaaS"))
+            string localSymbolPath = DaaS.EnvironmentVariables.DaasSymbolsPath;
+            if (!Directory.Exists(DaaS.EnvironmentVariables.DaasPath))
             {
                 localSymbolPath = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "symbols");
             }
@@ -41,8 +42,8 @@ namespace ClrProfilingAnalyzer
                 daasSymbolPath = "";
             }
 
-            symPath.Insert(@"srv*d:\NdpCorePdb*");
-            symPath.Insert(@"srv*D:\home\data\DaaS\symbols*" + daasSymbolPath);
+            symPath.Insert($"srv*{EnvironmentVariables.NdpCorePdbPath}*");
+            symPath.Insert($@"srv*{EnvironmentVariables.DaasSymbolsPath}*" + daasSymbolPath);
 
             string localSymDir = symPath.DefaultSymbolCache();
             if (etlFilePath != null)

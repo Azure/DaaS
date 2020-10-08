@@ -301,7 +301,7 @@ namespace DiagnosticsExtension.Controllers
         private List<DatabaseConnection> CheckConnectionstringsInSiteWebConfig()
         {
             List<DatabaseConnection> connections = new List<DatabaseConnection>();
-            var webConfigFile = Path.Combine(@"D:\local\VirtualDirectory0\site\wwwroot", "web.config");
+            var webConfigFile = Path.Combine(DaaS.EnvironmentVariables.WebConfigFilePath);
 
             if (File.Exists(webConfigFile))
             {

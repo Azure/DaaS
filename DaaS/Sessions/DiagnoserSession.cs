@@ -564,7 +564,7 @@ namespace DaaS.Sessions
                log.EndTime.ToString(SessionConstants.SessionFileNameFormat),
                Diagnoser.Analyzer.Name);
 
-            string fullDirPath = Path.Combine(@"d:\home\data\daas\", path);
+            string fullDirPath = Path.Combine(EnvironmentVariables.DaasPath, path);
 
             var files = new List<string>();
             if (Directory.Exists(fullDirPath))
@@ -631,7 +631,7 @@ namespace DaaS.Sessions
                                                 this.Diagnoser.Collector.Name,
                                                 StartTime.ToString(SessionConstants.SessionFileNameFormat));
 
-                        string fullDirPath = Path.Combine(@"d:\home\data\daas\", path);
+                        string fullDirPath = Path.Combine(EnvironmentVariables.DaasPath, path);
                         var files = new List<string>();
                         if (Directory.Exists(fullDirPath))
                         {

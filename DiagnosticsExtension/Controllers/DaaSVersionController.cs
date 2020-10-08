@@ -46,7 +46,7 @@ namespace DiagnosticsExtension.Controllers
             var disabledFileExists = false;
             try
             {
-                var destinationDir = @"D:\home\site\Jobs\Continuous\DaaS";
+                var destinationDir = EnvironmentVariables.DaasWebJob;
                 disabledFileExists = File.Exists(Path.Combine(destinationDir, "disable.job"));
             }
             catch (Exception ex)
@@ -74,17 +74,10 @@ namespace DiagnosticsExtension.Controllers
             get
             {
                 var version = String.Empty;
-                bool foundDaasAsPrivateExtension = false;
-
-                if (Directory.Exists(@"D:\home\SiteExtensions\daas"))
+                if (Directory.Exists(EnvironmentVariables.PrivateSiteExtensionPath)
+                    && Directory.Exists(Path.Combine(EnvironmentVariables.PrivateSiteExtensionPath, "bin")))
                 {
-                    foundDaasAsPrivateExtension = Directory.Exists(@"D:\home\SiteExtensions\daas\bin");
-                    foundDaasAsPrivateExtension = true;
-                }
-
-                if (foundDaasAsPrivateExtension)
-                {
-                    version = AssemblyName.GetAssemblyName(@"D:\home\SiteExtensions\daas\bin\daas.dll").Version.ToString();
+                    version = AssemblyName.GetAssemblyName(Path.Combine(EnvironmentVariables.PrivateSiteExtensionPath, "bin", "daas.dll")).Version.ToString();
                 }
                 else
                 {
