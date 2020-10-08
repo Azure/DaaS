@@ -38,7 +38,8 @@ namespace ClrProfilingAnalyzer
     {
         Start,
         Stop,
-        Message
+        Message,
+        MessageJson
     }
 
     public class AspNetCoreRequestId

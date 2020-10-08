@@ -131,7 +131,7 @@ namespace ClrProflingCollector
             }
 
             // Adding the Microsoft.Extensions.Logging Provider to ensure that we capture all events for AspNet
-            arguments = string.Format("postString {0} \"AddProvider:{1}:0x0000F00000000004:5\" /agent:{2}", profilingSessionId, MicrosoftExtensionsLoggingProviderGuid, UserModeCustomProviderAgentGuid);
+            arguments = string.Format("postString {0} \"AddProvider:{1}:0xFFFFFFFFFFFFFFFF:5\" /agent:{2}", profilingSessionId, MicrosoftExtensionsLoggingProviderGuid, UserModeCustomProviderAgentGuid);
             profileProcessResponse = ExecuteProfilingCommand(arguments);
             if (profileProcessResponse.StatusCode != HttpStatusCode.OK)
             {

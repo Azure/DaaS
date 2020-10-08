@@ -12,15 +12,17 @@ using Microsoft.Diagnostics.Tracing;
 using Microsoft.Diagnostics.Tracing.Parsers;
 using DaaS;
 using Microsoft.Diagnostics.Tracing.Parsers.Clr;
+using Newtonsoft.Json.Linq;
 
 namespace ClrProfilingAnalyzer.Parser
 {
     public class AspNetCoreRequestParser
     {
         const string MicrosoftExtensionsLoggingProvider = "Microsoft-Extensions-Logging";
-        const string StartEvent = "ActivityStart/Start";
-        const string StopEvent = "ActivityStop/Stop";
+        const string StartEvent = "ActivityJsonStart/Start";
+        const string StopEvent = "ActivityJsonStop/Stop";
         const string FormatMessageEvent = "FormattedMessage";
+        const string MessageJsonEvent = "MessageJson";
         static readonly string[] AspNetCoreHostingLoggers = { "Microsoft.AspNetCore.Hosting.Internal.WebHost", "Microsoft.AspNetCore.Hosting.Diagnostics" };
 
         const int MAX_TRACEMESSAGES_IN_FULL_TRACE = 1000;
@@ -46,7 +48,7 @@ namespace ClrProfilingAnalyzer.Parser
                 {
                     ParseExtensionsLoggingEvent(data,
                                                 minRequestDurationMilliseconds,
-                                                "Arguments",
+                                                "ArgumentsJson",
                                                 aspnetCoreRequests,
                                                 failedRequests,
                                                 requestsFullTrace,
@@ -73,6 +75,11 @@ namespace ClrProfilingAnalyzer.Parser
                                                 failedRequests,
                                                 requestsFullTrace,
                                                 AspNetCoreRequestEventType.Message);
+                });
+
+                parser.AddCallbackForProviderEvent(MicrosoftExtensionsLoggingProvider, MessageJsonEvent, delegate (TraceEvent data)
+                {
+                    ParseMessageJsonEvent(data, requestsFullTrace);
                 });
 
                 clrParser.ThreadPoolWorkerThreadWait += delegate (ThreadPoolWorkerThreadTraceData data)
@@ -111,6 +118,48 @@ namespace ClrProfilingAnalyzer.Parser
             return results;
         }
 
+        private static void ParseMessageJsonEvent(TraceEvent data, Dictionary<AspNetCoreRequestId, List<AspNetCoreTraceEvent>> requestsFullTrace)
+        {
+            if (data.PayloadByName("ExceptionJson") == null || data.PayloadByName("EventName") == null)
+            {
+                return;
+            }
+            
+            var exceptionJsonString = data.PayloadByName("ExceptionJson").ToString();
+            if (exceptionJsonString == "{}")
+            {
+                return;
+            }
+            
+            var loggerName = data.PayloadByName("LoggerName").ToString();
+            var eventName = data.PayloadByName("EventName").ToString();
+            if (eventName.Contains("Exception") || loggerName.Contains("Exception"))
+            {
+                try
+                {
+                    var json = JToken.Parse(exceptionJsonString);
+                    var rawMessage = "";
+                    foreach (var child in json.Children<JProperty>())
+                    {
+                        rawMessage += $" {child.Name}->[{child.Value}]";
+                    }
+
+                    var shortActivityId = StartStopActivityComputer.ActivityPathString(data.ActivityID);
+                    foreach (var key in requestsFullTrace.Keys.ToArray())
+                    {
+                        if (shortActivityId.StartsWith(key.ShortActivityId))
+                        {
+                            AddRawAspNetTraceToDictionary(key, shortActivityId, loggerName, rawMessage, data, requestsFullTrace);
+                            break;
+                        }
+                    }
+                }
+                catch (Exception)
+                {
+                }
+            }
+        }
+
         private static void ParseExtensionsLoggingEvent(TraceEvent data,
                                                         int minRequestDurationMilliseconds,
                                                         string eventArgs,
@@ -127,21 +176,17 @@ namespace ClrProfilingAnalyzer.Parser
                 if (data.PayloadByName(eventArgs) != null)
                 {
                     rawMessage = data.PayloadByName(eventArgs).ToString();
-                    if (rawMessage.ToLower().Contains("StructValue[]".ToLower()))
+                    try
                     {
+                        var json = JToken.Parse(rawMessage);
                         rawMessage = "";
-                        try
+                        foreach (var child in json.Children<JProperty>())
                         {
-                            var args = (IDictionary<string, object>[])data.PayloadByName(eventArgs);
-                            foreach (IDictionary<string, object> item in args.ToList())
-                            {
-                                var dict = item.ToDictionary(x => x.Key, x => x.Value);
-                                rawMessage += $" {dict["Key"].ToString()}->[{dict["Value"].ToString()}]";
-                            }
+                            rawMessage += $" {child.Name}->[{child.Value}]";
                         }
-                        catch (Exception)
-                        {
-                        }
+                    }
+                    catch (Exception)
+                    {
                     }
                     if (rawMessage.Length > 250)
                     {
@@ -178,9 +223,8 @@ namespace ClrProfilingAnalyzer.Parser
                             ActivityId = data.ActivityID,
                             RelatedActivityId = StartStopActivityComputer.ActivityPathString(data.RelatedActivityID)
                         };
-                        var arguments = (IDictionary<string, object>[])data.PayloadByName("Arguments");
 
-                        GetAspnetCoreRequestDetailsFromArgs(arguments.ToList(), out coreRequest.Path, out coreRequest.RequestId);
+                        GetAspnetCoreRequestDetailsFromArgs(data.PayloadByName("ArgumentsJson").ToString(), out coreRequest.Path, out coreRequest.RequestId);
                         coreRequest.StartTimeRelativeMSec = data.TimeStampRelativeMSec;
 
                         if (!string.IsNullOrWhiteSpace(coreRequest.Path) && !string.IsNullOrWhiteSpace(coreRequest.RequestId))
@@ -261,7 +305,6 @@ namespace ClrProfilingAnalyzer.Parser
                             }
                         }
                     }
-
                 }
             }
         }
@@ -317,22 +360,22 @@ namespace ClrProfilingAnalyzer.Parser
             }
             return statusCode;
         }
-        private static void GetAspnetCoreRequestDetailsFromArgs(List<IDictionary<string, object>> arguments, out string requestPath, out string requestId)
+        private static void GetAspnetCoreRequestDetailsFromArgs(string argumentsJson, out string requestPath, out string requestId)
         {
             requestPath = string.Empty;
             requestId = string.Empty;
 
-            foreach (IDictionary<string, object> item in arguments)
+            var json = JToken.Parse(argumentsJson);
+            foreach (var child in json.Children<JProperty>())
             {
-                var dict = item.ToDictionary(x => x.Key, x => x.Value);
-
-                if ((string)dict["Key"] == "RequestId")
+                if (child.Name == "RequestId")
                 {
-                    requestId = dict["Value"].ToString();
+                    requestId = child.Value.ToString();
                 }
-                if ((string)dict["Key"] == "RequestPath")
+
+                if (child.Name == "RequestPath")
                 {
-                    requestPath = dict["Value"].ToString();
+                    requestPath = child.Value.ToString();
                 }
             }
         }
