@@ -63,7 +63,12 @@ namespace DiagnosticsExtension.Controllers
             var monitoringController = new MonitoringSessionController();
             try
             {
-                var session = new MonitoringSessionResponse(monitoringController.GetActiveSession());
+                var activeSession = monitoringController.GetActiveSession();
+                if (activeSession == null)
+                {
+                    return Request.CreateResponse(HttpStatusCode.OK);
+                }
+                var session = new MonitoringSessionResponse(activeSession);
                 return Request.CreateResponse(HttpStatusCode.OK, session);
             }
             catch (Exception ex)
