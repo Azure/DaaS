@@ -14,6 +14,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security;
 using System.Text;
 using System.Threading;
 
@@ -25,9 +26,9 @@ namespace DaaS
 
         const int MIN_CPU_THRESHOLD = 50;
         const int MAX_CUSTOM_ACTIONS = 20;
-        const int MAX_SESSION_DURATION = 24 * 30;
         const int MIN_MONITOR_DURATION_IN_SECONDS = 5;
         const int MIN_THRESHOLD_DURATION_IN_SECONDS = 15;
+        readonly int MAX_SESSION_DURATION = (int)TimeSpan.FromDays(365).TotalHours;
 
         public readonly static string TempFilePath = Path.Combine(EnvironmentVariables.LocalTemp, "Monitoring", "Logs");
 

@@ -90,6 +90,9 @@ namespace DiagnosticsExtension
             catch (XmlException)
             {
             }
+            catch(FileNotFoundException)
+            {
+            }
             catch (Exception ex)
             {
                 throw new Exception($"Message : Get Freb Details - Failure calling GetDetailsFromFREBFile, File : {file}, Exception : {ex}");
