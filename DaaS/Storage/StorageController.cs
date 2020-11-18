@@ -38,6 +38,8 @@ namespace DaaS.Storage
         string GetNewTempFolder(string folderName);
         double GetFileSize(string directoryPath, string fileName, StorageLocation location, string blobSasUri = "");
         void RemoveAllFilesInDirectory(string directoryPath, StorageLocation location, string blobSasUri = "");
+        Task DownloadFileFromBlobAsync(string relativePath, StorageLocation location, string blobSasUri);
+        Task UploadFileToBlobAsync(string relativePath, StorageLocation location, string blobSasUri);
     }
 
     public enum StorageLocation
@@ -458,6 +460,47 @@ namespace DaaS.Storage
                 FileSystemHelpers.DeleteDirectoryContentsSafe(fullPath);
             }
 
+        }
+
+        public async Task DownloadFileFromBlobAsync(string relativePath, StorageLocation location, string blobSasUri)
+        {
+            if (string.IsNullOrWhiteSpace(blobSasUri))
+            {
+                throw new InvalidOperationException("BlobSasUri cannot be empty");
+            }
+            try
+            {
+                var rootPath = GetRootStoragePathForWhenBlobStorageIsNotConfigured(location);
+                var fullPath = Path.Combine(rootPath, relativePath);
+                Directory.CreateDirectory(Path.GetDirectoryName(fullPath));
+                var blob = BlobController.GetBlobForFile(relativePath, blobSasUri);
+                await blob.DownloadToFileAsync(fullPath, FileMode.Append);
+                Logger.LogVerboseEvent($"Downloaded {relativePath} from blob storage");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogErrorEvent($"DownloadFileFromBlob - Failed while downloading file {relativePath} from blob", ex);
+            }
+        }
+
+        public async Task UploadFileToBlobAsync(string relativePath, StorageLocation location, string blobSasUri)
+        {
+            if (string.IsNullOrWhiteSpace(blobSasUri))
+            {
+                throw new InvalidOperationException("BlobSasUri cannot be empty");
+            }
+            try
+            {
+                var rootPath = GetRootStoragePathForWhenBlobStorageIsNotConfigured(location);
+                var fullPath = Path.Combine(rootPath, relativePath);
+                var blob = BlobController.GetBlobForFile(relativePath, blobSasUri);
+                await blob.UploadFromFileAsync(fullPath);
+                Logger.LogVerboseEvent($"Uploaded {relativePath} to blob storage");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogErrorEvent($"UploadFileToBlobAsync - Failed while uploading file {relativePath} at {location} to blob", ex);
+            }
         }
     }
 }

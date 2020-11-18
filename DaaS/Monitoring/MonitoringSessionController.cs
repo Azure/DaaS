@@ -403,13 +403,21 @@ namespace DaaS
         {
             var sessions = new List<MonitoringSession>();
             string cpuMonitorPath = GetCpuMonitoringPath(MonitoringSessionDirectories.Completed);
-            var existingSessions = FileSystemHelpers.GetFilesInDirectory(cpuMonitorPath, "*.json", false, SearchOption.TopDirectoryOnly);
 
-            foreach (var session in existingSessions)
+            try
             {
-                var monitoringSession = FileSystemHelpers.FromJsonFile<MonitoringSession>(session);
-                sessions.Add(monitoringSession);
+                var existingSessions = FileSystemHelpers.GetFilesInDirectory(cpuMonitorPath, "*.json", false, SearchOption.TopDirectoryOnly);
+                foreach (var session in existingSessions)
+                {
+                    var monitoringSession = FileSystemHelpers.FromJsonFile<MonitoringSession>(session);
+                    sessions.Add(monitoringSession);
+                }
             }
+            catch (Exception ex)
+            {
+                Logger.LogCpuMonitoringErrorEvent("Failed to get completed monitoring sessions", ex, string.Empty);
+            }
+            
             return sessions;
         }
 

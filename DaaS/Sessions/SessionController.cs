@@ -193,7 +193,7 @@ namespace DaaS.Sessions
             // we need to check if the SAS URI is configured an an environment variable and populate 
             // it here
             //
-            if (string.IsNullOrWhiteSpace(blobSasUri) 
+            if (string.IsNullOrWhiteSpace(blobSasUri)
                 && diagnosers.Any(x => x.DiagnoserRequiresStorage)
                 && Settings.IsBlobSasUriConfiguredAsEnvironmentVariable())
             {
@@ -271,12 +271,12 @@ namespace DaaS.Sessions
 
             foreach (var directory in directoriesToLoadSessionsFrom)
             {
-                var sessionFilePaths = Infrastructure.Storage.GetFilesInDirectory(directory,
-                    Session.GetSessionStorageLocation(), string.Empty, "*.xml", SearchOption.TopDirectoryOnly);
-
-                foreach (var sessionFilePath in sessionFilePaths)
+                try
                 {
-                    try
+                    var sessionFilePaths = Infrastructure.Storage.GetFilesInDirectory(directory,
+                        Session.GetSessionStorageLocation(), string.Empty, "*.xml", SearchOption.TopDirectoryOnly);
+
+                    foreach (var sessionFilePath in sessionFilePaths)
                     {
                         FileInfo f = new FileInfo(sessionFilePath);
                         if (f.Exists && f.Length == 0)
@@ -298,10 +298,10 @@ namespace DaaS.Sessions
                             }
                         }
                     }
-                    catch (Exception e)
-                    {
-                        Logger.LogErrorEvent("Encountered unhandled exception while loading session from file", e);
-                    }
+                }
+                catch (Exception e)
+                {
+                    Logger.LogErrorEvent("Encountered unhandled exception while loading session from file", e);
                 }
             }
 
@@ -383,7 +383,7 @@ namespace DaaS.Sessions
                     int retryCount = 0;
 
                     Exception exToThrow = null;
-                    retryLabel:
+                retryLabel:
                     if (retryCount > 2)
                     {
                         if (exToThrow != null)

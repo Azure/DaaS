@@ -295,35 +295,42 @@ namespace DaaS
             string analysisFolderPath = GetAnalysisFolderPath(out bool errorEncountered);
             if (!errorEncountered)
             {
-                var inProgressRequests = FileSystemHelpers.GetFilesInDirectory(analysisFolderPath, "*.inprogress", false, SearchOption.TopDirectoryOnly);
-                foreach (var inprogressFile in inProgressRequests)
+                try
                 {
-                    var analysisRequest = FileSystemHelpers.FromJsonFile<AnalysisRequest>(inprogressFile);
-                    if (analysisRequest.ExpirationTime < DateTime.UtcNow)
+                    var inProgressRequests = FileSystemHelpers.GetFilesInDirectory(analysisFolderPath, "*.inprogress", false, SearchOption.TopDirectoryOnly);
+                    foreach (var inprogressFile in inProgressRequests)
                     {
-                        Logger.LogCpuMonitoringVerboseEvent($"Found an expired analysis request {inprogressFile} that expired {DateTime.UtcNow.Subtract(analysisRequest.ExpirationTime).TotalSeconds} seconds ago", string.Empty);
+                        var analysisRequest = FileSystemHelpers.FromJsonFile<AnalysisRequest>(inprogressFile);
+                        if (analysisRequest.ExpirationTime < DateTime.UtcNow)
+                        {
+                            Logger.LogCpuMonitoringVerboseEvent($"Found an expired analysis request {inprogressFile} that expired {DateTime.UtcNow.Subtract(analysisRequest.ExpirationTime).TotalSeconds} seconds ago", string.Empty);
 
-                        if (analysisRequest.RetryCount < MAX_ANALYSIS_RETRY_COUNT)
-                        {
-                            try
+                            if (analysisRequest.RetryCount < MAX_ANALYSIS_RETRY_COUNT)
                             {
-                                ++analysisRequest.RetryCount;
-                                analysisRequest.ExpirationTime = DateTime.MaxValue;
-                                var requestFile = Path.ChangeExtension(inprogressFile, ".request");
+                                try
+                                {
+                                    ++analysisRequest.RetryCount;
+                                    analysisRequest.ExpirationTime = DateTime.MaxValue;
+                                    var requestFile = Path.ChangeExtension(inprogressFile, ".request");
+                                    FileSystemHelpers.DeleteFileSafe(inprogressFile);
+                                    analysisRequest.ToJsonFile(requestFile);
+                                }
+                                catch (Exception ex)
+                                {
+                                    Logger.LogCpuMonitoringErrorEvent("Failed while deleting an expired analysis request", ex, string.Empty);
+                                }
+                            }
+                            else
+                            {
                                 FileSystemHelpers.DeleteFileSafe(inprogressFile);
-                                analysisRequest.ToJsonFile(requestFile);
+                                Logger.LogCpuMonitoringVerboseEvent($"Deleting {inprogressFile} because the analysis retry count was reached", string.Empty);
                             }
-                            catch (Exception ex)
-                            {
-                                Logger.LogCpuMonitoringErrorEvent("Failed while deleting an expired analysis request", ex, string.Empty);
-                            }
-                        }
-                        else
-                        {
-                            FileSystemHelpers.DeleteFileSafe(inprogressFile);
-                            Logger.LogCpuMonitoringVerboseEvent($"Deleting {inprogressFile} because the analysis retry count was reached", string.Empty);
                         }
                     }
+                }
+                catch(Exception ex)
+                {
+                    Logger.LogCpuMonitoringErrorEvent("Error in ReSubmitExpiredRequests", ex, string.Empty);
                 }
             }
         }

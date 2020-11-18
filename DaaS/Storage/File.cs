@@ -225,10 +225,7 @@ namespace DaaS.Storage
                 return;
             }
 
-            using (Stream fileStream = await GetFileStreamAsync())
-            {
-                Infrastructure.Storage.SaveFile(fileStream, RelativePath, StorageLocation.TempStorage);
-            }
+            await Infrastructure.Storage.DownloadFileFromBlobAsync(RelativePath, StorageLocation.TempStorage, BlobSasUri);
         }
 
         internal static Log GetLogFromPermanentStorage(string relativeStoragePath, double fileSize, string blobSasUri)

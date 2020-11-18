@@ -129,7 +129,16 @@ namespace DaaS.Diagnostics
                 var log = Log.GetLog(startTime, endTime, filePath, this, fileSize, blobSasUri);
                 logs.Add(log);
                 Logger.LogSessionVerboseEvent($"Firing task to save the log file to permanent storage for {logFile}", sessionId);
-                var saveTask = Infrastructure.Storage.SaveFileAsync(log, log.StorageLocation, blobSasUri);
+
+                Task saveTask = null;
+                if(!string.IsNullOrWhiteSpace(blobSasUri))
+                {
+                    saveTask = Infrastructure.Storage.UploadFileToBlobAsync(log.RelativePath, StorageLocation.TempStorage, blobSasUri); 
+                }
+                else
+                {
+                    saveTask = Infrastructure.Storage.SaveFileAsync(log, log.StorageLocation, blobSasUri);
+                }
                 saveLogTasks.Add(saveTask);
             }
 
