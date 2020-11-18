@@ -25,6 +25,7 @@ namespace DiagnosticsExtension
     {
         protected void Application_Start()
         {
+            System.Net.ServicePointManager.SecurityProtocol = System.Net.SecurityProtocolType.Tls12;
             var appStartedCalledAt = DateTime.UtcNow;
             AreaRegistration.RegisterAllAreas();
 

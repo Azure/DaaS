@@ -441,10 +441,8 @@ namespace DaaS
                     var accessCondition = AccessCondition.GenerateLeaseCondition(lease.Id);
                     var taskToUpload = Task.Run(() =>
                     {
-                        FileStream fileStream = new FileStream(sourceFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                         var blockBlob = BlobController.GetBlobForFile(relativeFilePath, blobSasUri);
-                        blockBlob.UploadFromStream(fileStream, accessCondition);
-
+                        blockBlob.UploadFromFile(sourceFile, accessCondition);
                     });
 
                     while(!taskToUpload.IsCompleted)
@@ -460,7 +458,6 @@ namespace DaaS
                 {
                     Logger.LogCpuMonitoringErrorEvent("Failed copying file to blob storage", ex, sessionId);
                 }
-                
             }
         }
 

@@ -44,7 +44,7 @@ namespace DaaSRunner
         {
 
             Logger.LogVerboseEvent($"DaasRunner.exe with version {Assembly.GetExecutingAssembly().GetName().Version.ToString() } and ProcessId={ Process.GetCurrentProcess().Id } started");
-
+            System.Net.ServicePointManager.SecurityProtocol = System.Net.SecurityProtocolType.Tls12;
             SessionController sessionController = new SessionController();
             sessionController.StartSessionRunner();
 

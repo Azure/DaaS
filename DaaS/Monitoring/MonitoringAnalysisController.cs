@@ -68,9 +68,7 @@ namespace DaaS
                 {
                     Logger.LogCpuMonitoringErrorEvent("Failure in DequeueAnalysisRequest", ex, string.Empty);
                 }
-
             }
-
         }
 
         private static void AnalyzeKeepingExpirationAlive(string inprogressFile)
@@ -197,16 +195,7 @@ namespace DaaS
                     {
                         string filePath = Path.Combine("Monitoring", "Logs", request.SessionId, Path.GetFileName(request.LogFileName));
                         var blob = BlobController.GetBlobForFile(filePath, request.BlobSasUri);
-                        var ms = new MemoryStream();
-                        blob.DownloadToStream(ms);
-                        ms.Position = 0;
-                        using (FileStream file = new FileStream(dumpFileInTempDirectory, FileMode.Create, FileAccess.Write))
-                        {
-                            byte[] bytes = new byte[ms.Length];
-                            ms.Read(bytes, 0, (int)ms.Length);
-                            file.Write(bytes, 0, bytes.Length);
-                            ms.Close();
-                        }
+                        blob.DownloadToFile(dumpFileInTempDirectory, FileMode.Append);
                         Logger.LogCpuMonitoringVerboseEvent($"Copied file from {request.LogFileName} to {dumpFileInTempDirectory} ", request.SessionId);
                     }
                     catch (Exception ex)

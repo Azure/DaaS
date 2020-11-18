@@ -203,9 +203,25 @@ namespace DiagnosticsExtension.Controllers
                     }
                 }
             }
+            catch (StorageException ex)
+            {
+                var addtionalErrorDetails = "";
+                if (ex.RequestInformation != null && ex.RequestInformation.ExtendedErrorInformation != null)
+                {
+                    var extendedError = ex.RequestInformation.ExtendedErrorInformation;
+                    addtionalErrorDetails = $"{extendedError.ErrorCode}:{extendedError.ErrorMessage}";
+                    if (extendedError.AdditionalDetails != null)
+                    {
+                        addtionalErrorDetails += $" {string.Join(",", extendedError.AdditionalDetails)}";
+                    }
+                }
+
+                Logger.LogErrorEvent($"Encountered exception while changing settings - {addtionalErrorDetails}", ex);
+                return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, ex.Message + " " + addtionalErrorDetails);
+            }
             catch (Exception ex)
             {
-                DaaS.Logger.LogErrorEvent("Encountered exception while changing settings", ex);
+                Logger.LogErrorEvent("Encountered exception while changing settings", ex);
                 return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, ex.Message);
             }
         }
