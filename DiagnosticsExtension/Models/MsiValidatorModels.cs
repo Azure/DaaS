@@ -6,71 +6,71 @@ namespace DiagnosticsExtension.Models
     public class AccessTokenInformation
     {
         [JsonProperty("access_token")]
-        public string accessToken;
+        public string AccessToken { get; set; }
 
         [JsonProperty("expires_on")]
-        public string expiresOn;
+        public string ExpiresOn { get; set; }
 
         [JsonProperty("resource")]
-        public string resource;
+        public string Resource { get; set; }
 
         [JsonProperty("token_type")]
-        public string tokenType;
+        public string TokenType { get; set; }
 
         [JsonProperty("client_id")]
-        public string clientId;
+        public string ClientId { get; set; }
 
     }
 
     public class GetTokenTestFailureException
     {
         [JsonProperty("ExceptionMessage")]
-        public string exceptionMessage;
+        public string ExceptionMessage { get; set; }
 
         [JsonProperty("ErrorCode")]
-        public string errorCode;
+        public string ErrorCode { get; set; }
 
         [JsonProperty("ServiceErrorCodes")]
-        public List<string> ServiceErrorCodes;
+        public List<string> ServiceErrorCodes { get; set; }
 
         [JsonProperty("InnerException")]
-        public string innerException;
+        public string InnerException { get; set; }
 
         [JsonProperty("StatusCode")]
-        public int statusCode;
+        public int StatusCode { get; set; }
 
         [JsonProperty("Message")]
-        public string message;
+        public string Message { get; set; }
 
         [JsonProperty("CorrelationId")]
-        public string correlationId;
+        public string CorrelationId { get; set; }
     }
 
-    public class TestConnectivityResults
+    public class TestConnectivityResult
     {
-        public bool isSuccessful;
+        public bool IsSuccessful { get; set; }
 
-        public string response;
+        public string Response { get; set; }
 
     }
 
     public class MsiValidatorTestResults
     {
-        public readonly string msiValidatorVersion;
+        public readonly string MsiValidatorVersion;
 
-        public bool msiEnabled;
+        public bool MsiEnabled { get; set; }
 
-        public bool getAccessTokenTestResult;
-                
-        public AccessTokenInformation accessTokenInformation;
+        public bool GetAccessTokenTestResult { get; set; }
 
-        public GetTokenTestFailureException getTokenException;
+        public AccessTokenInformation AccessTokenInformation { get; set; }
 
-        public TestConnectivityResults testConnectivityResults;
+        public GetTokenTestFailureException GetTokenException { get; set; }
+
+        public TestConnectivityResult TestConnectivityResult { get; set; }
 
         public MsiValidatorTestResults()
         {
-            msiValidatorVersion = "v1.0.0.0";
+            MsiValidatorVersion = "v1.0.0.0";
         }
 
     }
