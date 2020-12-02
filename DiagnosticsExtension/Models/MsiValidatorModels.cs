@@ -3,10 +3,10 @@ using System.Collections.Generic;
 
 namespace DiagnosticsExtension.Models
 {
-    public class AccessTokenInformation
+    public class TokenInformation
     {
         [JsonProperty("access_token")]
-        public string AccessToken { get; set; }
+        public string AccessToken { get ; set; }
 
         [JsonProperty("expires_on")]
         public string ExpiresOn { get; set; }
@@ -22,7 +22,17 @@ namespace DiagnosticsExtension.Models
 
     }
 
-    public class GetTokenTestFailureException
+    public class GetTokenTestResult
+    {
+        public bool IsSuccessful { get; set; }
+
+        public TokenInformation TokenInformation { get; set; }
+
+        public AdalError ErrorDetails { get; set; }
+
+    }
+
+    public class AdalError
     {
         [JsonProperty("ExceptionMessage")]
         public string ExceptionMessage { get; set; }
@@ -48,6 +58,8 @@ namespace DiagnosticsExtension.Models
 
     public class TestConnectivityResult
     {
+        public string Resource { get; set; }
+
         public bool IsSuccessful { get; set; }
 
         public string Response { get; set; }
@@ -59,18 +71,16 @@ namespace DiagnosticsExtension.Models
         public readonly string MsiValidatorVersion;
 
         public bool MsiEnabled { get; set; }
+                
+        public GetTokenTestResult GetTokenTestResult { get; set;  }
 
-        public bool GetAccessTokenTestResult { get; set; }
-
-        public AccessTokenInformation AccessTokenInformation { get; set; }
-
-        public GetTokenTestFailureException GetTokenException { get; set; }
-
-        public TestConnectivityResult TestConnectivityResult { get; set; }
+        public List<TestConnectivityResult> TestConnectivityResults { get; set; }
 
         public MsiValidatorTestResults()
         {
             MsiValidatorVersion = "v1.0.0.0";
+            TestConnectivityResults = new List<TestConnectivityResult>();
+            GetTokenTestResult = new GetTokenTestResult();
         }
 
     }

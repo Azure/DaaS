@@ -1,5 +1,6 @@
 using DiagnosticsExtension.Models;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
@@ -31,7 +32,8 @@ namespace DiagnosticsExtension.Controllers
 
         class MsiValidator
         {
-            private MsiValidatorTestResults result = new MsiValidatorTestResults();
+            public MsiValidatorTestResults Result { get; set; }
+
             private readonly string identityEndpoint;
             private readonly string identitySecret;
             private static readonly HttpClient client = new HttpClient();
@@ -69,6 +71,7 @@ namespace DiagnosticsExtension.Controllers
             {
                 identityEndpoint = Environment.GetEnvironmentVariable("IDENTITY_ENDPOINT");
                 identitySecret = Environment.GetEnvironmentVariable("IDENTITY_HEADER");
+                Result = new MsiValidatorTestResults();
             }
 
             private async Task<HttpResponseMessage> GetHttpResponseAsync(string url, Dictionary<string, string> headers)
@@ -83,11 +86,11 @@ namespace DiagnosticsExtension.Controllers
             }
 
 
-            private async Task KeyVaultTestAsync(string endpoint)
+            private async Task<TestConnectivityResult> TestKeyVaultAsync(string endpoint)
             {
                 Dictionary<string, string> headers = new Dictionary<string, string>()
                 {
-                    { "Authorization" , $"Bearer {result.AccessTokenInformation.AccessToken}"}
+                    { "Authorization" , $"Bearer {Result.GetTokenTestResult.TokenInformation.AccessToken}"}
                 };
 
                 TestConnectivityResult testConnectivityResult = new TestConnectivityResult();
@@ -98,15 +101,15 @@ namespace DiagnosticsExtension.Controllers
                 testConnectivityResult.IsSuccessful = response.IsSuccessStatusCode;
                 testConnectivityResult.Response = await response.Content.ReadAsStringAsync();
 
-                result.TestConnectivityResult = testConnectivityResult;
+                return testConnectivityResult;
 
             }
 
-            private async Task StorageTestAsync(string endpoint)
+            private async Task<TestConnectivityResult> TestStorageAsync(string endpoint)
             {
                 Dictionary<string, string> headers = new Dictionary<string, string>()
                 {
-                    { "Authorization" , $"Bearer {result.AccessTokenInformation.AccessToken}"},
+                    { "Authorization" , $"Bearer {Result.GetTokenTestResult.TokenInformation.AccessToken}"},
                     { "x-ms-version" , $"2017-11-09"},
 
                 };
@@ -118,37 +121,27 @@ namespace DiagnosticsExtension.Controllers
                 testConnectivityResult.IsSuccessful = response.IsSuccessStatusCode;
                 testConnectivityResult.Response = await response.Content.ReadAsStringAsync();
 
-                result.TestConnectivityResult = testConnectivityResult;
+                return testConnectivityResult;
 
             }
 
-            private async Task SqlTestAsync()
+            private async Task<TestConnectivityResult> TestSqlAsync(string connectionString)
             {
-                string connectionString = "";
-                result.TestConnectivityResult = new TestConnectivityResult();
-
-                foreach (System.Collections.DictionaryEntry envVar in Environment.GetEnvironmentVariables())
-                {
-                    if (envVar.Key.ToString().StartsWith("SQLCONNSTR_"))
-                    {
-                        connectionString = envVar.Value.ToString();
-                        break;
-                    }
-                }
+                TestConnectivityResult testConnectivityResult = new TestConnectivityResult();                                
 
                 if (string.IsNullOrEmpty(connectionString))
                 {
-                    result.TestConnectivityResult.IsSuccessful = false;
-                    result.TestConnectivityResult.Response = $"Could not find Connection String for SQL that is added to App Service. Navigate to Configuration Blade -> App Settings and add a new SQL connection String";
+                    testConnectivityResult.IsSuccessful = false;
+                    testConnectivityResult.Response = $"Could not find Connection String for SQL that is added to App Service. Navigate to Configuration Blade -> App Settings and add a new SQL connection String";
 
-                    return;
+                    return testConnectivityResult;
                 }
 
                 SqlConnection conn = new SqlConnection(connectionString);
                 string status;
                 try
                 {
-                    conn.AccessToken = result.AccessTokenInformation.AccessToken;
+                    conn.AccessToken = Result.GetTokenTestResult.TokenInformation.AccessToken;
                     await conn.OpenAsync();
                     status = "Success";
                 }
@@ -161,32 +154,24 @@ namespace DiagnosticsExtension.Controllers
                     conn.Close();
                 }
 
+                testConnectivityResult.IsSuccessful = status == "Success";
+                testConnectivityResult.Response = status;
 
 
-                result.TestConnectivityResult.IsSuccessful = status == "Success";
-                result.TestConnectivityResult.Response = status;
-
-
+                return testConnectivityResult;
             }
 
-
-
-            public MsiValidatorTestResults GetResult()
-            {
-                return result;
-            }
 
             public bool IsEnabled()
             {
                 // Logic : If any of these two env variables arent set, it means MSI is not enabled
-
-                result.MsiEnabled = !(string.IsNullOrEmpty(identityEndpoint) ||
+                Result.MsiEnabled = !(string.IsNullOrEmpty(identityEndpoint) ||
                                             string.IsNullOrWhiteSpace(identityEndpoint) ||
                                             string.IsNullOrEmpty(identitySecret) ||
                                             string.IsNullOrWhiteSpace(identitySecret)
                                      );
 
-                return result.MsiEnabled;
+                return Result.MsiEnabled;
             }
 
             public async Task<bool> GetTokenAsync(MsiValidatorInputs inputs)
@@ -206,14 +191,14 @@ namespace DiagnosticsExtension.Controllers
                 };
 
                 var response = await GetHttpResponseAsync(url, headers);
-                result.GetAccessTokenTestResult = response.IsSuccessStatusCode;
+                Result.GetTokenTestResult.IsSuccessful = response.IsSuccessStatusCode;
                 if (response.IsSuccessStatusCode)
                 {
-                    result.AccessTokenInformation = JsonConvert.DeserializeObject<AccessTokenInformation>(await response.Content.ReadAsStringAsync());
+                    Result.GetTokenTestResult.TokenInformation = JsonConvert.DeserializeObject<TokenInformation>(await response.Content.ReadAsStringAsync());
                 }
                 else
                 {
-                    result.GetTokenException = JsonConvert.DeserializeObject<GetTokenTestFailureException>(await response.Content.ReadAsStringAsync());
+                    Result.GetTokenTestResult.ErrorDetails = JsonConvert.DeserializeObject<AdalError>(await response.Content.ReadAsStringAsync());
                 }
 
                 return response.IsSuccessStatusCode;
@@ -221,39 +206,51 @@ namespace DiagnosticsExtension.Controllers
 
             public async Task TestConnectivityAsync(MsiValidatorInputs inputs)
             {
+                TestConnectivityResult testConnectivityResult = new TestConnectivityResult();
+
+                // Default Case
+                testConnectivityResult.IsSuccessful = false;
+                testConnectivityResult.Response = $"The resource '{inputs.Resource}' specified is invalid. Supported value for resource are keyvault, storage, sql ";
+                testConnectivityResult.Resource = inputs.Resource;
 
                 if (inputs.Resource != "sql" && string.IsNullOrEmpty(inputs.Endpoint))
                 {
-                    result.TestConnectivityResult = new TestConnectivityResult();
-                    result.TestConnectivityResult.IsSuccessful = false;
-                    result.TestConnectivityResult.Response = $"The endpoint '{inputs.Endpoint}' is invalid.";
-                    return;
-                }
+                    testConnectivityResult.IsSuccessful = false;
+                    testConnectivityResult.Response = $"The endpoint '{inputs.Endpoint}' is invalid.";
+                    Result.TestConnectivityResults.Add(testConnectivityResult);
 
+                    return;
+
+                }
 
                 switch (inputs.Resource)
                 {
                     case "keyvault":
-                        await KeyVaultTestAsync(inputs.Endpoint);
+                        testConnectivityResult =  await TestKeyVaultAsync(inputs.Endpoint);                        
                         break;
 
                     case "storage":
-                        await StorageTestAsync(inputs.Endpoint);
+                        testConnectivityResult = await TestStorageAsync(inputs.Endpoint);
                         break;
 
                     case "sql":
-                        await SqlTestAsync();
+                        foreach (System.Collections.DictionaryEntry envVar in Environment.GetEnvironmentVariables())
+                        {
+                            if (envVar.Key.ToString().StartsWith("SQLCONNSTR_"))
+                            {
+                                string connectionString = envVar.Value.ToString();
+                                Result.TestConnectivityResults.Add(await TestSqlAsync(connectionString));                           
+                            }
+                        }
                         break;
-                    default:
-                        result.TestConnectivityResult.IsSuccessful = false;
-                        result.TestConnectivityResult.Response = $"The resource '{inputs.Resource}' specified is invalid. Supported value for resource are keyvault, storage, sql ";
-                        break;
+                }
 
+                if(inputs.Resource != "sql")
+                {
+                    testConnectivityResult.Resource = inputs.Resource;
+                    Result.TestConnectivityResults.Add(testConnectivityResult);
                 }
             }
-
-
-
         }
 
         public async Task<HttpResponseMessage> Get(string resource, string endpoint = null, string clientId = null)
@@ -283,8 +280,9 @@ namespace DiagnosticsExtension.Controllers
                         return Request.CreateResponse(HttpStatusCode.OK, $"MSI Validator is not available for the resource : {testInputs.Resource}");
                     }
                 }
+                               
 
-                return Request.CreateResponse(HttpStatusCode.OK, msi.GetResult());
+                return Request.CreateResponse(HttpStatusCode.OK, msi.Result);
             }
             catch (Exception ex)
             {
