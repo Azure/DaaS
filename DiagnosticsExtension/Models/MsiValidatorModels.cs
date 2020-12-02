@@ -6,7 +6,7 @@ namespace DiagnosticsExtension.Models
     public class TokenInformation
     {
         [JsonProperty("access_token")]
-        public string AccessToken { get ; set; }
+        public string AccessToken { get; set; }
 
         [JsonProperty("expires_on")]
         public string ExpiresOn { get; set; }
@@ -19,7 +19,6 @@ namespace DiagnosticsExtension.Models
 
         [JsonProperty("client_id")]
         public string ClientId { get; set; }
-
     }
 
     public class GetTokenTestResult
@@ -29,7 +28,6 @@ namespace DiagnosticsExtension.Models
         public TokenInformation TokenInformation { get; set; }
 
         public AdalError ErrorDetails { get; set; }
-
     }
 
     public class AdalError
@@ -63,7 +61,6 @@ namespace DiagnosticsExtension.Models
         public bool IsSuccessful { get; set; }
 
         public string Response { get; set; }
-
     }
 
     public class MsiValidatorTestResult
@@ -71,8 +68,8 @@ namespace DiagnosticsExtension.Models
         public readonly string MsiValidatorVersion;
 
         public bool MsiEnabled { get; set; }
-                
-        public GetTokenTestResult GetTokenTestResult { get; set;  }
+
+        public GetTokenTestResult GetTokenTestResult { get; set; }
 
         public List<TestConnectivityResult> TestConnectivityResults { get; set; }
 
@@ -82,6 +79,5 @@ namespace DiagnosticsExtension.Models
             TestConnectivityResults = new List<TestConnectivityResult>();
             GetTokenTestResult = new GetTokenTestResult();
         }
-
     }
 }
