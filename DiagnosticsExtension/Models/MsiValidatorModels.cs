@@ -66,7 +66,7 @@ namespace DiagnosticsExtension.Models
 
     }
 
-    public class MsiValidatorTestResults
+    public class MsiValidatorTestResult
     {
         public readonly string MsiValidatorVersion;
 
@@ -76,7 +76,7 @@ namespace DiagnosticsExtension.Models
 
         public List<TestConnectivityResult> TestConnectivityResults { get; set; }
 
-        public MsiValidatorTestResults()
+        public MsiValidatorTestResult()
         {
             MsiValidatorVersion = "v1.0.0.0";
             TestConnectivityResults = new List<TestConnectivityResult>();

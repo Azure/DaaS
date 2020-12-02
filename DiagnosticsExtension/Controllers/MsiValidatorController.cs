@@ -32,7 +32,7 @@ namespace DiagnosticsExtension.Controllers
 
         class MsiValidator
         {
-            public MsiValidatorTestResults Result { get; set; }
+            public MsiValidatorTestResult Result { get; set; }
 
             private readonly string identityEndpoint;
             private readonly string identitySecret;
@@ -71,7 +71,7 @@ namespace DiagnosticsExtension.Controllers
             {
                 identityEndpoint = Environment.GetEnvironmentVariable("IDENTITY_ENDPOINT");
                 identitySecret = Environment.GetEnvironmentVariable("IDENTITY_HEADER");
-                Result = new MsiValidatorTestResults();
+                Result = new MsiValidatorTestResult();
             }
 
             private async Task<HttpResponseMessage> GetHttpResponseAsync(string url, Dictionary<string, string> headers)
