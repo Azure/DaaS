@@ -83,7 +83,6 @@ namespace DiagnosticsExtension.Controllers
                 return await client.GetAsync(url);
             }
 
-
             private async Task<TestConnectivityResult> TestKeyVaultAsync(string endpoint)
             {
                 Dictionary<string, string> headers = new Dictionary<string, string>()
@@ -157,7 +156,7 @@ namespace DiagnosticsExtension.Controllers
             public bool IsEnabled()
             {
                 // Logic : If any of these two env variables arent set, it means MSI is not enabled
-                Result.MsiEnabled = !(string.IsNullOrEmpty(identityEndpoint) ||
+                Result.MsiEnabled = !(  string.IsNullOrEmpty(identityEndpoint) ||
                                         string.IsNullOrWhiteSpace(identityEndpoint) ||
                                         string.IsNullOrEmpty(identitySecret) ||
                                         string.IsNullOrWhiteSpace(identitySecret)

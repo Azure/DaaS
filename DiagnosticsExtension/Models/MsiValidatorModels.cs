@@ -32,25 +32,18 @@ namespace DiagnosticsExtension.Models
 
     public class AdalError
     {
-        [JsonProperty("ExceptionMessage")]
         public string ExceptionMessage { get; set; }
 
-        [JsonProperty("ErrorCode")]
         public string ErrorCode { get; set; }
 
-        [JsonProperty("ServiceErrorCodes")]
         public List<string> ServiceErrorCodes { get; set; }
 
-        [JsonProperty("InnerException")]
         public string InnerException { get; set; }
 
-        [JsonProperty("StatusCode")]
         public int StatusCode { get; set; }
 
-        [JsonProperty("Message")]
         public string Message { get; set; }
 
-        [JsonProperty("CorrelationId")]
         public string CorrelationId { get; set; }
     }
 
