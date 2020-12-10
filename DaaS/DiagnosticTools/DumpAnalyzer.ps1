@@ -2,8 +2,9 @@
 
 $programfiles = [System.Environment]::ExpandEnvironmentVariables("%ProgramFiles(x86)%")
 [string] $dumpAnalyzerpath = [System.Io.Path]::Combine($programfiles, "DumpAnalyzer")
+[string] $daasSymbolPath = [System.Environment]::ExpandEnvironmentVariables("%HOME%\Data\DaaS\symbols")
 
-[string] $symbolpath = "srv*$Env:SystemDrive\NdpCorePdb*;srv*http://msdl.microsoft.com/download/symbols;%ProgramFiles(x86)%\PHP\v5.6\Debug;%ProgramFiles(x86)%\PHP\v5.5\Debug;%ProgramFiles(x86)%\PHP\v5.4\Debug;%ProgramFiles(x86)%\PHP\v5.3\Debug\" 
+[string] $symbolpath = "$Env:SystemDrive\NdpCorePdb;srv*$daasSymbolPath*http://msdl.microsoft.com/download/symbols;%ProgramFiles(x86)%\PHP\v5.6\Debug;%ProgramFiles(x86)%\PHP\v5.5\Debug;%ProgramFiles(x86)%\PHP\v5.4\Debug;%ProgramFiles(x86)%\PHP\v5.3\Debug\" 
 [string] $rules = "CrashHangAnalysis"
 [string] $tempDir = $Env:TEMP
 
