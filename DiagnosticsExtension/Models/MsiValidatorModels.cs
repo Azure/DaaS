@@ -52,7 +52,7 @@ namespace DiagnosticsExtension.Models
         public string CorrelationId { get; set; }
     }
 
-    public class TestConnectivityResult
+    public class ConnectivityResult
     {
         public ResourceType ResourceType { get; set; }
 
@@ -62,7 +62,7 @@ namespace DiagnosticsExtension.Models
 
         public string Response { get; set; }
 
-        public TestConnectivityResult(ResourceType resourceType, string resource =null)
+        public ConnectivityResult(ResourceType resourceType, string resource = null)
         {
             IsSuccessful = false;
             Response = "";
@@ -79,13 +79,13 @@ namespace DiagnosticsExtension.Models
 
         public GetTokenTestResult GetTokenTestResult { get; set; }
 
-        public List<TestConnectivityResult> TestConnectivityResults { get; set; }
+        public ConnectivityResult ConnectivityResult { get; set; }
 
         public MsiValidatorTestResult()
         {
             MsiValidatorVersion = "v1.0.0.0";
-            TestConnectivityResults = new List<TestConnectivityResult>();
             GetTokenTestResult = new GetTokenTestResult();
+            ConnectivityResult = new ConnectivityResult(ResourceType.Custom);
         }
     }
 
@@ -126,13 +126,13 @@ namespace DiagnosticsExtension.Models
             }
         }
 
-        public MsiValidatorInput(ResourceType resourceType, string resource=null, string endpoint=null, string clientId=null)
+        public MsiValidatorInput(ResourceType resourceType, string resource = null, string endpoint = null, string clientId = null)
         {
             ResourceType = resourceType;
             Endpoint = endpoint;
             ClientId = clientId;
             Resource = resource;
-        }        
+        }
     }
 
     [JsonConverter(typeof(StringEnumConverter))]
@@ -170,25 +170,26 @@ namespace DiagnosticsExtension.Models
             return await _client.GetAsync(url);
         }
 
-        private async Task<TestConnectivityResult> TestKeyVaultAsync(string endpoint)
+        private async Task<ConnectivityResult> TestKeyVaultAsync(string endpoint)
         {
             Dictionary<string, string> headers = new Dictionary<string, string>()
                 {
                     { "Authorization" , $"Bearer {Result.GetTokenTestResult.TokenInformation.AccessToken}"}
                 };
 
-            TestConnectivityResult testConnectivityResult = new TestConnectivityResult(ResourceType.KeyVault);
+            ConnectivityResult keyvaultConnectivityResult = new ConnectivityResult(ResourceType.KeyVault);
 
             endpoint = $"{endpoint}?api-version=2016-10-01";
             var response = await GetHttpResponseAsync(endpoint, headers);
 
-            testConnectivityResult.IsSuccessful = response.IsSuccessStatusCode;
-            testConnectivityResult.Response = await response.Content.ReadAsStringAsync();
+            keyvaultConnectivityResult.IsSuccessful = response.IsSuccessStatusCode;
+            keyvaultConnectivityResult.Response = await response.Content.ReadAsStringAsync();
+            keyvaultConnectivityResult.Resource = "https://vault.azure.net";
 
-            return testConnectivityResult;
+            return keyvaultConnectivityResult;
         }
 
-        private async Task<TestConnectivityResult> TestStorageAsync(string endpoint)
+        private async Task<ConnectivityResult> TestStorageAsync(string endpoint)
         {
             Dictionary<string, string> headers = new Dictionary<string, string>()
                 {
@@ -198,11 +199,12 @@ namespace DiagnosticsExtension.Models
 
             HttpResponseMessage response = await GetHttpResponseAsync(endpoint, headers);
 
-            TestConnectivityResult testConnectivityResult = new TestConnectivityResult(ResourceType.Storage);
-            testConnectivityResult.IsSuccessful = response.IsSuccessStatusCode;
-            testConnectivityResult.Response = await response.Content.ReadAsStringAsync();
+            ConnectivityResult storageConnectivityResult = new ConnectivityResult(ResourceType.Storage);
+            storageConnectivityResult.IsSuccessful = response.IsSuccessStatusCode;
+            storageConnectivityResult.Response = await response.Content.ReadAsStringAsync();
+            storageConnectivityResult.Resource = "https://storage.azure.com";
 
-            return testConnectivityResult;
+            return storageConnectivityResult;
         }
 
         public bool IsEnabled()
@@ -246,13 +248,12 @@ namespace DiagnosticsExtension.Models
 
         public async Task TestConnectivityAsync(MsiValidatorInput input)
         {
-            TestConnectivityResult testConnectivityResult = new TestConnectivityResult(input.ResourceType, input.Resource);
-
             if (string.IsNullOrEmpty(input.Endpoint))
             {
-                testConnectivityResult.IsSuccessful = false;
-                testConnectivityResult.Response = $"The endpoint '{input.Endpoint}' is invalid.";
-                Result.TestConnectivityResults.Add(testConnectivityResult);
+                Result.ConnectivityResult.ResourceType = input.ResourceType;
+                Result.ConnectivityResult.Resource = input.Resource;
+                Result.ConnectivityResult.IsSuccessful = false;
+                Result.ConnectivityResult.Response = $"The endpoint '{input.Endpoint}' is invalid.";
 
                 return;
             }
@@ -260,16 +261,13 @@ namespace DiagnosticsExtension.Models
             switch (input.ResourceType)
             {
                 case ResourceType.KeyVault:
-                    testConnectivityResult = await TestKeyVaultAsync(input.Endpoint);
-                    break;
+                    Result.ConnectivityResult = await TestKeyVaultAsync(input.Endpoint);
+                    return;
 
                 case ResourceType.Storage:
-                    testConnectivityResult = await TestStorageAsync(input.Endpoint);
-                    break;
+                    Result.ConnectivityResult = await TestStorageAsync(input.Endpoint);
+                    return;
             }
-
-            testConnectivityResult.Resource = input.Resource;
-            Result.TestConnectivityResults.Add(testConnectivityResult);
         }
     }
 }
