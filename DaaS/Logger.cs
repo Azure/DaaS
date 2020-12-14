@@ -46,16 +46,19 @@ namespace DaaS
 
                 Trace.Listeners.Add(listener);
 
+                string statusFilePath = string.Empty;
+                string localTemp = EnvironmentVariables.LocalTemp.ToLower();
+                string daasPath = EnvironmentVariables.DaasPath.ToLower();
                 try
                 {
-                    string statusFilePath = Path.GetDirectoryName(outputPath).ToLower().Replace(EnvironmentVariables.LocalTemp.ToLower(), EnvironmentVariables.DaasPath.ToLower());
+                    statusFilePath = Path.GetDirectoryName(outputPath).ToLower().Replace(localTemp, daasPath);
                     Directory.CreateDirectory(statusFilePath);
                     StatusFile = Path.Combine(statusFilePath, "diagstatus.diaglog");
                     ErrorFilePath = Path.Combine(outputPath, $"{Environment.MachineName}_{CallerComponent}.err.diaglog");
                 }
                 catch (Exception ex)
                 {
-                    LogSessionErrorEvent("Failed while setting StatusFile", ex, DaasSessionId);
+                    LogSessionErrorEvent($"Failed while setting StatusFile = {statusFilePath}, outputPath = {outputPath}, localTemp ={localTemp}, daasPath ={daasPath}", ex, DaasSessionId);
                 }
             }
             else
@@ -70,9 +73,12 @@ namespace DaaS
 
                     Trace.Listeners.Add(listener);
 
+                    string statusFilePath = string.Empty;
+                    string localTemp = EnvironmentVariables.LocalTemp.ToLower();
+                    string daasPath = EnvironmentVariables.DaasPath.ToLower();
                     try
                     {
-                        string statusFilePath = outputPath.ToLower().Replace(EnvironmentVariables.LocalTemp.ToLower(), EnvironmentVariables.DaasPath.ToLower());
+                        statusFilePath = outputPath.ToLower().Replace(localTemp, daasPath);
                         if (!Directory.Exists(statusFilePath))
                         {
                             Directory.CreateDirectory(statusFilePath);
@@ -82,7 +88,7 @@ namespace DaaS
                     }
                     catch (Exception ex)
                     {
-                        LogSessionErrorEvent("Failed while setting StatusFile", ex, DaasSessionId);
+                        LogSessionErrorEvent($"Failed while setting StatusFile, statusFilePath ={statusFilePath}, localTemp = {localTemp}, daasPath = {daasPath}", ex, DaasSessionId);
                     }
                 }
             }
