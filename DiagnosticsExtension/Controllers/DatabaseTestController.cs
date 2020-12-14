@@ -5,6 +5,12 @@
 // </copyright>
 //-----------------------------------------------------------------------
 
+using DiagnosticsExtension.Models;
+using Microsoft.WindowsAzure.Storage;
+using MySql.Data.MySqlClient;
+using Newtonsoft.Json;
+using Npgsql;
+using StackExchange.Redis;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
@@ -18,11 +24,6 @@ using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Web.Http;
-using Microsoft.WindowsAzure.Storage;
-using MySql.Data.MySqlClient;
-using Newtonsoft.Json;
-using Npgsql;
-using StackExchange.Redis;
 
 namespace DiagnosticsExtension.Controllers
 {
@@ -37,6 +38,7 @@ namespace DiagnosticsExtension.Controllers
         PostgreSql,
         RedisCache
     }
+
     public class DatabaseConnection
     {
         public string Name;
@@ -53,6 +55,8 @@ namespace DiagnosticsExtension.Controllers
         public bool IsEntityFramework;
         public bool IsAzureStorage;
         public bool IsCustomDriver;
+        public bool IsMsiEnabled;
+        public AdalError MsiAdalError;
         //public string MaskedConnectionString;
     }
 
@@ -84,7 +88,8 @@ namespace DiagnosticsExtension.Controllers
         public bool IsAzureStorage;
         public bool IsCustomDriver;
         public string Name;
-
+        public bool IsMsiEnabled;
+        public AdalError MsiAdalError;
         public string ConnectionString { get; internal set; }
     }
 
@@ -93,7 +98,6 @@ namespace DiagnosticsExtension.Controllers
         public IEnumerable<DatabaseConnection> Connections { get; set; }
         public string ConfigException { get; set; }
     }
-
 
     [RoutePrefix("api/databasetest")]
     public class DatabaseTestController : ApiController
@@ -108,6 +112,7 @@ namespace DiagnosticsExtension.Controllers
         ////////////////////////////////////////////////////////////////////////////////////////////////
         // Still need to implement these ones
         private const string NotificationHubPrefix = "NOTIFICATIONHUBCONNSTR_";
+
         private const string ServiceBusPrefix = "SERVICEBUSCONNSTR_";
         private const string EventHubPrefix = "EVENTHUBCONNSTR_";
         private const string ApiHubPrefix = "APIHUBCONNSTR_";
@@ -117,11 +122,11 @@ namespace DiagnosticsExtension.Controllers
         private const string CustomPrefix = "CUSTOMCONNSTR_";
 
         // GET api/databasetest
-        public async Task<HttpResponseMessage> Get()
+        public async Task<HttpResponseMessage> Get(string clientId = null) // clientId used for Used Assigned Managed Identity
         {
             try
             {
-                var response = await GetConnectionsResponse();
+                var response = await GetConnectionsResponse(clientId);
                 return Request.CreateResponse(HttpStatusCode.OK, response.Connections);
             }
             catch (Exception ex)
@@ -132,11 +137,11 @@ namespace DiagnosticsExtension.Controllers
 
         // GET api/databasetest/v2
         [Route("v2")]
-        public async Task<HttpResponseMessage> GetV2()
+        public async Task<HttpResponseMessage> GetV2(string clientId = null)
         {
             try
             {
-                var response = await GetConnectionsResponse();
+                var response = await GetConnectionsResponse(clientId);
                 return Request.CreateResponse(HttpStatusCode.OK, response);
             }
             catch (Exception ex)
@@ -145,7 +150,7 @@ namespace DiagnosticsExtension.Controllers
             }
         }
 
-        private async Task<DatabaseTestResponse> GetConnectionsResponse()
+        private async Task<DatabaseTestResponse> GetConnectionsResponse(string clientId)
         {
             DatabaseTestResponse response = new DatabaseTestResponse();
             List<DatabaseConnection> connections = new List<DatabaseConnection>();
@@ -239,13 +244,13 @@ namespace DiagnosticsExtension.Controllers
             {
                 response.ConfigException = "Failed while reading connections from web.config file. " + ex.Message;
             }
-           
+
             var tasks = new List<Task<TestConnectionData>>();
             foreach (var c in connections)
             {
                 if (c.IsEnvironmentVariable)
                 {
-                    tasks.Add(TestConnectionAsync(c.ConnectionString, c.Name, c.DatabaseType));
+                    tasks.Add(TestConnectionAsync(c.ConnectionString, c.Name, c.DatabaseType, clientId));
                 }
                 else
                 {
@@ -263,6 +268,8 @@ namespace DiagnosticsExtension.Controllers
                     c.IsAzureStorage = task.IsAzureStorage;
                     c.IsCustomDriver = task.IsCustomDriver;
                     c.IsEntityFramework = task.IsEntityFramework;
+                    c.IsMsiEnabled = task.IsMsiEnabled;
+                    c.MsiAdalError = task.MsiAdalError;
                 }
             }
 
@@ -293,7 +300,6 @@ namespace DiagnosticsExtension.Controllers
             stats.AzureStorage = connections.Count(x => x.IsAzureStorage);
             stats.CustomDriver = connections.Count(x => x.IsCustomDriver);
             stats.ProviderNames = connections.Select(x => x.ProviderName).ToList();
-
 
             DaaS.Logger.LogVerboseEvent(JsonConvert.SerializeObject(stats));
         }
@@ -354,7 +360,6 @@ namespace DiagnosticsExtension.Controllers
                 }
             }
             return connections;
-
         }
 
         private async Task<TestConnectionData> TestConnectionAsync(string connectionString, string providerName, string name)
@@ -389,7 +394,7 @@ namespace DiagnosticsExtension.Controllers
             return data;
         }
 
-        private async Task<TestConnectionData> TestConnectionAsync(string connectionString, string name, DatabaseType databaseType = DatabaseType.Dynamic)
+        private async Task<TestConnectionData> TestConnectionAsync(string connectionString, string name, DatabaseType databaseType = DatabaseType.Dynamic, string clientId = null)
         {
             TestConnectionData data = new TestConnectionData
             {
@@ -404,8 +409,38 @@ namespace DiagnosticsExtension.Controllers
                     using (SqlConnection conn = new SqlConnection())
                     {
                         conn.ConnectionString = connectionString;
-                        await conn.OpenAsync();
-                        data.Succeeded = true;
+                        SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder(conn.ConnectionString);
+                        string userId = builder.UserID;
+                        string password = builder.Password;
+                        bool hasConnectivityWithAzureAd = true;
+
+                        if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(password))
+                        {
+                            MsiValidator msi = new MsiValidator();
+
+                            data.IsMsiEnabled = msi.IsEnabled();
+
+                            if (data.IsMsiEnabled)
+                            {
+                                MsiValidatorInput input = new MsiValidatorInput(ResourceType.Sql, clientId);
+                                hasConnectivityWithAzureAd = await msi.GetTokenAsync(input);
+
+                                if (hasConnectivityWithAzureAd)
+                                    conn.AccessToken = msi.Result.GetTokenTestResult.TokenInformation.AccessToken;
+                                else
+                                    data.MsiAdalError = msi.Result.GetTokenTestResult.ErrorDetails;
+                            }
+                        }
+
+                        if (hasConnectivityWithAzureAd) // when connectionString has credentials or when we have access token from azure ad
+                        {
+                            await conn.OpenAsync();
+                            data.Succeeded = true;
+                        }
+                        else
+                        {
+                            data.Succeeded = false;
+                        }
                     }
                 }
                 else if (databaseType == DatabaseType.MySql)
@@ -446,7 +481,6 @@ namespace DiagnosticsExtension.Controllers
                 {
                     throw new Exception("This type of connection string is not yet supported by this tool");
                 }
-
                 else if (databaseType == DatabaseType.Custom)
                 {
                     if (connectionString.StartsWith("metadata=res://", StringComparison.OrdinalIgnoreCase))
@@ -509,7 +543,7 @@ namespace DiagnosticsExtension.Controllers
             return connType;
         }
 
-        DbConnection CreateDbConnection(string providerName, string connectionString)
+        private DbConnection CreateDbConnection(string providerName, string connectionString)
         {
             DbConnection connection = null;
             if (connectionString != null)
