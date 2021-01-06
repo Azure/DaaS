@@ -37,6 +37,14 @@ namespace DaaS
             Trace.AutoFlush = true;
             Trace.IndentSize = 4;
 
+            //
+            // Some diagnosers may not pass the output directory
+            //
+            if (string.IsNullOrWhiteSpace(outputPath))
+            {
+                return;
+            }
+
             if (collectorMode)
             {
                 var listener = new TextWriterTraceListener(Path.Combine(outputPath, $"{Environment.MachineName}_{CallerComponent}.diaglog"), "TextWriterTraceListener")
@@ -63,33 +71,30 @@ namespace DaaS
             }
             else
             {
-                if (!string.IsNullOrWhiteSpace(outputPath))
+                Directory.CreateDirectory(Path.Combine(outputPath, "logs"));
+                var listener = new TextWriterTraceListener(Path.Combine(outputPath, "logs", $"{Environment.MachineName}_{CallerComponent}.diaglog"), "TextWriterTraceListener")
                 {
-                    Directory.CreateDirectory(Path.Combine(outputPath, "logs"));
-                    var listener = new TextWriterTraceListener(Path.Combine(outputPath, "logs", $"{Environment.MachineName}_{CallerComponent}.diaglog"), "TextWriterTraceListener")
-                    {
-                        TraceOutputOptions = TraceOptions.None
-                    };
+                    TraceOutputOptions = TraceOptions.None
+                };
 
-                    Trace.Listeners.Add(listener);
+                Trace.Listeners.Add(listener);
 
-                    string statusFilePath = string.Empty;
-                    string localTemp = EnvironmentVariables.LocalTemp.ToLower();
-                    string daasPath = EnvironmentVariables.DaasPath.ToLower();
-                    try
+                string statusFilePath = string.Empty;
+                string localTemp = EnvironmentVariables.LocalTemp.ToLower();
+                string daasPath = EnvironmentVariables.DaasPath.ToLower();
+                try
+                {
+                    statusFilePath = outputPath.ToLower().Replace(localTemp, daasPath);
+                    if (!Directory.Exists(statusFilePath))
                     {
-                        statusFilePath = outputPath.ToLower().Replace(localTemp, daasPath);
-                        if (!Directory.Exists(statusFilePath))
-                        {
-                            Directory.CreateDirectory(statusFilePath);
-                        }
-                        StatusFile = Path.Combine(statusFilePath, Path.GetFileName(inputFile) + ".diagstatus.diaglog");
-                        ErrorFilePath = Path.Combine(outputPath, Path.GetFileName(inputFile) + ".err.diaglog");
+                        Directory.CreateDirectory(statusFilePath);
                     }
-                    catch (Exception ex)
-                    {
-                        LogSessionErrorEvent($"Failed while setting StatusFile, statusFilePath ={statusFilePath}, localTemp = {localTemp}, daasPath = {daasPath}", ex, DaasSessionId);
-                    }
+                    StatusFile = Path.Combine(statusFilePath, Path.GetFileName(inputFile) + ".diagstatus.diaglog");
+                    ErrorFilePath = Path.Combine(outputPath, Path.GetFileName(inputFile) + ".err.diaglog");
+                }
+                catch (Exception ex)
+                {
+                    LogSessionErrorEvent($"Failed while setting StatusFile, statusFilePath ={statusFilePath}, localTemp = {localTemp}, daasPath = {daasPath}", ex, DaasSessionId);
                 }
             }
 
@@ -179,7 +184,7 @@ namespace DaaS
         }
         public static void LogErrorEvent(string message, string exception)
         {
-            LogErrorEvent(message, exception, string.Empty, string.Empty);
+            LogErrorEvent(message, string.Empty, message, string.Empty);
             LogDiagnostic("[ERR] - {0} {1}", message, exception);
         }
 
@@ -200,7 +205,7 @@ namespace DaaS
             };
 
             DaasEventSource.Instance.LogNewSession(SiteName, _assemblyVersion, sessionId, mode, diagnosers, JsonConvert.SerializeObject(details));
-            LogDiagnostic("New Session - {0} {1} {2} {3}", sessionId , mode, diagnosers, JsonConvert.SerializeObject(details));
+            LogDiagnostic("New Session - {0} {1} {2} {3}", sessionId, mode, diagnosers, JsonConvert.SerializeObject(details));
         }
 
         public static void TraceFatal(string message, bool logErrorTrace = true)

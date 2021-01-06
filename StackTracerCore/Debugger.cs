@@ -41,9 +41,9 @@ namespace StackTracerCore
             Console.WriteLine($"[{DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture)}] {message}");
         }
 
-        public static List<ManagedThread> CollectTraces(int processId)
+        public static List<ManagedThread> CollectTraces(int processId, string outputDirectory)
         {
-            DaaS.Logger.Init(string.Empty, string.Empty, "StackTracerCore", true);
+            DaaS.Logger.Init(string.Empty, outputDirectory, "StackTracerCore", true);
             List<ManagedThread> stacks = new List<ManagedThread>();
             StackTracerStats stats = new StackTracerStats();
             stats.StatsType = "StackTracer";

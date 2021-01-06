@@ -23,6 +23,7 @@ namespace StackTracer32
             else
             {
                 string outputFilePath = args[1];
+                string outputDirectory = args[1];
                 if (!Directory.Exists(outputFilePath))
                 {
                     Console.WriteLine($"Outputpath '{outputFilePath}' does not exist");
@@ -37,7 +38,7 @@ namespace StackTracer32
                 if (processFound)
                 {
                     DateTime dtStart = DateTime.Now;
-                    var threads = Debugger.CollectTraces(processId);
+                    var threads = Debugger.CollectTraces(processId, outputDirectory);
                     Console.WriteLine($"Found {threads.Count} threads in process {processId}");
 
                     if (threads.Count > 0)

@@ -24,6 +24,7 @@ namespace StackTracer64
             else
             {
                 string outputFilePath = args[1];
+                string outputDirectory = args[1];
                 if (!Directory.Exists(outputFilePath))
                 {
                     Console.WriteLine($"Outputpath '{outputFilePath}' does not exist");
@@ -38,7 +39,7 @@ namespace StackTracer64
                 if (processFound)
                 {
                     DateTime dtStart = DateTime.Now;
-                    var threads = Debugger.CollectTraces(processId);
+                    var threads = Debugger.CollectTraces(processId, outputDirectory);
                     Console.WriteLine($"Process paused for {DateTime.Now.Subtract(dtStart).TotalMilliseconds} ms with {threads.Count} threads");
 
                     if (threads.Count > 0)

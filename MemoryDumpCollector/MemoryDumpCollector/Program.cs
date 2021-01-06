@@ -112,6 +112,7 @@ namespace MemoryDumpCollector
                                 || p.ProcessName.Equals("procdump", StringComparison.OrdinalIgnoreCase)
                                 || p.ProcessName.Equals("procdump64", StringComparison.OrdinalIgnoreCase)
                                 || p.ProcessName.Equals("crashmon", StringComparison.OrdinalIgnoreCase)
+                                || p.ProcessName.Equals("dbghost", StringComparison.OrdinalIgnoreCase)
                                 )
                                 .Select(p => p.Id));
                 }
@@ -305,7 +306,7 @@ namespace MemoryDumpCollector
         private static void GetMemoryDumpProcDump(Process process, string outputDir)
         {
             var homePath = Environment.GetEnvironmentVariable("HOME");
-            ThrowIfDiskOutOfSpace(homePath);
+            CheckDiskSpaceAndExitIfNeeded(homePath);
             string command = Path.Combine(_cdbFolder, "procdump.exe");
             string arguments = " -accepteula -r -ma {0} {1}\\{2}_{3}_{0}.dmp";
             MemoryStream outputStream = null;
@@ -618,16 +619,14 @@ namespace MemoryDumpCollector
 
             Environment.Exit(-1);
         }
-        private static void ThrowIfDiskOutOfSpace(string path)
+        private static void CheckDiskSpaceAndExitIfNeeded(string path)
         {
             double usage = 0;
             try
             {
                 if (EnvironmentNativeMethods.GetDiskFreeSpaceEx(path, out ulong freeBytes, out ulong totalBytes, out ulong diskFreeBytes))
                 {
-                    usage = Math.Round(((totalBytes - freeBytes) * 100.0) / totalBytes);
-                    Logger.LogDiagnoserVerboseEvent($"Disk Usage is {usage}% so ok to take memory dumps");
-                    Console.WriteLine($"Disk Usage is {usage}% so ok to take memory dumps");
+                    usage = Math.Round((totalBytes - freeBytes) * 100.0 / totalBytes);
                 }
             }
             catch (Exception)
@@ -636,8 +635,13 @@ namespace MemoryDumpCollector
             if (usage > 85)
             {
                 string message = $"Disk usage currently is {usage}%  (should be <= 85%) so preventing dump collection";
-                Logger.TraceFatal(message, true);
+                Logger.TraceFatal(message, false);
+                Logger.LogDiagnoserVerboseEvent(message);
                 Environment.Exit(0);
+            }
+            else
+            {
+                Logger.LogDiagnoserVerboseEvent($"Disk Usage is {usage}% so ok to take memory dumps");
             }
         }
     }
