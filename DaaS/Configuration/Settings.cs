@@ -118,8 +118,11 @@ namespace DaaS.Configuration
             environmentVariableName = environmentVariableName.Replace("%", "");
             if (GetSandboxProperty(environmentVariableName, valueBuffer, valueBuffer.Length, 0, ref copiedBytes))
             {
-                configuredAsEnvironmentVariable = true;
                 blobSasUri = Encoding.Unicode.GetString(valueBuffer, 0, copiedBytes);
+                if (!string.IsNullOrWhiteSpace(blobSasUri))
+                {
+                    configuredAsEnvironmentVariable = true;
+                }
             }
             
             return blobSasUri;
