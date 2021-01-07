@@ -264,7 +264,7 @@
     <Content Include="Content\themes\base\jquery-ui.css" />
     <Content Include="favicon.ico" />
     <Content Include="Global.asax" />
-    <Content Include="applicationHost.xdt">
+    <Content Include="scmApplicationHost.xdt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <None Include="packages.config" />
