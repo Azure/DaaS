@@ -305,8 +305,6 @@ namespace MemoryDumpCollector
 
         private static void GetMemoryDumpProcDump(Process process, string outputDir)
         {
-            var homePath = Environment.GetEnvironmentVariable("HOME");
-            CheckDiskSpaceAndExitIfNeeded(homePath);
             string command = Path.Combine(_cdbFolder, "procdump.exe");
             string arguments = " -accepteula -r -ma {0} {1}\\{2}_{3}_{0}.dmp";
             MemoryStream outputStream = null;
@@ -619,39 +617,5 @@ namespace MemoryDumpCollector
 
             Environment.Exit(-1);
         }
-        private static void CheckDiskSpaceAndExitIfNeeded(string path)
-        {
-            double usage = 0;
-            try
-            {
-                if (EnvironmentNativeMethods.GetDiskFreeSpaceEx(path, out ulong freeBytes, out ulong totalBytes, out ulong diskFreeBytes))
-                {
-                    usage = Math.Round((totalBytes - freeBytes) * 100.0 / totalBytes);
-                }
-            }
-            catch (Exception)
-            {
-            }
-            if (usage > 85)
-            {
-                string message = $"Disk usage currently is {usage}%  (should be <= 85%) so preventing dump collection";
-                Logger.TraceFatal(message, false);
-                Logger.LogDiagnoserVerboseEvent(message);
-                Environment.Exit(0);
-            }
-            else
-            {
-                Logger.LogDiagnoserVerboseEvent($"Disk Usage is {usage}% so ok to take memory dumps");
-            }
-        }
-    }
-
-    static class EnvironmentNativeMethods
-    {
-        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool GetDiskFreeSpaceEx(string path, out ulong freeBytes, out ulong totalBytes, out ulong diskFreeBytes);
-
-
     }
 }
