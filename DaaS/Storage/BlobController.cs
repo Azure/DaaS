@@ -69,6 +69,7 @@ namespace DaaS.Storage
             try
             {
                 var container = new CloudBlobContainer(new Uri(blobSasUri));
+                container.CreateIfNotExists();
                 var blobList = container.ListBlobsSegmented("", true, BlobListingDetails.None, 1, null, null, null);
                 blobList.Results.Count();
                 return true;

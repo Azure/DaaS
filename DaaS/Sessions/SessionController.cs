@@ -197,6 +197,14 @@ namespace DaaS.Sessions
                 && diagnosers.Any(x => x.DiagnoserRequiresStorage)
                 && Settings.IsBlobSasUriConfiguredAsEnvironmentVariable())
             {
+                //
+                // This call is required so that the container gets created if it does not exist so far
+                //
+                
+                if (!BlobController.ValidateBlobSasUri(blobSasUri, out Exception exceptionStorage))
+                {
+                    throw new ApplicationException($"BlobSasUri specified is invalid. Failed with error - {exceptionStorage.Message}");
+                }
 
                 blobSasUri = Settings.WebSiteDaasStorageSasUri;
                 sasUriInEnvironmentVariable = true;
