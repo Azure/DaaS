@@ -41,16 +41,16 @@ namespace DaaS
             WriteEvent(1002, SiteName, Version, SessionId, Message, ExceptionType, ExceptionMessage, ExceptionStackTrace);
         }
 
-        [Event(1003, Level = EventLevel.Error)]
-        public void LogErrorEvent(string SiteName, string Version, string Message, string ExceptionType, string ExceptionMessage, string ExceptionStackTrace)
+        [Event(1003, Level = EventLevel.Error, Version = 2)]
+        public void LogErrorEvent(string SiteName, string Version, string Message, string ExceptionType, string ExceptionMessage, string ExceptionStackTrace, string Details)
         {
-            WriteEvent(1003, SiteName, Version, Message, ExceptionType, ExceptionMessage, ExceptionStackTrace);
+            WriteEvent(1003, SiteName, Version, Message, ExceptionType, ExceptionMessage, ExceptionStackTrace, Details);
         }
 
-        [Event(1004, Level = EventLevel.Verbose)]
-        public void LogVerboseEvent(string SiteName, string Version, string Message)
+        [Event(1004, Level = EventLevel.Verbose, Version = 2)]
+        public void LogVerboseEvent(string SiteName, string Version, string Message, string Details)
         {
-            WriteEvent(1004, SiteName, Version, Message);
+            WriteEvent(1004, SiteName, Version, Message, Details);
         }
 
         [Event(1005, Level = EventLevel.Informational)]

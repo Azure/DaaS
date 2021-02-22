@@ -24,7 +24,6 @@ namespace DaaS
 
         public async Task<List<CrashMonitoringFile>> GetCrashDumpsAsync(bool includeFullUri = false)
         {
-            bool checkForSiteName = ShouldCheckSiteNameInBlob();
             var filesCollected = new List<CrashMonitoringFile>();
             string blobSasUri = Settings.IsBlobSasUriConfiguredAsEnvironmentVariable() ? Settings.WebSiteDaasStorageSasUri : Settings.Instance.BlobStorageSas;
 
@@ -47,7 +46,7 @@ namespace DaaS
                     blobContinuationToken = resultSegment.ContinuationToken;
                     foreach (var item in resultSegment.Results.Cast<CloudBlockBlob>())
                     {
-                        if (checkForSiteName && !item.Uri.Segments.Contains(_siteName + "/", StringComparer.OrdinalIgnoreCase))
+                        if (!item.Uri.Segments.Contains(_siteName + "/", StringComparer.OrdinalIgnoreCase))
                         {
                             continue;
                         }
@@ -60,26 +59,6 @@ namespace DaaS
             }
             return filesCollected;
 
-        }
-
-        private bool ShouldCheckSiteNameInBlob()
-        {
-            var shouldCheckSiteName = false;
-            Assembly assembly;
-            try
-            {
-                assembly = Assembly.Load("Microsoft.Web.Hosting, Version=7.1.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35");
-                var fileVersionInfo = System.Diagnostics.FileVersionInfo.GetVersionInfo(assembly.Location);
-                if (fileVersionInfo.ProductMajorPart >= 90)
-                {
-                    shouldCheckSiteName = true;
-                }
-            }
-            catch
-            {
-                shouldCheckSiteName = true;
-            }
-            return shouldCheckSiteName;
         }
     }
 }

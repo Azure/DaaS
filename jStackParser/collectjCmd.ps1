@@ -60,7 +60,8 @@ if ($jcmdExists -eq $true)
 	   $cmdToExecute
 		[DaaS.Logger]::LogDiagnoserVerboseEvent($cmdToExecute)
        $jcmdOutput = &$jcmdProcess $javaProcess JFR.start  name=AppServiceJavaFlightRecorder settings=profile duration=60s filename=$jfrFilePath
-	   $jcmdOutput	   
+	   $jcmdOutput
+	   [DaaS.Logger]::LogDiagnoserVerboseEvent("jCmd Command Output = $jcmdOutput")
 		
 	   if ($jcmdOutput -clike "*Started recording*")
 	   {
@@ -98,7 +99,6 @@ if ($jcmdExists -eq $true)
 			[DaaS.Logger]::LogDiagnoserVerboseEvent( "deleted $dirPath")
 			"deleted $dirPath"
 		}
-    
     }
 
 	[DaaS.Logger]::LogDiagnoserVerboseEvent("jcmd Collected completed")

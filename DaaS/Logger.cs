@@ -5,6 +5,7 @@
 // </copyright>
 //-----------------------------------------------------------------------
 
+using Microsoft.WindowsAzure.Storage;
 using Newtonsoft.Json;
 using System;
 using System.Diagnostics;
@@ -22,9 +23,7 @@ namespace DaaS
 
         public static string SiteName { get; private set; } = (Environment.GetEnvironmentVariable("WEBSITE_IIS_SITE_NAME") == null ? "SiteNotFound" : (Environment.GetEnvironmentVariable("WEBSITE_IIS_SITE_NAME").StartsWith("~1") ? Environment.GetEnvironmentVariable("WEBSITE_IIS_SITE_NAME").Substring(2) : Environment.GetEnvironmentVariable("WEBSITE_IIS_SITE_NAME")));
         public static Guid ActivityId { get; set; } = Guid.Empty;
-
         public static string DaasSessionId { get; private set; } = string.Empty;
-
         public static bool KustoLoggingDisabled { get; set; }
 
         public static void Init(string inputFile, string outputPath, string callerComponent, bool collectorMode)
@@ -144,12 +143,12 @@ namespace DaaS
             }
         }
 
-        public static void LogVerboseEvent(string message)
+        public static void LogVerboseEvent(string message, string details = "")
         {
             try
             {
                 LogInfo(message);
-                DaasEventSource.Instance.LogVerboseEvent(SiteName, _assemblyVersion, message);
+                DaasEventSource.Instance.LogVerboseEvent(SiteName, _assemblyVersion, message, details);
             }
             catch (Exception)
             {
@@ -162,7 +161,7 @@ namespace DaaS
             LogDiagnostic("DaasConsole:{0} {1}", message, details);
         }
 
-        public static void LogErrorEvent(string message, string exceptionType, string exceptionMessage, string exceptionStackTrace)
+        public static void LogErrorEvent(string message, string exceptionType, string exceptionMessage, string exceptionStackTrace, string details)
         {
             try
             {
@@ -170,8 +169,8 @@ namespace DaaS
                 {
                     message = $"{CallerComponent}: {message}";
                 }
-                Trace.TraceError($"{DateTime.UtcNow } {message} {exceptionType}:{exceptionMessage} {exceptionStackTrace}");
-                DaasEventSource.Instance.LogErrorEvent(SiteName, _assemblyVersion, message, exceptionType, exceptionMessage, exceptionStackTrace);
+                Trace.TraceError($"{DateTime.UtcNow } {message} {exceptionType}:{exceptionMessage} {details} {exceptionStackTrace}");
+                DaasEventSource.Instance.LogErrorEvent(SiteName, _assemblyVersion, message, exceptionType, exceptionMessage, exceptionStackTrace, details);
             }
             catch (Exception)
             {
@@ -180,11 +179,24 @@ namespace DaaS
 
         public static void LogErrorEvent(string message, Exception exception)
         {
-            LogErrorEvent(message, exception.GetType().ToString(), exception.Message, exception.StackTrace);
+            string details = "";
+            if (exception is StorageException storageEx && storageEx.RequestInformation != null
+                && storageEx.RequestInformation.ExtendedErrorInformation != null)
+            {
+                try
+                {
+                    details = " ExtendedErrorInformation = " + JsonConvert.SerializeObject(storageEx.RequestInformation.ExtendedErrorInformation);
+                }
+                catch (Exception)
+                {
+                }
+            }
+
+            LogErrorEvent(message, exception.GetType().ToString(), exception.Message, exception.StackTrace, details);
         }
         public static void LogErrorEvent(string message, string exception)
         {
-            LogErrorEvent(message, string.Empty, message, string.Empty);
+            LogErrorEvent(message, string.Empty, message, string.Empty, string.Empty);
             LogDiagnostic("[ERR] - {0} {1}", message, exception);
         }
 

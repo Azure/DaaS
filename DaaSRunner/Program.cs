@@ -39,10 +39,11 @@ namespace DaaSRunner
         private static readonly CpuMonitoring m_CpuMonitoring = new CpuMonitoring();
         private static MonitoringSession m_MonitoringSession = null;
         private static bool m_FailedStoppingSession = false;
+        private static bool m_SecretsCleared;
+        private static Timer m_SasUriTimer;
 
         static void Main(string[] args)
         {
-
             Logger.LogVerboseEvent($"DaasRunner.exe with version {Assembly.GetExecutingAssembly().GetName().Version.ToString() } and ProcessId={ Process.GetCurrentProcess().Id } started");
             System.Net.ServicePointManager.SecurityProtocol = System.Net.SecurityProtocolType.Tls12;
             SessionController sessionController = new SessionController();
@@ -72,9 +73,61 @@ namespace DaaSRunner
             //StartSendingHeartBeats();
             Thread.Sleep(TimeSpan.FromSeconds(20));
 
+            // Start a timer to validate SAS URI's are configured correctly
+            m_SasUriTimer = new Timer(new TimerCallback(ValidateSasAccounts), null, (int)TimeSpan.FromMinutes(1).TotalMilliseconds, (int)TimeSpan.FromHours(1).TotalMilliseconds);
+
             InitializeThreadsForCpuMonitoring();
             CleanupCompletedSessions();
             StartSessionRunner();
+        }
+
+        private static bool ValidateSasUri(string sasUri, bool envVar)
+        {
+            var result = DaaS.Storage.BlobController.ValidateBlobSasUri(sasUri, out Exception _);
+            Logger.LogVerboseEvent($"BlobStorageSasUri at EnvironmentVariable={envVar} is Valid={result}");
+            return result;
+        }
+
+        private static void ClearSecretIfNeeded(string sasUriPrivateSettings)
+        {
+            if (!m_SecretsCleared && !string.IsNullOrWhiteSpace(sasUriPrivateSettings))
+            {
+                _DaaS.BlobStorageSasUri = string.Empty;
+                Logger.LogVerboseEvent("Cleared SAS URI from PrivateSettings.xml as a valid SAS URI exists as an Environment variable");
+                m_SecretsCleared = true;
+            }
+        }
+
+        private static void ValidateSasAccounts(object state)
+        {
+            try
+            {
+                string sasUriPrivateSettings = _DaaS.BlobStorageSasUri;
+                var sasUriEnvironment = _DaaS.GetBlobSasUriFromEnvironment();
+
+                if (!string.IsNullOrWhiteSpace(sasUriEnvironment))
+                {
+                    if (ValidateSasUri(sasUriEnvironment, envVar: true))
+                    {
+                        ClearSecretIfNeeded(sasUriPrivateSettings);
+                        return;
+                    }
+                }
+
+                //
+                // We reach here only if SAS URI in environment is not defined or is not valid
+                //
+
+                if (!string.IsNullOrWhiteSpace(sasUriPrivateSettings))
+                {
+                    ValidateSasUri(sasUriPrivateSettings, envVar: false); ;
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogErrorEvent("Encountered exception while validating SAS keys", ex);
+            }
+
         }
 
         private static void CheckAnalysisForCpuMonitoring()
@@ -343,6 +396,7 @@ namespace DaaSRunner
             int logCounter = 0;
             sleepIntervalForHeartbeatCheck = (sleepIntervalForHeartbeatCheck < _DaaS.FrequencyToCheckForNewSessionsAt.TotalSeconds) ? _DaaS.FrequencyToCheckForNewSessionsAt.TotalSeconds : sleepIntervalForHeartbeatCheck;
             _lastInstanceCountCheck = DateTime.UtcNow;
+
             while (true)
             {
                 Logger.LogDiagnostic("Checking for active sessions...");
@@ -426,7 +480,7 @@ namespace DaaSRunner
                             logCounter = 0;
                             Logger.LogVerboseEvent($"Live Instance Count = {instanceCount} and sleepInterval between heartbeats = {sleepIntervalForHeartbeatCheck}");
                         }
-                        
+
                     }
                     catch (Exception)
                     {
