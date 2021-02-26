@@ -69,7 +69,32 @@ namespace DaaS.Storage
             try
             {
                 var container = new CloudBlobContainer(new Uri(blobSasUri));
-                container.CreateIfNotExists();
+
+                //
+                // Perform the operation to create a container in another try...catch
+                // because SAS URI's created with older version of DAAS were created with 
+                // Service Shared Access Signature (Service SAS) instead of Account Shared 
+                // Access Signature (Account SAS). Calling container.Exists() fails with 
+                // 403 StorageException so perform that under a try...catch
+                //
+
+                bool containerExists = true;
+                try
+                {
+                    if (!container.Exists())
+                    {
+                        containerExists = false;
+                    }
+                }
+                catch (Exception)
+                {
+                }
+
+                if (!containerExists)
+                {
+                    container.CreateIfNotExists();
+                }
+
                 var blobList = container.ListBlobsSegmented("", true, BlobListingDetails.None, 1, null, null, null);
                 blobList.Results.Count();
                 return true;
