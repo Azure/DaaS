@@ -206,9 +206,9 @@ namespace DaaS.Sessions
                 // This call is required so that the container gets created if it does not exist so far
                 //
                 
-                if (!BlobController.ValidateBlobSasUri(blobSasUri, out Exception exceptionStorage))
+                if (!BlobController.ValidateBlobSasUri(Settings.WebSiteDaasStorageSasUri, out Exception exceptionStorage))
                 {
-                    throw new ApplicationException($"BlobSasUri specified is invalid. Failed with error - {exceptionStorage.Message}");
+                    throw new ApplicationException($"BlobSasUri specified in environment variable is invalid. Failed with error - {exceptionStorage.Message}");
                 }
 
                 blobSasUri = Settings.WebSiteDaasStorageSasUri;
