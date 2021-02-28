@@ -924,9 +924,9 @@ namespace ClrProfilingAnalyzer
             }
 
             var logsDirectory = Path.Combine(EnvironmentVariables.LocalTemp, "logs");
-            if (!logsDirectory.EndsWith("/"))
+            if (!logsDirectory.EndsWith("\\"))
             {
-                logsDirectory += "/";
+                logsDirectory += "\\";
             }
             var url = diagSessionPath.ToLower().Replace(logsDirectory.ToLower(), $"https://{sitename}/api/vfs/Data/Daas/Logs/");
             url = url.Replace('\\', '/');

@@ -44,7 +44,7 @@ namespace DaaS
                                                                             "stacktracer32","stacktracer64", "jstackparser", "logparser",
                                                                             "procdump", "procdump64", "cdb","loganalysisworker", "PhpReportGen",
                                                                             "DumpAnalyzer", "MemoryDumpCollector", "SnapshotUploader64", 
-                                                                            "SnapshotUploader86", "crashmon"};
+                                                                            "SnapshotUploader86", "crashmon", "dbghost", "SnapshotHolder", "SnapshotUploader"};
         public void InitializeMonitoring(MonitoringSession session)
         {
             if (session != null)

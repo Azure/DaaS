@@ -109,6 +109,8 @@ namespace MemoryDumpCollector
                                 || p.ProcessName.Equals("DaasConsole", StringComparison.OrdinalIgnoreCase) 
                                 || p.ProcessName.Equals("SnapshotUploader64", StringComparison.OrdinalIgnoreCase)
                                 || p.ProcessName.Equals("SnapshotUploader86", StringComparison.OrdinalIgnoreCase)
+                                || p.ProcessName.Equals("SnapshotUploader", StringComparison.OrdinalIgnoreCase)
+                                || p.ProcessName.Equals("SnapshotHolder", StringComparison.OrdinalIgnoreCase)
                                 || p.ProcessName.Equals("procdump", StringComparison.OrdinalIgnoreCase)
                                 || p.ProcessName.Equals("procdump64", StringComparison.OrdinalIgnoreCase)
                                 || p.ProcessName.Equals("crashmon", StringComparison.OrdinalIgnoreCase)
