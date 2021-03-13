@@ -44,9 +44,10 @@ namespace DaaS.Sessions
             }
         }
 
-        public string GetBlobSasUriFromEnvironment()
+        public string GetBlobSasUriFromEnvironment(out bool definedAsEnvironmentVariable)
         {
-            return Settings.GetBlobSasUriFromEnvironment(Settings.WebSiteDaasStorageSasUri, out bool _);
+            var blobSasUri = Settings.GetBlobSasUriFromEnvironment(Settings.WebSiteDaasStorageSasUri, out definedAsEnvironmentVariable);
+            return blobSasUri;
         }
 
         public TimeSpan FrequencyToCheckForNewSessionsAt

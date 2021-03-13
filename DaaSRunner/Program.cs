@@ -103,9 +103,9 @@ namespace DaaSRunner
             try
             {
                 string sasUriPrivateSettings = _DaaS.BlobStorageSasUri;
-                var sasUriEnvironment = _DaaS.GetBlobSasUriFromEnvironment();
+                var sasUriEnvironment = _DaaS.GetBlobSasUriFromEnvironment(out bool sasUriInEnvironmentVariable);
 
-                if (!string.IsNullOrWhiteSpace(sasUriEnvironment))
+                if (!string.IsNullOrWhiteSpace(sasUriEnvironment) && sasUriInEnvironmentVariable)
                 {
                     if (ValidateSasUri(sasUriEnvironment, envVar: true))
                     {
@@ -120,7 +120,10 @@ namespace DaaSRunner
 
                 if (!string.IsNullOrWhiteSpace(sasUriPrivateSettings))
                 {
-                    ValidateSasUri(sasUriPrivateSettings, envVar: false); ;
+                    if (!ValidateSasUri(sasUriPrivateSettings, envVar: false))
+                    {
+                        ClearSecretIfNeeded(sasUriPrivateSettings);
+                    }
                 }
             }
             catch (Exception ex)

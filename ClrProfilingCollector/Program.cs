@@ -197,6 +197,13 @@ namespace ClrProflingCollector
                 {
                     string zipFolderPath = CreateZipFolder(filePath);
 
+                    //
+                    // Disabling StackTracer temporarily till we upgrade
+                    // to CLRMD 2.0 and handle all exceptions 
+                    //
+
+                    collectRawStacks = false;
+
                     if (collectRawStacks)
                     {
                         Logger.LogStatus("Collecting raw stack-traces");
