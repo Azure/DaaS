@@ -88,12 +88,19 @@ namespace DaaSRunner
             return result;
         }
 
-        private static void ClearSecretIfNeeded(string sasUriPrivateSettings)
+        private static void ClearSecretIfNeeded(string sasUriPrivateSettings , bool secretInvalid)
         {
             if (!m_SecretsCleared && !string.IsNullOrWhiteSpace(sasUriPrivateSettings))
             {
                 _DaaS.BlobStorageSasUri = string.Empty;
-                Logger.LogVerboseEvent("Cleared SAS URI from PrivateSettings.xml as a valid SAS URI exists as an Environment variable");
+                if (secretInvalid)
+                {
+                    Logger.LogVerboseEvent("Cleared SAS URI from PrivateSettings.xml as it is invalid");
+                }
+                else
+                {
+                    Logger.LogVerboseEvent("Cleared SAS URI from PrivateSettings.xml as a valid SAS URI exists as an Environment variable");
+                }
                 m_SecretsCleared = true;
             }
         }
@@ -109,7 +116,7 @@ namespace DaaSRunner
                 {
                     if (ValidateSasUri(sasUriEnvironment, envVar: true))
                     {
-                        ClearSecretIfNeeded(sasUriPrivateSettings);
+                        ClearSecretIfNeeded(sasUriPrivateSettings, secretInvalid: false);
                         return;
                     }
                 }
@@ -122,7 +129,7 @@ namespace DaaSRunner
                 {
                     if (!ValidateSasUri(sasUriPrivateSettings, envVar: false))
                     {
-                        ClearSecretIfNeeded(sasUriPrivateSettings);
+                        ClearSecretIfNeeded(sasUriPrivateSettings, secretInvalid:true);
                     }
                 }
             }
