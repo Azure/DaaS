@@ -35,19 +35,20 @@ namespace StackTracer64
                     outputFilePath = Path.Combine(outputFilePath, "stacks.json");
                 }
 
-                bool processFound = Int32.TryParse(args[0], out int processId);
+                bool processFound = int.TryParse(args[0], out int processId);
                 if (processFound)
                 {
-                    DateTime dtStart = DateTime.Now;
                     var threads = Debugger.CollectTraces(processId, outputDirectory);
-                    Console.WriteLine($"Process paused for {DateTime.Now.Subtract(dtStart).TotalMilliseconds} ms with {threads.Count} threads");
+                    Console.WriteLine($"Found {threads.Count} threads in process {processId}");
 
                     if (threads.Count > 0)
                     {
                         using (StreamWriter file = File.CreateText(outputFilePath))
                         {
-                            JsonSerializer serializer = new JsonSerializer();
-                            serializer.Formatting = Formatting.Indented;
+                            JsonSerializer serializer = new JsonSerializer
+                            {
+                                Formatting = Formatting.Indented
+                            };
                             serializer.Serialize(file, threads);
                         }
                         Console.WriteLine($"Saved file {outputFilePath} successfully");

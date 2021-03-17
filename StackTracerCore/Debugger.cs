@@ -8,172 +8,213 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Linq;
+using DaaS;
 using Microsoft.Diagnostics.Runtime;
-using Microsoft.Diagnostics.Runtime.Utilities;
 using Newtonsoft.Json;
 
 namespace StackTracerCore
 {
-    class StackTracerStats
-    {
-        public string StatsType;
-        public string SiteName;
-        public int ThreadCount;
-        public double TimeTotal = 0;
-        public double TimeInDebuggerTicks = 0;
-        public double TimeProcessPaused = 0;
-        public double TimeFetchingStackFrames = 0;
-        public double TimeAttachDetatch = 0;
-        public double TimeFetchingThreads = 0;
-    }
     public class Debugger
     {
-        static List<string> ExcludedStackFrames = new List<string> { "HelperMethodFrame", "ContextTransitionFrame", "InlinedCallFrame", "DebuggerU2MCatchHandlerFrame" };
-        static List<string> ExcludedIfPartOfStackFrames = new List<string> { "DomainNeutralILStubClass.IL_STUB_PInvoke", "DomainNeutralILStubClass.IL_STUB_ReversePInvoke", "DomainNeutralILStubClass.IL_STUB_ReversePInvoke" };
-        static List<int> StackTraceHashes = new List<int>();
+        static readonly List<int> StackTraceHashes = new List<int>();
+        static readonly string SiteName = Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME") ?? "NoSiteFound";
 
-        const int MAX_THREADS_TO_DUMP = 1000;
+        const int MaxThreadsToDump = 1000;
 
-        private static void TraceLine(string message)
+        private static void TraceLine(string message, bool generateBackendEvent = true)
         {
             Console.WriteLine($"[{DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture)}] {message}");
+            if (generateBackendEvent)
+            {
+                Logger.LogDiagnoserVerboseEvent(message);
+            }
+        }
+
+        private static void TraceError(string message, Exception ex)
+        {
+            Console.WriteLine($"[{DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture)}] {message} {ex}");
+            Logger.LogDiagnoserErrorEvent(message, ex);
+        }
+
+        private static void TraceWarning(string message, Exception ex)
+        {
+            Console.WriteLine($"[{DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss.fff", CultureInfo.InvariantCulture)}] {message} {ex}");
+            Logger.LogDiagnoserWarningEvent(message, ex);
         }
 
         public static List<ManagedThread> CollectTraces(int processId, string outputDirectory)
         {
-            DaaS.Logger.Init(string.Empty, outputDirectory, "StackTracerCore", true);
+            Logger.Init(string.Empty, outputDirectory, "StackTracerCore", true);
             List<ManagedThread> stacks = new List<ManagedThread>();
-            StackTracerStats stats = new StackTracerStats();
-            stats.StatsType = "StackTracer";
-            var siteName = Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME") ?? "NoSiteFound";
+            StackTracerStats stats = new StackTracerStats
+            {
+                StatsType = "StackTracer",
+                SiteName = SiteName
+            };
 
             try
             {
-                
-                if (!string.IsNullOrWhiteSpace(siteName))
-                {
-                    stats.SiteName = siteName;
-                }
-
-                DateTime functionStartTime = DateTime.Now;
+                DateTime startTime = DateTime.UtcNow;
                 TraceLine("CollectTraces Function started");
 
-                DataTarget target = DataTarget.AttachToProcess(processId, 20000, AttachFlag.NonInvasive);
-                TraceLine($"Attached to process {processId}");
-                DateTime processAttachtedTime = DateTime.Now;
-                stats.TimeAttachDetatch += processAttachtedTime.Subtract(functionStartTime).TotalMilliseconds;
+                DataTarget target = null;
+                DateTime processAttachedTime = DateTime.MinValue;
 
-                DefaultSymbolLocator._NT_SYMBOL_PATH = GetSymbolPath();
-                TraceLine("sympath = " + DefaultSymbolLocator._NT_SYMBOL_PATH);
+                try
+                {
+                    target = DataTarget.AttachToProcess(processId, suspend: true);
+                    TraceLine($"Attached to process {processId}");
+                    processAttachedTime = DateTime.UtcNow;
+                    stats.TimeProcessAttached = DateTime.UtcNow.Subtract(startTime).TotalMilliseconds;
 
-                foreach (ClrInfo version in target.ClrVersions)
-                {                    
-                    TraceLine("Found CLR Version:" + version.Version.ToString());
-
-                    ModuleInfo dacInfo = version.DacInfo;
-                    TraceLine(string.Format("Filesize:  {0:X}", dacInfo.FileSize));
-                    TraceLine(string.Format("Timestamp: {0:X}", dacInfo.TimeStamp));
-                    TraceLine(string.Format("Dac File:  {0}", dacInfo.FileName));
-
-                    string dacLocation = version.DacInfo.FileName;
-                    if (!string.IsNullOrEmpty(dacLocation))
+                    foreach (ClrInfo version in target.ClrVersions)
                     {
-                        TraceLine("Local dac location: " + dacLocation);
-                    }
+                        TraceLine("Found CLR Version:" + version.Version.ToString());
 
-                    ClrRuntime runtime = target.ClrVersions[0].CreateRuntime(version.LocalMatchingDac, true);
+                        DacInfo dacInfo = version.DacInfo;
+                        TraceLine(string.Format("Dac File:  {0}", dacInfo.PlatformSpecificFileName));
 
-                    var timeThreadStart = DateTime.Now;
-                    var threads = runtime.Threads.Where(t => t.IsAlive);
-                    stats.TimeFetchingThreads = DateTime.Now.Subtract(timeThreadStart).TotalMilliseconds;
-                    stats.ThreadCount = threads.Count();
+                        string dacLocation = version.DacInfo.LocalDacPath;
+                        if (!string.IsNullOrEmpty(dacLocation))
+                        {
+                            TraceLine("Local dac location: " + dacLocation);
+                        }
 
-                    foreach (ClrThread thread in threads.Take(MAX_THREADS_TO_DUMP))
-                    {
-                        if (!thread.IsAlive)
+                        ClrRuntime runtime = null;
+
+                        try
+                        {
+                            runtime = version.CreateRuntime(dacLocation, true);
+                        }
+                        catch (Exception ex)
+                        {
+                            TraceWarning($"StackTracer: Failed to create runtime", ex);
+                        }
+
+                        if (runtime == null)
+                        {
                             continue;
+                        }
 
-                        ManagedThread t = new ManagedThread
+                        TraceLine($"ClrRuntime object created successfully for {version.Version}");
+
+                        var timeThreadStart = DateTime.UtcNow;
+                        var threads = runtime.Threads.Where(t => t.IsAlive);
+                        stats.TimeFetchingThreads = DateTime.UtcNow.Subtract(timeThreadStart).TotalMilliseconds;
+                        stats.ThreadCount = threads.Count();
+
+                        foreach (ClrThread thread in threads.Take(MaxThreadsToDump))
                         {
-                            OSThreadId = thread.OSThreadId,
-                            GcMode = thread.GcMode,
-                            IsBackground = thread.IsBackground,
-                            IsFinalizer = thread.IsFinalizer,
-                            IsGC = thread.IsGC,
-                            IsSuspendingEE = thread.IsSuspendingEE,
-                            IsThreadpoolCompletionPort = thread.IsThreadpoolCompletionPort,
-                            IsThreadpoolWorker = thread.IsThreadpoolWorker,
-                            IsThreadpoolTimer = thread.IsThreadpoolTimer,
-                            IsThreadpoolGate = thread.IsThreadpoolGate,
-                            LockCount = thread.LockCount,
-                            ManagedThreadId = thread.ManagedThreadId
-                        };
-
-                        var stackTrace = new List<string>();
-
-                        DateTime dtStackTrace = DateTime.Now;
-                        var threadStackTrace = thread.StackTrace;
-                        stats.TimeFetchingStackFrames += DateTime.Now.Subtract(dtStackTrace).TotalMilliseconds;
-
-                        foreach (ClrStackFrame frame in threadStackTrace)
-                        {
-                            DateTime dtTemp = DateTime.Now;
-                            var stackframe = frame.DisplayString;
-                            if (!ExcludedStackFrames.Any(s => s == stackframe))
+                            ManagedThread t = new ManagedThread
                             {
-                                if (!ExcludedIfPartOfStackFrames.Any(s => stackframe.Contains(s)))
+                                OSThreadId = thread.OSThreadId,
+                                GcMode = thread.GCMode,
+                                IsBackground = thread.IsBackground,
+                                IsFinalizer = thread.IsFinalizer,
+                                IsGCSuspendPending = thread.IsGCSuspendPending,
+                                LockCount = thread.LockCount,
+                                ManagedThreadId = thread.ManagedThreadId,
+                                IsUserSuspended = thread.IsUserSuspended
+                            };
+
+                            var stackTrace = new List<string>();
+
+                            DateTime dtStackTrace = DateTime.UtcNow;
+                            var threadStackTrace = thread.EnumerateStackTrace();
+                            stats.TimeFetchingStackFrames += DateTime.UtcNow.Subtract(dtStackTrace).TotalMilliseconds;
+
+                            foreach (ClrStackFrame frame in threadStackTrace)
+                            {
+                                if(frame == null)
                                 {
-                                    stackTrace.Add(stackframe);
+                                    continue;
+                                }
+
+                                if (frame.Kind == ClrStackFrameKind.ManagedMethod)
+                                {
+                                    var clrMethod = frame.Method;
+                                    if (clrMethod != null && clrMethod.Signature != null)
+                                    {
+                                        stackTrace.Add(clrMethod.Signature);
+                                    }
+                                }
+                                else
+                                {
+                                    var stackFrame = frame.FrameName;
+                                    if (!string.IsNullOrEmpty(stackFrame))
+                                    {
+                                        stackTrace.Add(stackFrame);
+                                    }
                                 }
                             }
 
-                            stats.TimeInDebuggerTicks += DateTime.Now.Subtract(dtTemp).TotalMilliseconds;
+                            if (stackTrace.Count > 3)
+                            {
+                                DateTime dtTemp = DateTime.UtcNow;
+                                t.CallStackHash = string.Join(Environment.NewLine, stackTrace).GetHashCode();
+                                if (!StackTraceHashes.Contains(t.CallStackHash))
+                                {
+                                    StackTraceHashes.Add(t.CallStackHash);
+                                    t.CallStack = stackTrace;
+                                }
+                                stacks.Add(t);
+                            }
                         }
 
-                        if (stackTrace.Count > 3)
+                        try
                         {
-                            DateTime dtTemp = DateTime.Now;
-                            t.CallStackHash = string.Join(Environment.NewLine, stackTrace).GetHashCode();
-                            if (!StackTraceHashes.Contains(t.CallStackHash))
-                            {
-                                StackTraceHashes.Add(t.CallStackHash);
-                                t.CallStack = stackTrace;
-                            }
-                            stacks.Add(t);
-                            stats.TimeInDebuggerTicks += DateTime.Now.Subtract(dtTemp).TotalMilliseconds;
+                            runtime.Dispose();
                         }
+                        catch (Exception ex)
+                        {
+                            TraceWarning("Encountered error while disposing ClrRuntime", ex);
+                        }
+
+                        TraceLine($"Found {stacks.Count()} stacks in process");
                     }
                 }
-                var processDetachtedTime = DateTime.Now;
-                target.DebuggerInterface.DetachProcesses();
-                stats.TimeAttachDetatch += DateTime.Now.Subtract(processDetachtedTime).TotalMilliseconds;
-                stats.TimeProcessPaused = DateTime.Now.Subtract(processAttachtedTime).TotalMilliseconds;
-                stats.TimeTotal = DateTime.Now.Subtract(functionStartTime).TotalMilliseconds;
+                catch (Exception ex)
+                {
+                    TraceError("StackTracer: Failed while collecting stacktraces", ex);
+                }
+
+                if (target != null)
+                {
+                    //
+                    // Calling Dispose is super critical as that detatches
+                    // the process else the process may be left suspended
+                    //
+
+                    try
+                    {
+                        target.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        TraceError("Encountered error while disposing DataTarget", ex);
+                    }
+                }
+
+                var processDetachtedTime = DateTime.UtcNow;
+                stats.TimeProcessPaused = DateTime.UtcNow.Subtract(processAttachedTime).TotalMilliseconds;
+                stats.TimeTotal = DateTime.UtcNow.Subtract(startTime).TotalMilliseconds;
                 TraceLine("Process Detatched");
 
-                TraceLine($"Total Time =  { stats.TimeTotal} ms");
-                TraceLine($"    TimeFetchingThreads     =  {stats.TimeFetchingThreads} ms");
-                TraceLine($"    TimeFetchingStackFrames =  {stats.TimeFetchingStackFrames} ms");
-                TraceLine($"    TimeInDebuggerTicks     =  {stats.TimeInDebuggerTicks} ms");
-                TraceLine($"    TimeProcessPaused       =  {stats.TimeProcessPaused} ms");
-                TraceLine($"    TimeAttachDetatch       =  {stats.TimeAttachDetatch} ms");
+                TraceLine($"Total Time =  { stats.TimeTotal} ms", generateBackendEvent: false);
+                TraceLine($"    TimeFetchingThreads     =  {stats.TimeFetchingThreads} ms", generateBackendEvent: false);
+                TraceLine($"    TimeFetchingStackFrames =  {stats.TimeFetchingStackFrames} ms", generateBackendEvent: false);
+                TraceLine($"    TimeProcessPaused       =  {stats.TimeProcessPaused} ms", generateBackendEvent: false);
+                TraceLine($"    TimeProcessAttached     =  {stats.TimeProcessAttached} ms", generateBackendEvent: false);
 
-                DaaS.Logger.TraceStats(JsonConvert.SerializeObject(stats));
+                Logger.TraceStats(JsonConvert.SerializeObject(stats));
             }
             catch (Exception ex)
             {
-                DaaS.Logger.LogDiagnoserErrorEvent("StackTracer: Failed while collecting stacktraces", ex);
+                TraceError("StackTracer: Failed in CollectStackTraces method", ex);
             }
 
             return stacks;
-        }
-
-        static string GetSymbolPath()
-        {
-            string path = $@"SRV*{DaaS.EnvironmentVariables.DaasSymbolsPath}*http://msdl.microsoft.com/download/symbols";
-            return path;
         }
     }
 }

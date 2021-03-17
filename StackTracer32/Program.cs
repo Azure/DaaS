@@ -34,10 +34,9 @@ namespace StackTracer32
                     outputFilePath = Path.Combine(outputFilePath, "stacks.json");
                 }
 
-                bool processFound = Int32.TryParse(args[0], out int processId);
+                bool processFound = int.TryParse(args[0], out int processId);
                 if (processFound)
                 {
-                    DateTime dtStart = DateTime.Now;
                     var threads = Debugger.CollectTraces(processId, outputDirectory);
                     Console.WriteLine($"Found {threads.Count} threads in process {processId}");
 

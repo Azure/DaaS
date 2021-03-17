@@ -315,6 +315,17 @@ namespace DaaS
             LogDiagnostic("Diagnoser [ERR] {0} {1} {2} {3} {4}", DaasSessionId, ActivityId.ToString(), CallerComponent, message, exceptionMessage);
         }
 
+        public static void LogDiagnoserWarningEvent(string message, Exception ex)
+        {
+            DaasEventSource.Instance.LogDiagnoserWarningEvent(SiteName, _assemblyVersion, DaasSessionId, ActivityId.ToString(), CallerComponent, message, ex.GetType().ToString(), ex.Message, ex.StackTrace);
+            LogDiagnostic("Diagnoser [WARN] {0} {1} {2} {3} {4} {5} {6}", DaasSessionId, ActivityId.ToString(), CallerComponent, message, ex.GetType().ToString(), ex.Message, ex.StackTrace);
+        }
+        public static void LogDiagnoserWarningEvent(string message, string exceptionMessage)
+        {
+            DaasEventSource.Instance.LogDiagnoserWarningEvent(SiteName, _assemblyVersion, DaasSessionId, ActivityId.ToString(), CallerComponent, message, string.Empty, exceptionMessage, string.Empty);
+            LogDiagnostic("Diagnoser [WARN] {0} {1} {2} {3} {4}", DaasSessionId, ActivityId.ToString(), CallerComponent, message, exceptionMessage);
+        }
+
         public static void LogApiStatus(string path, string method, int statusCode, long latencyInMilliseconds, string responseWhenError)
         {
             DaasEventSource.Instance.LogApiStatus(SiteName, _assemblyVersion, "API Call", path, method, statusCode, latencyInMilliseconds, responseWhenError);

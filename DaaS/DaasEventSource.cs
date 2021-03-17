@@ -89,6 +89,12 @@ namespace DaaS
             WriteEvent(3000, SiteName, Version, SessionId, ActivityId, Diagnoser, Details);
         }
 
+        [Event(3001, Level = EventLevel.Warning)]
+        public void LogDiagnoserWarningEvent(string SiteName, string Version, string SessionId, string ActivityId, string Diagnoser, string Message, string ExceptionType, string ExceptionMessage, string ExceptionStackTrace)
+        {
+            WriteEvent(3001, SiteName, Version, SessionId, ActivityId, Diagnoser, Message, ExceptionType, ExceptionMessage, ExceptionStackTrace);
+        }
+
         [Event(3002, Level = EventLevel.Error)]
         public void LogDiagnoserErrorEvent(string SiteName, string Version, string SessionId, string ActivityId, string Diagnoser, string Message, string ExceptionType, string ExceptionMessage, string ExceptionStackTrace)
         {
