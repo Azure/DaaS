@@ -18,10 +18,11 @@ namespace StackTracerCore
 {
     public class Debugger
     {
-        static readonly List<int> StackTraceHashes = new List<int>();
+        static readonly HashSet<int> StackTraceHashes = new HashSet<int>();
         static readonly string SiteName = Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME") ?? "NoSiteFound";
 
         const int MaxThreadsToDump = 1000;
+        const int MaxStackFramesPerThread = 128;
 
         private static void TraceLine(string message, bool logToKusto = true)
         {
@@ -59,8 +60,6 @@ namespace StackTracerCore
 
             TraceLine("CollectTraces Function started");
             DataTarget dt = CreateDataTarget(processId);
-            sw.Stop();
-
             stats.TimeProcessAttached = sw.ElapsedMilliseconds;
             sw.Restart();
 
@@ -68,6 +67,7 @@ namespace StackTracerCore
             {
                 foreach (ClrInfo clrInfo in dt?.ClrVersions)
                 {
+                    int excludedThreads = 0;
                     TraceLine($"Found CLR Version: {clrInfo.Version} DacFile: {clrInfo.DacInfo.PlatformSpecificFileName}, Path: {clrInfo.DacInfo.LocalDacPath}");
 
                     try
@@ -97,11 +97,11 @@ namespace StackTracerCore
 
                                 var stackTrace = new List<string>();
 
-                                var threadStackTrace = thread.EnumerateStackTrace();
-                                TraceLine($"EnumerateStackTrace returned = {threadStackTrace.Count()} frames", false);
-
-                                foreach (ClrStackFrame frame in threadStackTrace)
+                                int frameCount = 0;
+                                foreach (ClrStackFrame frame in thread.EnumerateStackTrace().Take(MaxStackFramesPerThread))
                                 {
+                                    frameCount++;
+
                                     if (frame == null)
                                     {
                                         continue;
@@ -125,17 +125,25 @@ namespace StackTracerCore
                                     }
                                 }
 
+                                TraceLine($"{thread.OSThreadId} - EnumerateStackTrace returned = {frameCount} frames", false);
+
                                 if (stackTrace.Count > 3)
                                 {
-                                    t.CallStackHash = string.Join(Environment.NewLine, stackTrace).GetHashCode();
-                                    if (!StackTraceHashes.Contains(t.CallStackHash))
+                                    t.CallStackHash = stackTrace.Select(frame => frame.GetHashCode())
+                                        .Aggregate(0, (accumulator, x) => ((int)(((uint)accumulator << 1) | ((uint)accumulator >> 31)) ^ x));
+
+                                    if (StackTraceHashes.Add(t.CallStackHash))
                                     {
-                                        StackTraceHashes.Add(t.CallStackHash);
                                         t.CallStack = stackTrace;
                                     }
                                     stacks.Add(t);
                                 }
+                                else
+                                {
+                                    excludedThreads++;
+                                }
                             }
+                            stats.ExcludedThreadCount = excludedThreads;
                         }
                     }
                     catch (Exception e)
@@ -170,7 +178,6 @@ namespace StackTracerCore
                 }
                 finally
                 {
-                    sw.Stop();
                     stats.TimeProcessPaused = sw.ElapsedMilliseconds;
                 }
             }
@@ -178,6 +185,8 @@ namespace StackTracerCore
             TraceLine($"Total Time =  { stats.TimeProcessPaused + stats.TimeProcessAttached} ms", logToKusto: false);
             TraceLine($"    TimeProcessPaused       =  {stats.TimeProcessPaused} ms", logToKusto: false);
             TraceLine($"    TimeProcessAttached     =  {stats.TimeProcessAttached} ms", logToKusto: false);
+            TraceLine($"    ThreadCount             =  {stats.ThreadCount}", logToKusto: false);
+            TraceLine($"    ExcludedThreadCount     =  {stats.ExcludedThreadCount}", logToKusto: false);
 
             Logger.TraceStats(JsonConvert.SerializeObject(stats));
             return stacks;
