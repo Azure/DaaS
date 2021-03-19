@@ -78,8 +78,9 @@ namespace StackTracerCore
                                 continue;
 
                             var threads = runtime.Threads.Where(t => t.IsAlive);
-                            TraceLine($"Alive Thread Count = {threads.Count()}");
-                            stats.ThreadCount = threads.Count();
+                            int threadCount = threads.Count();
+                            TraceLine($"Alive Thread Count = {threadCount}", logToKusto: false);
+                            stats.ThreadCount = threadCount;
 
                             foreach (ClrThread thread in threads.Take(MaxThreadsToDump))
                             {
