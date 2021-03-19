@@ -12,10 +12,8 @@ namespace StackTracerCore
         public string StatsType;
         public string SiteName;
         public int ThreadCount;
-        public double TimeTotal = 0;
+        public int ExcludedThreadCount;
         public double TimeProcessPaused = 0;
-        public double TimeFetchingStackFrames = 0;
         public double TimeProcessAttached = 0;
-        public double TimeFetchingThreads = 0;
     }
 }
