@@ -211,7 +211,7 @@ namespace StackTracerCore
         {
             try
             {
-                return DataTarget.AttachToProcess(processId, suspend: true);
+                return DataTarget.CreateSnapshotAndAttach(processId);
             }
             catch (Exception e)
             {
