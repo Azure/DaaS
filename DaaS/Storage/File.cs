@@ -181,14 +181,9 @@ namespace DaaS.Storage
 
         internal static string GetRelativeDirectory(DateTime startTime, DateTime endTime, Collector collector)
         {
-            string siteName = Infrastructure.Settings.SiteName;
-            if (siteName.Length > 10)
-            {
-               siteName = siteName.Substring(0, 10);
-            }
             var path = Path.Combine(
                 "Logs",
-                siteName,
+                Infrastructure.Settings.SiteNameShort,
                 endTime.ToString("yy-MM-dd"),
                 Settings.InstanceName,
                 collector.Name,

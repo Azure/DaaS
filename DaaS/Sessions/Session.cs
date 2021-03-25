@@ -399,7 +399,7 @@ namespace DaaS.Sessions
             if (!sessionStatus.Contains(SessionDirectories.ActiveSessionsDir))
             {
                 var totalMinutes = DateTime.UtcNow.Subtract(StartTime).TotalMinutes;
-                Logger.LogSessionVerboseEvent($"Session {SessionId} is marked {Status.ToString()} after {totalMinutes.ToString("0.00")} min", SessionId.ToString());
+                Logger.LogSessionVerboseEvent($"Session {SessionId} is marked {Status} after {totalMinutes:0.00} min", SessionId.ToString());
             }
 
         }
@@ -489,10 +489,10 @@ namespace DaaS.Sessions
 
             try
             {
-                Logger.LogSessionVerboseEvent($"About to save the new session with retryCount = {retryCount} and SessionId = {SessionId.ToString()}", SessionId.ToString());
+                Logger.LogSessionVerboseEvent($"About to save the new session with retryCount = {retryCount} and SessionId = {SessionId}", SessionId.ToString());
                 // Save the session
                 Save(sessionLease);
-                Logger.LogSessionVerboseEvent($"Session {SessionId.ToString()} saved successfully", SessionId.ToString());
+                Logger.LogSessionVerboseEvent($"Session {SessionId} saved successfully", SessionId.ToString());
             }
             catch (IOException ioException)
             {

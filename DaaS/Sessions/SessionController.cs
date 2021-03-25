@@ -46,7 +46,7 @@ namespace DaaS.Sessions
 
         public string GetBlobSasUriFromEnvironment(out bool definedAsEnvironmentVariable)
         {
-            var blobSasUri = Settings.GetBlobSasUriFromEnvironment(Settings.WebSiteDaasStorageSasUri, out definedAsEnvironmentVariable);
+            var blobSasUri = Settings.GetBlobSasUriFromEnvironment(out definedAsEnvironmentVariable);
             return blobSasUri;
         }
 
@@ -169,6 +169,8 @@ namespace DaaS.Sessions
             string blobSasUri = "")
         {
             bool sasUriInEnvironmentVariable = false;
+            bool sandboxAvailable = true;
+
             var daasDisabled = Environment.GetEnvironmentVariable("WEBSITE_DAAS_DISABLED");
             if (daasDisabled != null && daasDisabled.Equals("True", StringComparison.OrdinalIgnoreCase))
             {
@@ -212,8 +214,26 @@ namespace DaaS.Sessions
                     throw new ApplicationException($"BlobSasUri specified in environment variable is invalid. Failed with error - {exceptionStorage.Message}");
                 }
 
-                blobSasUri = Settings.WebSiteDaasStorageSasUri;
-                sasUriInEnvironmentVariable = true;
+                if (Settings.IsSandBoxAvailable())
+                {
+                    blobSasUri = Settings.WebSiteDaasStorageSasUri;
+                    sasUriInEnvironmentVariable = true;
+                }
+                else
+                {
+                    //
+                    // This is the case for RPS Enabled ASE environments. If Sandbox is not available
+                    // we need to save the SAS URI in the session file so that DaasRunner on other instances
+                    // can access the SAS URI. This is required because setting the SAS URI *does not*
+                    // restart the site and the DAAS Runner may not be able to get the SAS URI via the
+                    // sandbox property
+                    //
+
+                    blobSasUri = GetBlobSasUriFromEnvironment(out _);
+                    sasUriInEnvironmentVariable = true;
+                    sandboxAvailable = false;
+                }
+                
             }
 
             // Make sure there is no Active Session for any of the
@@ -262,7 +282,15 @@ namespace DaaS.Sessions
                 BlobStorageHostName = BlobController.GetBlobStorageHostName(blobSasUri)
             };
             session.Save();
-            Logger.LogNewSession(session.SessionId.ToString(), sessionType.ToString(), string.Join(",", diagnosers.Select(x => x.Name)), string.Join(",", session.InstancesSpecified.Select(x => x.Name).ToArray()), invokedViaDaasConsole, !string.IsNullOrWhiteSpace(session.BlobSasUri), sasUriInEnvironmentVariable);
+            Logger.LogNewSession(session.SessionId.ToString(),
+                sessionType.ToString(),
+                string.Join(",", diagnosers.Select(x => x.Name)),
+                string.Join(",", session.InstancesSpecified.Select(x => x.Name).ToArray()),
+                invokedViaDaasConsole,
+                !string.IsNullOrWhiteSpace(session.BlobSasUri),
+                sasUriInEnvironmentVariable,
+                sandboxAvailable);
+
             return session;
         }
 
@@ -548,13 +576,6 @@ namespace DaaS.Sessions
 
         public async Task<bool> Delete(Session session, bool deleteActiveSessions = false)
         {
-            string siteName = Infrastructure.Settings.SiteName;
-            if (siteName.Length > 10)
-            {
-                siteName = siteName.Substring(0, 10);
-            }
-
-
             if (session.Status != SessionStatus.Active || deleteActiveSessions)
             {
                 var sessionId = session.SessionId.ToString();
@@ -576,7 +597,7 @@ namespace DaaS.Sessions
                                     var logPath = Path.Combine(
                                                 Settings.UserSiteStorageDirectory,
                                                "Logs",
-                                               siteName,
+                                               Infrastructure.Settings.SiteNameShort,
                                                session.EndTime.ToString("yy-MM-dd"),
                                                instance.Name,
                                                diagnoser.Diagnoser.Collector.Name,
@@ -597,7 +618,7 @@ namespace DaaS.Sessions
                     var reportsPath = Path.Combine(
                               rootPath,
                               "Reports",
-                              siteName,
+                              Infrastructure.Settings.SiteNameShort,
                               session.EndTime.ToString("yy-MM-dd"),
                               session.EndTime.ToString(SessionConstants.SessionFileNameFormat));
 

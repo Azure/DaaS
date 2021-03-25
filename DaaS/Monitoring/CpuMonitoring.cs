@@ -429,6 +429,14 @@ namespace DaaS
             {
                 try
                 {
+                    blobSasUri = BlobController.GetActualBlobSasUri(blobSasUri);
+
+                    if (string.IsNullOrWhiteSpace(blobSasUri))
+                    {
+                        Logger.LogCpuMonitoringVerboseEvent("Incorrect value for BlobSasUri in MoveToPermanentStorage method", sessionId);
+                        return;
+                    }
+
                     string relativeFilePath = Path.Combine("Monitoring", "Logs", sessionId, fileName);
                     Lease lease = Infrastructure.LeaseManager.TryGetLease(relativeFilePath, blobSasUri);
                     if (lease == null)

@@ -164,7 +164,7 @@ namespace DaaS.Storage
 
             if (blobSasUri.StartsWith("%"))
             {
-                blobSasUri = Settings.GetBlobSasUriFromEnvironment(blobSasUri, out _);
+                blobSasUri = Settings.GetBlobSasUriFromEnvironment(out _);
             }
             return blobSasUri;
         }

@@ -85,7 +85,7 @@ namespace DaaS
             {
                 if (string.IsNullOrEmpty(_blobSasUri) && Settings.IsBlobSasUriConfiguredAsEnvironmentVariable())
                 {
-                    return Configuration.Settings.WebSiteDaasStorageSasUri;
+                    return Settings.WebSiteDaasStorageSasUri;
                 }
                 else
                 {
@@ -100,6 +100,17 @@ namespace DaaS
 
         [JsonConverter(typeof(StringEnumConverter))]
         public AnalysisStatus AnalysisStatus { get; set; }
+
+        internal void SaveToDisk(string cpuMonitoringActive)
+        {
+            if (Settings.IsBlobSasUriConfiguredAsEnvironmentVariable() && Settings.IsSandBoxAvailable())
+            {
+                BlobSasUri = Settings.WebSiteDaasStorageSasUri;
+            }
+
+            this.ToJsonFile(cpuMonitoringActive);
+        }
+
         public List<MonitoringFile> FilesCollected { get; set; }
     }
     

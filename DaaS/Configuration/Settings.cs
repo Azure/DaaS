@@ -105,27 +105,43 @@ namespace DaaS.Configuration
 
         public static bool IsBlobSasUriConfiguredAsEnvironmentVariable()
         {
-            GetBlobSasUriFromEnvironment(WebSiteDaasStorageSasUri, out bool configuredAsEnvironmentVariable);
+            GetBlobSasUriFromEnvironment(out bool configuredAsEnvironmentVariable);
             return configuredAsEnvironmentVariable;
         }
 
-        public static string GetBlobSasUriFromEnvironment(string environmentVariableName, out bool configuredAsEnvironmentVariable)
+        public static string GetBlobSasUriFromEnvironment(out bool configuredAsEnvironmentVariable)
         {
-            int copiedBytes = 0;
-            byte[] valueBuffer = new byte[4096];
             configuredAsEnvironmentVariable = false;
-            string blobSasUri = environmentVariableName;
-            environmentVariableName = environmentVariableName.Replace("%", "");
-            if (GetSandboxProperty(environmentVariableName, valueBuffer, valueBuffer.Length, 0, ref copiedBytes))
+            var environmentVariableName = WebSiteDaasStorageSasUri.Replace("%", "");
+
+            string sasUriAsEnvironmentVariable = Environment.GetEnvironmentVariable(environmentVariableName);
+            if (!string.IsNullOrWhiteSpace(sasUriAsEnvironmentVariable))
             {
-                blobSasUri = Encoding.Unicode.GetString(valueBuffer, 0, copiedBytes);
-                if (!string.IsNullOrWhiteSpace(blobSasUri))
+                configuredAsEnvironmentVariable = true;
+                return sasUriAsEnvironmentVariable;
+            }
+
+            if (IsSandBoxAvailable())
+            {
+                int copiedBytes = 0;
+                byte[] valueBuffer = new byte[4096];
+                if (GetSandboxProperty(environmentVariableName, valueBuffer, valueBuffer.Length, 0, ref copiedBytes))
                 {
-                    configuredAsEnvironmentVariable = true;
+                    sasUriAsEnvironmentVariable = Encoding.Unicode.GetString(valueBuffer, 0, copiedBytes);
+                    if (!string.IsNullOrWhiteSpace(sasUriAsEnvironmentVariable))
+                    {
+                        configuredAsEnvironmentVariable = true;
+                        return sasUriAsEnvironmentVariable;
+                    }
                 }
             }
-            
-            return blobSasUri;
+
+            return string.Empty;
+        }
+
+        internal static bool IsSandBoxAvailable()
+        {
+            return System.IO.File.Exists(Environment.ExpandEnvironmentVariables(@"%windir%\system32\picohelper.dll"));
         }
 
         internal string GetRootStoragePathForLocation(StorageLocation location)
@@ -182,6 +198,13 @@ namespace DaaS.Configuration
             set
             {
                 _siteName = value;
+            }
+        }
+        public string SiteNameShort
+        {
+            get
+            {
+                return SiteName.Length > 30 ? SiteName.Substring(0, 30) : SiteName;
             }
         }
 
@@ -319,7 +342,6 @@ namespace DaaS.Configuration
 
         private static void InvalidateSettingsCache()
         {
-            Logger.LogVerboseEvent("Invalidating Settings Cache");
             lock (_settingsLock)
             {
                 try

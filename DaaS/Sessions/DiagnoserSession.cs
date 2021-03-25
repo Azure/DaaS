@@ -551,15 +551,9 @@ namespace DaaS.Sessions
 
         private void CheckAndReturnAnalyzerDetailedStatus(Log log)
         {
-            string siteName = Infrastructure.Settings.SiteName;
-            if (siteName.Length > 10)
-            {
-                siteName = siteName.Substring(0, 10);
-            }
-
             var path = Path.Combine(
                "Reports",
-               siteName,
+               Infrastructure.Settings.SiteNameShort,
                log.EndTime.ToString("yy-MM-dd"),
                log.EndTime.ToString(SessionConstants.SessionFileNameFormat),
                Diagnoser.Analyzer.Name);
@@ -616,16 +610,10 @@ namespace DaaS.Sessions
                     var StartTime = DateTime.Parse(timeRangeXml.Element(SessionXml.StartTime).Value).ToUniversalTime();
                     var EndTime = DateTime.Parse(timeRangeXml.Element(SessionXml.EndTime).Value).ToUniversalTime();
 
-                    string siteName = Infrastructure.Settings.SiteName;
-                    if (siteName.Length > 10)
-                    {
-                        siteName = siteName.Substring(0, 10);
-                    }
-
                     foreach (var instance in HeartBeatController.GetLiveInstances())
                     {
                         var path = Path.Combine("Logs",
-                                                siteName,
+                                                Infrastructure.Settings.SiteNameShort,
                                                 EndTime.ToString("yy-MM-dd"),
                                                 instance.Name,
                                                 this.Diagnoser.Collector.Name,

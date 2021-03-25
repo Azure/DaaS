@@ -206,14 +206,15 @@ namespace DaaS
             LogDiagnostic("Session [ERR] - {0} {1} {2} {3} {4}", sessionId, message, ex.GetType().ToString(), ex.Message, ex.StackTrace);
         }
 
-        public static void LogNewSession(string sessionId, string mode, string diagnosers, string Instances, bool invokedViaDaasConsole, bool hasblobSasUri, bool sasUriInEnvironmentVariable)
+        public static void LogNewSession(string sessionId, string mode, string diagnosers, string Instances, bool invokedViaDaasConsole, bool hasblobSasUri, bool sasUriInEnvironmentVariable, bool sandboxAvailable)
         {
             var details = new
             {
                 Instances,
                 invokedViaDaasConsole,
                 hasblobSasUri,
-                sasUriInEnvironmentVariable
+                sasUriInEnvironmentVariable,
+                sandboxAvailable
             };
 
             DaasEventSource.Instance.LogNewSession(SiteName, _assemblyVersion, sessionId, mode, diagnosers, JsonConvert.SerializeObject(details));

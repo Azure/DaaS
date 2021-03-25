@@ -5,6 +5,7 @@
 // </copyright>
 //-----------------------------------------------------------------------
 
+using DaaS.Configuration;
 using System;
 
 namespace DaaS
@@ -17,5 +18,15 @@ namespace DaaS
         public string SessionId { get; set; }
         public int RetryCount { get; set; }
         public string BlobSasUri { get; set; }
+
+        internal void SaveToDisk(string inprogressFile)
+        {
+            if (Settings.IsBlobSasUriConfiguredAsEnvironmentVariable() && Settings.IsSandBoxAvailable())
+            {
+                BlobSasUri = Settings.WebSiteDaasStorageSasUri;
+            }
+
+            this.ToJsonFile(inprogressFile);
+        }
     }
 }

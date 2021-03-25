@@ -138,10 +138,10 @@ namespace DaaS
                 // Keep updating the Expiration time while we are waiting for the DumpAnalyzer to finish
                 //
                 analysisRequest.ExpirationTime = DateTime.UtcNow.AddMinutes(ANALYSIS_HEARTBEAT_EXPIRATION_IN_MINUTES);
-                analysisRequest.ToJsonFile(inprogressFile);
+                analysisRequest.SaveToDisk(inprogressFile);
 
                 Thread.Sleep(10 * 1000);
-                secondsWaited = secondsWaited + 10;
+                secondsWaited += 10;
 
                 if (secondsWaited > 120)
                 {
@@ -264,7 +264,7 @@ namespace DaaS
                     else
                     {
                         Logger.LogCpuMonitoringVerboseEvent($"Queued {requestFile} for Analysis", sessionId);
-                        request.ToJsonFile(requestFile);
+                        request.SaveToDisk(requestFile);
                     }
 
                 }
@@ -313,7 +313,7 @@ namespace DaaS
                                     analysisRequest.ExpirationTime = DateTime.MaxValue;
                                     var requestFile = Path.ChangeExtension(inprogressFile, ".request");
                                     FileSystemHelpers.DeleteFileSafe(inprogressFile);
-                                    analysisRequest.ToJsonFile(requestFile);
+                                    analysisRequest.SaveToDisk(requestFile);
                                 }
                                 catch (Exception ex)
                                 {

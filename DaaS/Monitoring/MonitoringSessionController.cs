@@ -66,7 +66,7 @@ namespace DaaS
                 monitoringSession.SessionId = monitoringSession.StartDate.ToString(SessionConstants.SessionFileNameFormat);
                 monitoringSession.BlobStorageHostName = BlobController.GetBlobStorageHostName(monitoringSession.BlobSasUri);
                 cpuMonitoringActive = Path.Combine(cpuMonitoringActive, monitoringSession.SessionId + ".json");
-                monitoringSession.ToJsonFile(cpuMonitoringActive);
+                monitoringSession.SaveToDisk(cpuMonitoringActive);
                 Logger.LogNewCpuMonitoringSession(monitoringSession);
             }
 
@@ -368,7 +368,7 @@ namespace DaaS
 
             string cpuMonitorCompletedPath = GetCpuMonitoringPath(MonitoringSessionDirectories.Completed);
             cpuMonitorCompletedPath = Path.Combine(cpuMonitorCompletedPath, session.SessionId + ".json");
-            session.ToJsonFile(cpuMonitorCompletedPath);
+            session.SaveToDisk(cpuMonitorCompletedPath);
             if (lockFile != null)
             {
                 lockFile.Release();

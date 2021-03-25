@@ -77,14 +77,9 @@ namespace DaaS.Diagnostics
 
         private string CreateTemporaryReportDestinationFolder(Log log)
         {
-            string siteName = Infrastructure.Settings.SiteName;
-            if (siteName.Length > 10)
-            {
-                siteName = siteName.Substring(0, 10);
-            }
             var destinationDir = Path.Combine(
                 "Reports",
-                siteName,
+                Infrastructure.Settings.SiteNameShort,
                 log.EndTime.ToString("yy-MM-dd"),
                 log.EndTime.ToString(SessionConstants.SessionFileNameFormat),
                 Name);

@@ -56,7 +56,7 @@ namespace DiagnosticsExtension.Controllers
             var sasUriResponse = new SasUriResponse();
             SessionController sessionController = new SessionController();
             
-            string blobSasUri = DaaS.Configuration.Settings.GetBlobSasUriFromEnvironment(DaaS.Configuration.Settings.WebSiteDaasStorageSasUri, out bool configredAsEnvironment);
+            string blobSasUri = DaaS.Configuration.Settings.GetBlobSasUriFromEnvironment(out bool configredAsEnvironment);
 
             if (configredAsEnvironment)
             {
