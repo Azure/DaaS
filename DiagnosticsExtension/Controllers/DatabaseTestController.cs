@@ -42,6 +42,7 @@ namespace DiagnosticsExtension.Controllers
     public class DatabaseConnection
     {
         public string Name;
+        public string EnvironmentVariableName;
         public string ConnectionString;
         public string ProviderName;
         public bool Succeeded;
@@ -108,6 +109,7 @@ namespace DiagnosticsExtension.Controllers
         private const string SqlAzureServerPrefix = "SQLAZURECONNSTR_";
         private const string PostgreSqlPrefix = "POSTGRESQLCONNSTR_";
         private const string RedisCachePrefix = "REDISCACHECONNSTR_";
+        private const string KeyVaultReferenceInfoEnvVar = "WEBSITE_KEYVAULT_REFERENCES";
 
         ////////////////////////////////////////////////////////////////////////////////////////////////
         // Still need to implement these ones
@@ -216,6 +218,7 @@ namespace DiagnosticsExtension.Controllers
                     }
 
                     connection.Name = name;
+                    connection.EnvironmentVariableName = envVar.Key.ToString();
                     connection.IsEnvironmentVariable = true;
                     connection.ConnectionString = connectionString;
                     //connection.MaskedConnectionString = MaskPasswordFromConnectionString(connectionString);
@@ -274,8 +277,44 @@ namespace DiagnosticsExtension.Controllers
             }
 
             LogConnectionStatsToKusto(connections);
-            response.Connections = connections;
+            response.Connections = MaskKeyVaultConnectionStrings(connections);
             return response;
+        }
+
+        private IEnumerable<DatabaseConnection> MaskKeyVaultConnectionStrings(List<DatabaseConnection> connections)
+        {
+            var keyVaultReferencesInformation = GetKeyVaultReferencesInformation();
+
+            if (keyVaultReferencesInformation.Count > 0)
+            {
+                foreach (var connection in connections.Where(x => keyVaultReferencesInformation.ContainsKey(x.EnvironmentVariableName)))
+                {
+                    connection.ConnectionString = "[Hidden - " + keyVaultReferencesInformation[connection.EnvironmentVariableName]["status"] + ": " + keyVaultReferencesInformation[connection.EnvironmentVariableName]["rawReference"] + "]";
+                }
+            }
+
+            return connections;
+        }
+
+        public static Dictionary<string, Dictionary<string, string>> GetKeyVaultReferencesInformation()
+        {
+            try
+            {
+                var serializedInformationBlob = System.Environment.GetEnvironmentVariable(KeyVaultReferenceInfoEnvVar);
+                if (serializedInformationBlob != null)
+                {
+                    var result = JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, string>>>(serializedInformationBlob);
+                    if (result != null)
+                    {
+                        return result;
+                    }
+                }
+            }
+            catch (Exception)
+            {
+            }
+
+            return new Dictionary<string, Dictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
         }
 
         private void LogConnectionStatsToKusto(List<DatabaseConnection> connections)
