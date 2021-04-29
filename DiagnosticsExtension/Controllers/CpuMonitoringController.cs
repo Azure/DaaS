@@ -18,6 +18,8 @@ namespace DiagnosticsExtension.Controllers
     [RoutePrefix("api/CpuMonitoring")]
     public class CpuMonitoringController : ApiController
     {
+
+        [HttpGet]
         // GET: api/CpuMonitoring
         public HttpResponseMessage Get()
         {
@@ -39,6 +41,7 @@ namespace DiagnosticsExtension.Controllers
             }
         }
 
+        [HttpGet]
         // GET: api/CpuMonitoring/5
         public HttpResponseMessage Get(string sessionId)
         {

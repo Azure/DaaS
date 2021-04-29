@@ -184,11 +184,9 @@ namespace DaaS.Storage
             var path = Path.Combine(
                 "Logs",
                 Infrastructure.Settings.SiteNameShort,
-                endTime.ToString("yy-MM-dd"),
-                Settings.InstanceName,
-                collector.Name,
                 startTime.ToString(SessionConstants.SessionFileNameFormat),
-                endTime.ToString(SessionConstants.SessionFileNameFormat));
+                Settings.InstanceName,
+                collector.Name);
             return path;
         }
 
@@ -234,13 +232,11 @@ namespace DaaS.Storage
             
         }
 
-        internal static Log GetLogFromPermanentStorage(string relativeStoragePath, double fileSize, string blobSasUri)
+        internal static Log GetLogFromPermanentStorage(string relativeStoragePath, double fileSize, string blobSasUri, DateTime startTime, DateTime endTime)
         {
             // Normalize the slashes
             relativeStoragePath = relativeStoragePath.ConvertBackSlashesToForwardSlashes();
             var pathComponents = relativeStoragePath.Split('/');
-            DateTime startTime = DateTime.ParseExact(pathComponents[5], SessionConstants.SessionFileNameFormat, CultureInfo.InvariantCulture);
-            DateTime endTime = DateTime.ParseExact(pathComponents[6], SessionConstants.SessionFileNameFormat, CultureInfo.InvariantCulture);
             var collectorName = pathComponents[4];
             Collector collector =
                 Infrastructure.Settings.GetDiagnosers()

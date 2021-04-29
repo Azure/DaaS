@@ -148,7 +148,7 @@ namespace DaaS.Sessions
             SessionType sessionType,
             List<Instance> instancesToRun = null)
         {
-            SessionId = new SessionId(DateTime.UtcNow.ToString(SessionConstants.SessionFileNameFormat));
+            SessionId = new SessionId(startTime.ToString(SessionConstants.SessionFileNameFormat));
             StartTime = startTime;
             EndTime = endTime;
             InstancesSpecified = instancesToRun;
@@ -301,7 +301,7 @@ namespace DaaS.Sessions
             var diagnosersXml = sessionXml.Element(SessionXml.Diagnosers);
             foreach (var diagnoserSessionXml in diagnosersXml.Elements())
             {
-                _diagnoserSessions.Add(new DiagnoserSession(diagnoserSessionXml));
+                _diagnoserSessions.Add(new DiagnoserSession(diagnoserSessionXml, StartTime, EndTime));
             }
 
             RelativePath = GetDesiredRelativePath();

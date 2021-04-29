@@ -34,7 +34,7 @@ namespace DaaS
 
         public static string GetCpuMonitoringPath(string folderName = "", bool relativePath = false)
         {
-            string path = "";
+            string path;
             if (relativePath)
             {
                 path = Path.Combine(@"data\DaaS", MonitoringFolder, folderName);

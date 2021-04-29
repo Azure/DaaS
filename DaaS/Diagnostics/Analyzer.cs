@@ -80,8 +80,7 @@ namespace DaaS.Diagnostics
             var destinationDir = Path.Combine(
                 "Reports",
                 Infrastructure.Settings.SiteNameShort,
-                log.EndTime.ToString("yy-MM-dd"),
-                log.EndTime.ToString(SessionConstants.SessionFileNameFormat),
+                log.StartTime.ToString(SessionConstants.SessionFileNameFormat),
                 Name);
             var tempDir = Infrastructure.Storage.GetNewTempFolder(destinationDir);
             return tempDir;

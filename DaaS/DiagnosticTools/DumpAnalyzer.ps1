@@ -9,7 +9,7 @@ $programfiles = [System.Environment]::ExpandEnvironmentVariables("%ProgramFiles(
 [string] $tempDir = $Env:TEMP
 
 Add-Type -Path "DAAS.dll"
-[DaaS.Logger]::Init("",$outputPath, "DumpAnalyzer", $true) 
+[DaaS.Logger]::Init("",$outputPath, "DumpAnalyzer", $false) 
 
 $dumpfileSize =  0
 $dumpFileExists = Test-Path $dumpFile

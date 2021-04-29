@@ -58,8 +58,12 @@ namespace DaaS
                 string daasPath = EnvironmentVariables.DaasPath.ToLower();
                 try
                 {
-                    statusFilePath = Path.GetDirectoryName(outputPath).ToLower().Replace(localTemp, daasPath);
-                    Directory.CreateDirectory(statusFilePath);
+                    statusFilePath = outputPath.ToLower().Replace(localTemp, daasPath);
+
+                    if (!Directory.Exists(statusFilePath))
+                    {
+                        Directory.CreateDirectory(statusFilePath);
+                    }
                     StatusFile = Path.Combine(statusFilePath, "diagstatus.diaglog");
                     ErrorFilePath = Path.Combine(outputPath, $"{Environment.MachineName}_{CallerComponent}.err.diaglog");
                 }

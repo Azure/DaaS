@@ -598,10 +598,9 @@ namespace DaaS.Sessions
                                                 Settings.UserSiteStorageDirectory,
                                                "Logs",
                                                Infrastructure.Settings.SiteNameShort,
-                                               session.EndTime.ToString("yy-MM-dd"),
+                                               session.StartTime.ToString(SessionConstants.SessionFileNameFormat),
                                                instance.Name,
-                                               diagnoser.Diagnoser.Collector.Name,
-                                               session.StartTime.ToString(SessionConstants.SessionFileNameFormat));
+                                               diagnoser.Diagnoser.Collector.Name);
 
                                     if (Directory.Exists(logPath))
                                     {
@@ -619,8 +618,7 @@ namespace DaaS.Sessions
                               rootPath,
                               "Reports",
                               Infrastructure.Settings.SiteNameShort,
-                              session.EndTime.ToString("yy-MM-dd"),
-                              session.EndTime.ToString(SessionConstants.SessionFileNameFormat));
+                              session.StartTime.ToString(SessionConstants.SessionFileNameFormat));
 
                     if (Directory.Exists(reportsPath))
                     {

@@ -185,6 +185,7 @@ namespace DaaS.Configuration
         }
 
         private string _siteName;
+        private string _defaultHostName;
         public string SiteName
         {
             get
@@ -204,7 +205,22 @@ namespace DaaS.Configuration
         {
             get
             {
-                return SiteName.Length > 30 ? SiteName.Substring(0, 30) : SiteName;
+                if (string.IsNullOrWhiteSpace(_defaultHostName))
+                {
+                    string val = Environment.GetEnvironmentVariable("HTTP_HOST");
+                    if (!string.IsNullOrWhiteSpace(val))
+                    {
+                        val = val.ToLower().Replace(".scm.", ".");
+                        _defaultHostName = val.Length > 50 ? val.Substring(0,50) : val;
+                    }
+                }
+
+                if (!string.IsNullOrWhiteSpace(_defaultHostName))
+                {
+                    return _defaultHostName;
+                }
+
+                return SiteName.Length > 50 ? SiteName.Substring(0, 50) : SiteName;
             }
         }
 

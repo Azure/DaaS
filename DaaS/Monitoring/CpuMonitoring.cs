@@ -24,7 +24,6 @@ namespace DaaS
     public class CpuMonitoring
     {
         static ConcurrentDictionary<int, MonitoredProcess> ProcessList;
-        static readonly StringBuilder _logger = new StringBuilder();
 
         private int _loggerCount = 0;
         const int MAX_LINES_IN_LOGFILE = 40 * 1000;
@@ -55,7 +54,6 @@ namespace DaaS
                 }
                 _sessionId = session.SessionId;
 
-                var sessionDetails = JsonConvert.SerializeObject(session, Formatting.None);
                 AppendToMonitoringLog($"Monitoring started [CPU={session.CpuThreshold}%, Mode={session.Mode}, MaxActions={session.MaxActions}, Threshold={session.ThresholdSeconds}s, CheckEvery={session.MonitorDuration}s]", true);
             }
 

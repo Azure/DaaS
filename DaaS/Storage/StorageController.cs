@@ -395,16 +395,13 @@ namespace DaaS.Storage
             }
         }
 
-
         public string GetNewTempFolder(string folderName)
         {
             var tempDir = Path.Combine(Infrastructure.Settings.TempDir, folderName);
-            // Make sure the directory is empty
-            if (Directory.Exists(tempDir))
+            if (!Directory.Exists(tempDir))
             {
-                Directory.Delete(tempDir, recursive: true);
+                Directory.CreateDirectory(tempDir);
             }
-            Directory.CreateDirectory(tempDir);
             return tempDir;
         }
 

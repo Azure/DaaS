@@ -120,9 +120,9 @@ namespace DaaS.Sessions
             }
         }
 
-        internal DiagnoserSession(XElement diagnoserXml)
+        internal DiagnoserSession(XElement diagnoserXml, DateTime startTime, DateTime endTime)
         {
-            LoadDiagnoserFromXml(diagnoserXml);
+            LoadDiagnoserFromXml(diagnoserXml, startTime, endTime);
         }
 
         internal bool ContainsLog(Log log)
@@ -419,7 +419,7 @@ namespace DaaS.Sessions
             return diagnoserXml;
         }
 
-        private void LoadDiagnoserFromXml(XElement diagnoserXml)
+        private void LoadDiagnoserFromXml(XElement diagnoserXml, DateTime startTime, DateTime endTime)
         {
             var diagnoserName = diagnoserXml.Attribute(SessionXml.Name).Value;
             var allDiagnosers = Infrastructure.Settings.GetDiagnosers();
@@ -519,7 +519,7 @@ namespace DaaS.Sessions
                         blobSasUri = logXml.Attribute(SessionXml.BlobSasUri).Value;
                     }
 
-                    var log = Log.GetLogFromPermanentStorage(logPath, fileSize, blobSasUri);
+                    var log = Log.GetLogFromPermanentStorage(logPath, fileSize, blobSasUri, startTime, endTime);
 
                     if (logXml.Attribute(SessionXml.AnalysisStarted) != null)
                     {
@@ -554,8 +554,7 @@ namespace DaaS.Sessions
             var path = Path.Combine(
                "Reports",
                Infrastructure.Settings.SiteNameShort,
-               log.EndTime.ToString("yy-MM-dd"),
-               log.EndTime.ToString(SessionConstants.SessionFileNameFormat),
+               log.StartTime.ToString(SessionConstants.SessionFileNameFormat),
                Diagnoser.Analyzer.Name);
 
             string fullDirPath = Path.Combine(EnvironmentVariables.DaasPath, path);
@@ -613,11 +612,10 @@ namespace DaaS.Sessions
                     foreach (var instance in HeartBeatController.GetLiveInstances())
                     {
                         var path = Path.Combine("Logs",
-                                                Infrastructure.Settings.SiteNameShort,
-                                                EndTime.ToString("yy-MM-dd"),
-                                                instance.Name,
-                                                this.Diagnoser.Collector.Name,
-                                                StartTime.ToString(SessionConstants.SessionFileNameFormat));
+                            Infrastructure.Settings.SiteNameShort,
+                            StartTime.ToString(SessionConstants.SessionFileNameFormat),
+                            instance.Name,
+                            this.Diagnoser.Collector.Name);
 
                         string fullDirPath = Path.Combine(EnvironmentVariables.DaasPath, path);
                         var files = new List<string>();
