@@ -205,20 +205,20 @@ namespace DaaS.Configuration
         {
             get
             {
-                if (string.IsNullOrWhiteSpace(_defaultHostName))
-                {
-                    string val = Environment.GetEnvironmentVariable("HTTP_HOST");
-                    if (!string.IsNullOrWhiteSpace(val))
-                    {
-                        val = val.ToLower().Replace(".scm.", ".");
-                        _defaultHostName = val.Length > 50 ? val.Substring(0,50) : val;
-                    }
-                }
+                //if (string.IsNullOrWhiteSpace(_defaultHostName))
+                //{
+                //    string val = Environment.GetEnvironmentVariable("HTTP_HOST");
+                //    if (!string.IsNullOrWhiteSpace(val))
+                //    {
+                //        val = val.ToLower().Replace(".scm.", ".");
+                //        _defaultHostName = val.Length > 50 ? val.Substring(0,50) : val;
+                //    }
+                //}
 
-                if (!string.IsNullOrWhiteSpace(_defaultHostName))
-                {
-                    return _defaultHostName;
-                }
+                //if (!string.IsNullOrWhiteSpace(_defaultHostName))
+                //{
+                //    return _defaultHostName;
+                //}
 
                 return SiteName.Length > 50 ? SiteName.Substring(0, 50) : SiteName;
             }
