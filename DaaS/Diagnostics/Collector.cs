@@ -32,7 +32,7 @@ namespace DaaS.Diagnostics
         public string PreValidationCommand { get; set; }
         public string PreValidationArguments { get; set; }
 
-        internal async Task<List<Log>> CollectLogs(DateTime utcStartTime, DateTime utcEndTime, string sessionId, string blobSasUri, CancellationToken ct)
+        internal async Task<List<Log>> CollectLogs(DateTime utcStartTime, DateTime utcEndTime, string sessionId, string blobSasUri, string defaultHostName, CancellationToken ct)
         {
             if (DateTime.UtcNow < utcStartTime)
             {
@@ -42,7 +42,7 @@ namespace DaaS.Diagnostics
             }
 
             // Get a lease to run the collector on this instance
-            var pathToLogs = GetRelativeStoragePath(utcStartTime, utcEndTime);
+            var pathToLogs = GetRelativeStoragePath(utcStartTime, utcEndTime, defaultHostName);
             var logCollectionLease = Infrastructure.LeaseManager.TryGetLease(pathToLogs, blobSasUri);
             if (logCollectionLease == null)
             {
@@ -57,7 +57,7 @@ namespace DaaS.Diagnostics
             var logs = GetLogsForTimePeriod(utcStartTime, utcEndTime);
             if (logs == null || !logs.Any())
             {
-                var outputDir = CreateTemporaryLogDestinationFolder(utcStartTime, utcEndTime);
+                var outputDir = CreateTemporaryLogDestinationFolder(utcStartTime, utcEndTime, defaultHostName);
 
                 var additionalError = string.Empty;
                 //  Run the collector command & store logs to blob storage
@@ -73,7 +73,7 @@ namespace DaaS.Diagnostics
                 {
                     CreateCollectorWarningFile(outputDir, additionalError);
                 }
-                logs = MoveLogsToPermanentStorage(utcStartTime, utcEndTime, pathToLogs, blobSasUri, sessionId);
+                logs = MoveLogsToPermanentStorage(utcStartTime, utcEndTime, pathToLogs, blobSasUri, sessionId, defaultHostName);
             }
 
             if (logs == null || !logs.Any(x => !x.RelativePath.EndsWith(".diaglog")))
@@ -99,20 +99,20 @@ namespace DaaS.Diagnostics
 
         protected abstract Task<bool> RunCollectorCommandAsync(DateTime utcStartTime, DateTime utcEndTime, string outputDir, string sessionId, Lease lease, CancellationToken ct);
 
-        private string GetRelativeStoragePath(DateTime utcStartTime, DateTime utcEndTime)
+        private string GetRelativeStoragePath(DateTime utcStartTime, DateTime utcEndTime, string defaultHostName)
         {
-            var path = Log.GetRelativeDirectory(utcStartTime, utcEndTime, this);
+            var path = Log.GetRelativeDirectory(utcStartTime, utcEndTime, this, defaultHostName);
             return path;
         }
 
-        internal string CreateTemporaryLogDestinationFolder(DateTime utcStartTime, DateTime utcEndTime)
+        internal string CreateTemporaryLogDestinationFolder(DateTime utcStartTime, DateTime utcEndTime, string defaultHostName)
         {
-            var relativeDirectoryPath = GetRelativeStoragePath(utcStartTime, utcEndTime);
+            var relativeDirectoryPath = GetRelativeStoragePath(utcStartTime, utcEndTime, defaultHostName);
             var outputDir = Infrastructure.Storage.GetNewTempFolder(relativeDirectoryPath);
             return outputDir;
         }
 
-        protected List<Log> MoveLogsToPermanentStorage(DateTime startTime, DateTime endTime, string outputDir, string blobSasUri, string sessionId)
+        protected List<Log> MoveLogsToPermanentStorage(DateTime startTime, DateTime endTime, string outputDir, string blobSasUri, string sessionId, string defaultHostName)
         {
             // Once collector finishes executing, move log to permanent storage
             List<string> logFilesCollected = Infrastructure.Storage.GetFilesInDirectory(outputDir, StorageLocation.TempStorage, string.Empty);
@@ -126,7 +126,7 @@ namespace DaaS.Diagnostics
                     Logger.LogSessionVerboseEvent($"Adding log file {logFile} of size {fileSize} to list of logs", sessionId);
                 }
                 var filePath = logFile.Replace(Infrastructure.Settings.TempDir, "");
-                var log = Log.GetLog(startTime, endTime, filePath, this, fileSize, blobSasUri);
+                var log = Log.GetLog(startTime, endTime, filePath, this, fileSize, blobSasUri, defaultHostName);
                 logs.Add(log);
                 Logger.LogSessionVerboseEvent($"Firing task to save the log file to permanent storage for {logFile}", sessionId);
 

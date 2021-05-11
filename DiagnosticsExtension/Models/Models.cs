@@ -68,6 +68,8 @@ namespace DiagnosticsExtension.Models
         public bool HasBlobSasUri;
         [DataMember]
         public string BlobStorageHostName;
+        [DataMember]
+        public string DefaultHostName;
 
         public void AddDiagnoser(String diagnoserName)
         {
@@ -95,6 +97,8 @@ namespace DiagnosticsExtension.Models
         public List<DiagnoserSessionDetails> DiagnoserSessions = new List<DiagnoserSessionDetails>();
         [DataMember]
         public string BlobStorageHostName;
+        [DataMember]
+        public string DefaultHostName;
 
         public void AddDiagnoser(DiagnoserSessionDetails diagnoserSessionDetails)
         {

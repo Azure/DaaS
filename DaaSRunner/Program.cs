@@ -41,6 +41,7 @@ namespace DaaSRunner
         private static bool m_FailedStoppingSession = false;
         private static bool m_SecretsCleared;
         private static Timer m_SasUriTimer;
+        private static Timer m_CompletedSessionsCleanupTimer;
 
         static void Main(string[] args)
         {
@@ -76,8 +77,10 @@ namespace DaaSRunner
             // Start a timer to validate SAS URI's are configured correctly
             m_SasUriTimer = new Timer(new TimerCallback(ValidateSasAccounts), null, (int)TimeSpan.FromMinutes(1).TotalMilliseconds, (int)TimeSpan.FromHours(1).TotalMilliseconds);
 
+            // Start a timer to cleanup completed sessions
+            m_CompletedSessionsCleanupTimer = new Timer(new TimerCallback(CompletedSessionCleanup), null, (int)TimeSpan.FromMinutes(1).TotalMilliseconds, (int)TimeSpan.FromMinutes(30).TotalMilliseconds);
+
             InitializeThreadsForCpuMonitoring();
-            CleanupCompletedSessions();
             StartSessionRunner();
         }
 
@@ -150,14 +153,7 @@ namespace DaaSRunner
             }
         }
 
-        private static void CleanupCompletedSessions()
-        {
-            ThreadStart tsCompletedSessionCleanup = new ThreadStart(CompletedSessionCleanup);
-            Thread tCompletedSessionCleanup = new Thread(tsCompletedSessionCleanup);
-            tCompletedSessionCleanup.Start();
-        }
-
-        private static void CompletedSessionCleanup()
+        private static void CompletedSessionCleanup(object state)
         {
             int maxSessionsToKeep = _DaaS.MaxDiagnosticSessionsToKeep;
             int numberOfDays = _DaaS.MaxNumberOfDaysForSessions;
@@ -166,34 +162,30 @@ namespace DaaSRunner
             var completedMonitoringSessions = controllerMonitoring.GetAllCompletedSessions();
 
             Logger.LogVerboseEvent($"Starting cleanup for Completed Sessions MaxDiagnosticSessionsToKeep = [{maxSessionsToKeep}] MaxNumberOfDaysForSessions= [{numberOfDays}]");
-            while (true)
+            List<Session> sessionsToRemove = completedSessions.Skip(maxSessionsToKeep).ToList();
+            string logMessage = $"[MaxDiagnosticSessionsToKeep] Found {sessionsToRemove.Count()} sessions to remove as we have {completedSessions.Count()} completed sessions";
+            DeleteSessions(sessionsToRemove, async (session) => { await _DaaS.Delete(session); }, logMessage);
+
+            completedSessions = _DaaS.GetAllInActiveSessions().OrderByDescending(s => s.StartTime).ToList();
+
+            if (CheckIfTimeToCleanupSymbols(completedSessions))
             {
-                List<Session> sessionsToRemove = completedSessions.Skip(maxSessionsToKeep).ToList();
-                string logMessage = $"[MaxDiagnosticSessionsToKeep] Found {sessionsToRemove.Count()} sessions to remove as we have {completedSessions.Count()} completed sessions";
-                DeleteSessions(sessionsToRemove, async (session) => { await _DaaS.Delete(session); }, logMessage);
-
-                completedSessions = _DaaS.GetAllInActiveSessions().OrderByDescending(s => s.StartTime).ToList();
-
-                if (CheckIfTimeToCleanupSymbols(completedSessions))
-                {
-                    CleanupSymbolsDirectory();
-                }
-
-                List<Session> olderSessions = completedSessions.Where(x => x.StartTime < DateTime.UtcNow.AddDays(-1 * numberOfDays)).ToList();
-                logMessage = $"[MaxNumberOfDaysForSessions] Found {olderSessions.Count()} older sessions to remove";
-                DeleteSessions(olderSessions, async (session) => { await _DaaS.Delete(session); }, logMessage);
-
-                List<MonitoringSession> monitoringSessionsToRemove = completedMonitoringSessions.Skip(maxSessionsToKeep).ToList();
-                logMessage = $"[MaxDiagnosticSessionsToKeep] Found {monitoringSessionsToRemove.Count()} monitoring sessions to remove as we have {completedMonitoringSessions.Count()} completed sessions";
-                DeleteSessions(monitoringSessionsToRemove, (session) => { controllerMonitoring.DeleteSession(session.SessionId); }, logMessage);
-
-                completedMonitoringSessions = controllerMonitoring.GetAllCompletedSessions().OrderByDescending(s => s.StartDate).ToList();
-                List<MonitoringSession> olderSessionsMonitoring = completedMonitoringSessions.Where(x => x.StartDate < DateTime.UtcNow.AddDays(-1 * numberOfDays)).ToList();
-                logMessage = $"[MaxNumberOfDaysForSessions] Found {olderSessionsMonitoring.Count()} older monitoring sessions to remove";
-                DeleteSessions(olderSessionsMonitoring, (session) => { controllerMonitoring.DeleteSession(session.SessionId); }, logMessage);
-
-                Thread.Sleep(5 * 60 * 1000);
+                CleanupSymbolsDirectory();
             }
+
+            List<Session> olderSessions = completedSessions.Where(x => x.StartTime < DateTime.UtcNow.AddDays(-1 * numberOfDays)).ToList();
+            logMessage = $"[MaxNumberOfDaysForSessions] Found {olderSessions.Count()} older sessions to remove";
+            DeleteSessions(olderSessions, async (session) => { await _DaaS.Delete(session); }, logMessage);
+
+            List<MonitoringSession> monitoringSessionsToRemove = completedMonitoringSessions.Skip(maxSessionsToKeep).ToList();
+            logMessage = $"[MaxDiagnosticSessionsToKeep] Found {monitoringSessionsToRemove.Count()} monitoring sessions to remove as we have {completedMonitoringSessions.Count()} completed sessions";
+            DeleteSessions(monitoringSessionsToRemove, (session) => { controllerMonitoring.DeleteSession(session.SessionId); }, logMessage);
+
+            completedMonitoringSessions = controllerMonitoring.GetAllCompletedSessions().OrderByDescending(s => s.StartDate).ToList();
+            List<MonitoringSession> olderSessionsMonitoring = completedMonitoringSessions.Where(x => x.StartDate < DateTime.UtcNow.AddDays(-1 * numberOfDays)).ToList();
+            logMessage = $"[MaxNumberOfDaysForSessions] Found {olderSessionsMonitoring.Count()} older monitoring sessions to remove";
+            DeleteSessions(olderSessionsMonitoring, (session) => { controllerMonitoring.DeleteSession(session.SessionId); }, logMessage);
+
         }
 
         private static bool CheckIfTimeToCleanupSymbols(List<Session> completedSessions)

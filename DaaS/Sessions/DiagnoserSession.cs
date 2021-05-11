@@ -120,9 +120,9 @@ namespace DaaS.Sessions
             }
         }
 
-        internal DiagnoserSession(XElement diagnoserXml, DateTime startTime, DateTime endTime)
+        internal DiagnoserSession(XElement diagnoserXml, DateTime startTime, DateTime endTime, string defaultHostName)
         {
-            LoadDiagnoserFromXml(diagnoserXml, startTime, endTime);
+            LoadDiagnoserFromXml(diagnoserXml, startTime, endTime, defaultHostName);
         }
 
         internal bool ContainsLog(Log log)
@@ -419,7 +419,7 @@ namespace DaaS.Sessions
             return diagnoserXml;
         }
 
-        private void LoadDiagnoserFromXml(XElement diagnoserXml, DateTime startTime, DateTime endTime)
+        private void LoadDiagnoserFromXml(XElement diagnoserXml, DateTime startTime, DateTime endTime, string defaultHostName)
         {
             var diagnoserName = diagnoserXml.Attribute(SessionXml.Name).Value;
             var allDiagnosers = Infrastructure.Settings.GetDiagnosers();
@@ -459,7 +459,7 @@ namespace DaaS.Sessions
 
             if (collectorStatus == DiagnosisStatus.InProgress)
             {
-                CheckAndReturnCollectorDetailedStatus(diagnoserXml);
+                CheckAndReturnCollectorDetailedStatus(diagnoserXml, defaultHostName);
             }
             var collectorRunCountXml = collectorXml.Attribute(SessionXml.RunCount);
             if (collectorRunCountXml != null && !string.IsNullOrEmpty(collectorRunCountXml.Value))
@@ -537,7 +537,7 @@ namespace DaaS.Sessions
 
                     if (analyzerStatus == DiagnosisStatus.InProgress)
                     {
-                        CheckAndReturnAnalyzerDetailedStatus(log);
+                        CheckAndReturnAnalyzerDetailedStatus(log, defaultHostName);
                     }
                     foreach (var reportXml in logXml.Elements(SessionXml.Report))
                     {
@@ -549,11 +549,11 @@ namespace DaaS.Sessions
             }
         }
 
-        private void CheckAndReturnAnalyzerDetailedStatus(Log log)
+        private void CheckAndReturnAnalyzerDetailedStatus(Log log, string defaultHostName)
         {
             var path = Path.Combine(
                "Reports",
-               Infrastructure.Settings.SiteNameShort,
+               defaultHostName,
                log.StartTime.ToString(SessionConstants.SessionFileNameFormat),
                Diagnoser.Analyzer.Name);
 
@@ -596,7 +596,7 @@ namespace DaaS.Sessions
             }
         }
 
-        private void CheckAndReturnCollectorDetailedStatus(XElement diagnoserXml)
+        private void CheckAndReturnCollectorDetailedStatus(XElement diagnoserXml, string defaultHostName)
         {
             if (diagnoserXml.Parent != null)
             {
@@ -612,7 +612,7 @@ namespace DaaS.Sessions
                     foreach (var instance in HeartBeatController.GetLiveInstances())
                     {
                         var path = Path.Combine("Logs",
-                            Infrastructure.Settings.SiteNameShort,
+                            defaultHostName,
                             StartTime.ToString(SessionConstants.SessionFileNameFormat),
                             instance.Name,
                             this.Diagnoser.Collector.Name);

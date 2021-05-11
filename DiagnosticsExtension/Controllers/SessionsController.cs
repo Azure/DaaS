@@ -63,7 +63,8 @@ namespace DiagnosticsExtension.Controllers
                         Status = session.Status,
                         DiagnoserSessions = new List<String>(session.GetDiagnoserSessions().Select(p => p.Diagnoser.Name)),
                         HasBlobSasUri = !string.IsNullOrWhiteSpace(session.BlobSasUri),
-                        BlobStorageHostName = session.BlobStorageHostName
+                        BlobStorageHostName = session.BlobStorageHostName,
+                        DefaultHostName = session.DefaultHostName
                     };
 
                     retVal.Add(sessionDetails);
@@ -121,7 +122,8 @@ namespace DiagnosticsExtension.Controllers
                         EndTime = session.EndTime.ToString("yyyy-MM-dd HH:mm:ss"),
                         Status = session.Status,
                         HasBlobSasUri = !string.IsNullOrWhiteSpace(session.BlobSasUri),
-                        BlobStorageHostName = session.BlobStorageHostName
+                        BlobStorageHostName = session.BlobStorageHostName,
+                        DefaultHostName = session.DefaultHostName
                     };
 
                     foreach (DiagnoserSession diagSession in session.GetDiagnoserSessions())

@@ -68,6 +68,7 @@ namespace DaaS.Configuration
 
         public const string WebSiteDaasStorageSasUri = "%WEBSITE_DAAS_STORAGE_SASURI%";
         public const string CancelledDir = @"Cancelled";
+        public const string DefaultHostNameSandboxProperty = "SANDBOX_FUNCTION_RESOURCE_ID";
 
         public static Settings Instance = new Settings();
 
@@ -465,6 +466,38 @@ namespace DaaS.Configuration
             {
                 return GetIntSetting(DaaSSettings.MaxSessionsPerDay, defaultValue: 6);
             }
+        }
+
+        public static string DefaultHostName
+        {
+            get
+            {
+                var defaultHostName = GetDefaultHostName();
+                if (!string.IsNullOrWhiteSpace(defaultHostName))
+                {
+                    return defaultHostName;
+                }
+
+                return Instance.SiteNameShort;
+            }
+        }
+
+        internal static string GetDefaultHostName()
+        {
+            if (IsSandBoxAvailable())
+            {
+                int copiedBytes = 0;
+                byte[] valueBuffer = new byte[4096];
+                if (GetSandboxProperty(DefaultHostNameSandboxProperty, valueBuffer, valueBuffer.Length, 0, ref copiedBytes))
+                {
+                    string value = Encoding.Unicode.GetString(valueBuffer, 0, copiedBytes);
+                    if (!string.IsNullOrWhiteSpace(value))
+                    {
+                        return value.ToLower().Replace(".scm.",".");
+                    }
+                }
+            }
+            return string.Empty;
         }
 
         internal string GetDiagnosticToolsPath()

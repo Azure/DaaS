@@ -53,15 +53,15 @@ namespace DaaS.Diagnostics
             return warnings;
         }
 
-        internal async Task<List<Log>> CollectLogs(DateTime utcStartTime, DateTime utcEndTime, string sessionId,string blobSasUri, CancellationToken ct)
+        internal async Task<List<Log>> CollectLogs(DateTime utcStartTime, DateTime utcEndTime, string sessionId, string blobSasUri, string defaultHostName, CancellationToken ct)
         {
-            var logs = await Collector.CollectLogs(utcStartTime, utcEndTime, sessionId, blobSasUri, ct);
+            var logs = await Collector.CollectLogs(utcStartTime, utcEndTime, sessionId, blobSasUri, defaultHostName, ct);
             return logs;
         }
 
-        internal async Task<List<Report>> Analyze(Log log, string sessionId, string blobSasUri, CancellationToken ct)
+        internal async Task<List<Report>> Analyze(Log log, string sessionId, string blobSasUri, string defaultHostName, CancellationToken ct)
         {
-            var reports = await Analyzer.Analyze(log, sessionId,blobSasUri, ct);
+            var reports = await Analyzer.Analyze(log, sessionId, blobSasUri, defaultHostName, ct);
             return reports;
         }
     }
