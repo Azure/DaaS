@@ -81,13 +81,17 @@ namespace DaaSRunner
             m_CompletedSessionsCleanupTimer = new Timer(new TimerCallback(CompletedSessionCleanup), null, (int)TimeSpan.FromMinutes(1).TotalMilliseconds, (int)TimeSpan.FromMinutes(30).TotalMilliseconds);
 
             InitializeThreadsForCpuMonitoring();
+
+            // Queue a one time operation to clear any *.diaglog files on the Blob
+            ThreadPool.QueueUserWorkItem(new WaitCallback(_DaaS.RemoveOlderFilesFromBlob));
+
             StartSessionRunner();
         }
 
-        private static bool ValidateSasUri(string sasUri, bool envVar)
+        private static bool ValidateSasUri(string sasUri, bool isdefinedInEnvironmentVariable)
         {
             var result = DaaS.Storage.BlobController.ValidateBlobSasUri(sasUri, out Exception _);
-            Logger.LogVerboseEvent($"BlobStorageSasUri at EnvironmentVariable={envVar} is Valid={result}");
+            Logger.LogVerboseEvent($"BlobStorageSasUri at EnvironmentVariable={isdefinedInEnvironmentVariable} is Valid={result}");
             return result;
         }
 
@@ -117,7 +121,7 @@ namespace DaaSRunner
 
                 if (!string.IsNullOrWhiteSpace(sasUriEnvironment) && sasUriInEnvironmentVariable)
                 {
-                    if (ValidateSasUri(sasUriEnvironment, envVar: true))
+                    if (ValidateSasUri(sasUriEnvironment, isdefinedInEnvironmentVariable: true))
                     {
                         ClearSecretIfNeeded(sasUriPrivateSettings, secretInvalid: false);
                         return;
@@ -130,7 +134,7 @@ namespace DaaSRunner
 
                 if (!string.IsNullOrWhiteSpace(sasUriPrivateSettings))
                 {
-                    if (!ValidateSasUri(sasUriPrivateSettings, envVar: false))
+                    if (!ValidateSasUri(sasUriPrivateSettings, isdefinedInEnvironmentVariable: false))
                     {
                         ClearSecretIfNeeded(sasUriPrivateSettings, secretInvalid:true);
                     }

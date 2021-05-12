@@ -115,26 +115,26 @@ namespace DaaS.Configuration
             configuredAsEnvironmentVariable = false;
             var environmentVariableName = WebSiteDaasStorageSasUri.Replace("%", "");
 
-            string sasUriAsEnvironmentVariable = Environment.GetEnvironmentVariable(environmentVariableName);
-            if (!string.IsNullOrWhiteSpace(sasUriAsEnvironmentVariable))
-            {
-                configuredAsEnvironmentVariable = true;
-                return sasUriAsEnvironmentVariable;
-            }
-
             if (IsSandBoxAvailable())
             {
                 int copiedBytes = 0;
                 byte[] valueBuffer = new byte[4096];
                 if (GetSandboxProperty(environmentVariableName, valueBuffer, valueBuffer.Length, 0, ref copiedBytes))
                 {
-                    sasUriAsEnvironmentVariable = Encoding.Unicode.GetString(valueBuffer, 0, copiedBytes);
-                    if (!string.IsNullOrWhiteSpace(sasUriAsEnvironmentVariable))
+                    string value = Encoding.Unicode.GetString(valueBuffer, 0, copiedBytes);
+                    if (!string.IsNullOrWhiteSpace(value))
                     {
                         configuredAsEnvironmentVariable = true;
-                        return sasUriAsEnvironmentVariable;
+                        return value;
                     }
                 }
+            }
+
+            string envvar = Environment.GetEnvironmentVariable(environmentVariableName);
+            if (!string.IsNullOrWhiteSpace(envvar))
+            {
+                configuredAsEnvironmentVariable = true;
+                return envvar;
             }
 
             return string.Empty;

@@ -575,6 +575,11 @@ namespace DaaS.Sessions
             }
         }
 
+        public void RemoveOlderFilesFromBlob(object state)
+        {
+            BlobController.RemoveOlderFilesFromBlob();
+        }
+
         public async Task<bool> Delete(Session session, bool deleteActiveSessions = false)
         {
             if (session.Status != SessionStatus.Active || deleteActiveSessions)

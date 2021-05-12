@@ -7,6 +7,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using DaaS.Configuration;
@@ -167,6 +168,55 @@ namespace DaaS.Storage
                 blobSasUri = Settings.GetBlobSasUriFromEnvironment(out _);
             }
             return blobSasUri;
+        }
+
+        internal static void RemoveOlderFilesFromBlob()
+        {
+            try
+            {
+                string siteNameMatch = $"Logs/{Settings.Instance.SiteName}/";
+                string siteNameShortMatch = Settings.Instance.SiteName.Length > 10 ? Settings.Instance.SiteName.Substring(0, 10) : Settings.Instance.SiteName;
+                siteNameShortMatch = $"Logs/{siteNameShortMatch}/";
+                string defaultHostNameMatch = $"Logs/{Settings.GetDefaultHostName()}/";
+
+                foreach (var blob in GetBlobs()
+                    .Where(x => x.Name.EndsWith(".diaglog") && 
+                    (x.Name.StartsWith(siteNameMatch) || x.Name.StartsWith(siteNameShortMatch) || x.Name.StartsWith(defaultHostNameMatch))))
+                {
+                    TimeSpan? timeDifference = DateTime.UtcNow - blob.Properties.LastModified;
+                    if (timeDifference?.Days > 15)
+                    {
+                        string blobName = blob.Name;
+                        blob.Delete();
+                        Logger.LogVerboseEvent($"Deleted blob {blobName}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogErrorEvent("Failed while deleting *.diaglog files", ex);
+            }
+        }
+
+        private static IEnumerable<CloudBlockBlob> GetBlobs()
+        {
+            string blobSasUri = Settings.GetBlobSasUriFromEnvironment(out _);
+
+            if (!string.IsNullOrWhiteSpace(blobSasUri))
+            {
+                var container = new CloudBlobContainer(new Uri(blobSasUri));
+                BlobContinuationToken continuationToken = null;
+
+                do
+                {
+                    var response = container.ListBlobsSegmented(string.Empty, true, BlobListingDetails.None, new int?(), continuationToken, null, null);
+                    continuationToken = response.ContinuationToken;
+                    foreach (var blob in response.Results.OfType<CloudBlockBlob>())
+                    {
+                        yield return blob;
+                    }
+                } while (continuationToken != null);
+            }
         }
     }
 }
