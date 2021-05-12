@@ -221,7 +221,7 @@ namespace DaaS.Configuration
                 //    return _defaultHostName;
                 //}
 
-                return SiteName.Length > 50 ? SiteName.Substring(0, 50) : SiteName;
+                return ShortenString(SiteName);
             }
         }
 
@@ -493,11 +493,21 @@ namespace DaaS.Configuration
                     string value = Encoding.Unicode.GetString(valueBuffer, 0, copiedBytes);
                     if (!string.IsNullOrWhiteSpace(value))
                     {
-                        return value.ToLower().Replace(".scm.",".");
+                        if (value.Contains("."))
+                        {
+                            value = value.Split('.')[0];
+                        }
+                        value = ShortenString(value);
+                        return value;
                     }
                 }
             }
             return string.Empty;
+        }
+
+        internal static string ShortenString(string name)
+        {
+            return !string.IsNullOrWhiteSpace(name) && name.Length > 40 ? name.Substring(0, 40) : name;
         }
 
         internal string GetDiagnosticToolsPath()
