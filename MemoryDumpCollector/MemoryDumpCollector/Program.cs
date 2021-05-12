@@ -397,6 +397,7 @@ namespace MemoryDumpCollector
                 }
                 else
                 {
+                    procDumpOutput = CleanupProcdumpOutput(procDumpOutput);
                     Logger.TraceFatal($"ProcDump failed to run. Detailed ProcDump output: {Environment.NewLine} {procDumpOutput}");
                 }
 
@@ -406,6 +407,33 @@ namespace MemoryDumpCollector
             {
                 Logger.LogDiagnoserErrorEvent($"Failed in GetMemoryDumpProcDump for arguments:{arguments}", ex);
             }
+        }
+
+        private static string CleanupProcdumpOutput(string procDumpOutput)
+        {
+            var output = new List<string>();
+            foreach(var line in procDumpOutput.Split(Environment.NewLine.ToCharArray()))
+            {
+                if (string.IsNullOrWhiteSpace(line) || line.StartsWith("ProcDump v")
+                    || line.StartsWith("Copyright") || line.StartsWith("Sysinternals")
+                    || line.StartsWith("ProcDump failed to run") || line.Contains("Waiting for dump to complete")
+                    || line.Contains("Dump count reached") || line.Contains("Dump 1 initiated")
+                    )
+                {
+                    continue;
+                }
+                else
+                {
+                    output.Add(line);
+                }
+            }
+
+            if (output.Count() > 0)
+            {
+                return string.Join(Environment.NewLine, output);
+            }
+
+            return procDumpOutput;
         }
 
         //Crash Mode dump generation and logs 1st chance exceptions

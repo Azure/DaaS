@@ -82,7 +82,7 @@ namespace DaaS.Diagnostics
                 if (logs.Any(x => x.RelativePath.EndsWith(".err.diaglog")))
                 {
                     var log = logs.FirstOrDefault(x => x.RelativePath.EndsWith(".err.diaglog"));
-                    string errorFileName = log.FullPermanentStoragePath;
+                    string errorFileName = Path.Combine(Infrastructure.Settings.TempDir, log.RelativePath.ConvertForwardSlashesToBackSlashes());
                     if (System.IO.File.Exists(errorFileName))
                     {
                         collectorException = System.IO.File.ReadAllText(errorFileName);

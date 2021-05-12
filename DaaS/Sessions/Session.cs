@@ -292,6 +292,11 @@ namespace DaaS.Sessions
                 DefaultHostName = defaultHostNameXml.Value;
             }
 
+            if (string.IsNullOrWhiteSpace(DefaultHostName))
+            {
+                DefaultHostName = Settings.Instance.SiteNameShort;
+            }
+
             var instancesXml = sessionXml.Element(SessionXml.Instances);
             if (instancesXml != null)
             {

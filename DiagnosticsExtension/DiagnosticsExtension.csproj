@@ -270,7 +270,6 @@
     <Content Include="scmApplicationHost.xdt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Include="InstallSiteExtension.ps1" />
     <None Include="packages.config" />
     <None Include="Properties\PublishProfiles\FolderProfile.pubxml">
       <SubType>Designer</SubType>
