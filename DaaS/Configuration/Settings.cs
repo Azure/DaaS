@@ -68,6 +68,7 @@ namespace DaaS.Configuration
 
         public const string WebSiteDaasStorageSasUri = "%WEBSITE_DAAS_STORAGE_SASURI%";
         public const string CancelledDir = @"Cancelled";
+        public const string DefaultHostNameSandboxProperty = "SANDBOX_FUNCTION_RESOURCE_ID";
 
         public static Settings Instance = new Settings();
 
@@ -114,26 +115,26 @@ namespace DaaS.Configuration
             configuredAsEnvironmentVariable = false;
             var environmentVariableName = WebSiteDaasStorageSasUri.Replace("%", "");
 
-            string sasUriAsEnvironmentVariable = Environment.GetEnvironmentVariable(environmentVariableName);
-            if (!string.IsNullOrWhiteSpace(sasUriAsEnvironmentVariable))
-            {
-                configuredAsEnvironmentVariable = true;
-                return sasUriAsEnvironmentVariable;
-            }
-
             if (IsSandBoxAvailable())
             {
                 int copiedBytes = 0;
                 byte[] valueBuffer = new byte[4096];
                 if (GetSandboxProperty(environmentVariableName, valueBuffer, valueBuffer.Length, 0, ref copiedBytes))
                 {
-                    sasUriAsEnvironmentVariable = Encoding.Unicode.GetString(valueBuffer, 0, copiedBytes);
-                    if (!string.IsNullOrWhiteSpace(sasUriAsEnvironmentVariable))
+                    string value = Encoding.Unicode.GetString(valueBuffer, 0, copiedBytes);
+                    if (!string.IsNullOrWhiteSpace(value))
                     {
                         configuredAsEnvironmentVariable = true;
-                        return sasUriAsEnvironmentVariable;
+                        return value;
                     }
                 }
+            }
+
+            string envvar = Environment.GetEnvironmentVariable(environmentVariableName);
+            if (!string.IsNullOrWhiteSpace(envvar))
+            {
+                configuredAsEnvironmentVariable = true;
+                return envvar;
             }
 
             return string.Empty;
@@ -205,22 +206,22 @@ namespace DaaS.Configuration
         {
             get
             {
-                if (string.IsNullOrWhiteSpace(_defaultHostName))
-                {
-                    string val = Environment.GetEnvironmentVariable("HTTP_HOST");
-                    if (!string.IsNullOrWhiteSpace(val))
-                    {
-                        val = val.ToLower().Replace(".scm.", ".");
-                        _defaultHostName = val.Length > 50 ? val.Substring(0,50) : val;
-                    }
-                }
+                //if (string.IsNullOrWhiteSpace(_defaultHostName))
+                //{
+                //    string val = Environment.GetEnvironmentVariable("HTTP_HOST");
+                //    if (!string.IsNullOrWhiteSpace(val))
+                //    {
+                //        val = val.ToLower().Replace(".scm.", ".");
+                //        _defaultHostName = val.Length > 50 ? val.Substring(0,50) : val;
+                //    }
+                //}
 
-                if (!string.IsNullOrWhiteSpace(_defaultHostName))
-                {
-                    return _defaultHostName;
-                }
+                //if (!string.IsNullOrWhiteSpace(_defaultHostName))
+                //{
+                //    return _defaultHostName;
+                //}
 
-                return SiteName.Length > 50 ? SiteName.Substring(0, 50) : SiteName;
+                return ShortenString(SiteName);
             }
         }
 
@@ -465,6 +466,48 @@ namespace DaaS.Configuration
             {
                 return GetIntSetting(DaaSSettings.MaxSessionsPerDay, defaultValue: 6);
             }
+        }
+
+        public static string DefaultHostName
+        {
+            get
+            {
+                var defaultHostName = GetDefaultHostName();
+                if (!string.IsNullOrWhiteSpace(defaultHostName))
+                {
+                    return defaultHostName;
+                }
+
+                return Instance.SiteNameShort;
+            }
+        }
+
+        internal static string GetDefaultHostName()
+        {
+            if (IsSandBoxAvailable())
+            {
+                int copiedBytes = 0;
+                byte[] valueBuffer = new byte[4096];
+                if (GetSandboxProperty(DefaultHostNameSandboxProperty, valueBuffer, valueBuffer.Length, 0, ref copiedBytes))
+                {
+                    string value = Encoding.Unicode.GetString(valueBuffer, 0, copiedBytes);
+                    if (!string.IsNullOrWhiteSpace(value))
+                    {
+                        if (value.Contains("."))
+                        {
+                            value = value.Split('.')[0];
+                        }
+                        value = ShortenString(value);
+                        return value;
+                    }
+                }
+            }
+            return string.Empty;
+        }
+
+        internal static string ShortenString(string name)
+        {
+            return !string.IsNullOrWhiteSpace(name) && name.Length > 40 ? name.Substring(0, 40) : name;
         }
 
         internal string GetDiagnosticToolsPath()

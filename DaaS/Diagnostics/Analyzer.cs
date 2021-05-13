@@ -25,7 +25,7 @@ namespace DaaS.Diagnostics
         public override string Name { get; internal set; }
         public string Command { get; set; }
         public string Arguments { get; set; }
-        internal async Task<List<Report>> Analyze(Log log, string sessionId, string blobSasUri, CancellationToken ct)
+        internal async Task<List<Report>> Analyze(Log log, string sessionId, string blobSasUri, string defaultHostName, CancellationToken ct)
         {
             // Get a lease to analzye this particular log
             Lease lease = Infrastructure.LeaseManager.TryGetLease(log.RelativePath, blobSasUri);
@@ -35,7 +35,7 @@ namespace DaaS.Diagnostics
             }
 
             // Run the analyzer command
-            var outputDir = CreateTemporaryReportDestinationFolder(log);
+            var outputDir = CreateTemporaryReportDestinationFolder(log, defaultHostName);
 
             await RunAnalyzerAsync(lease, log, outputDir, sessionId, ct);
             
@@ -75,11 +75,11 @@ namespace DaaS.Diagnostics
             await Task.Run(() => RunProcessWhileKeepingLeaseAliveAsync(lease, Command, args, sessionId, combinedCancellationSource.Token), combinedCancellationSource.Token);
         }
 
-        private string CreateTemporaryReportDestinationFolder(Log log)
+        private string CreateTemporaryReportDestinationFolder(Log log, string defaultHostName)
         {
             var destinationDir = Path.Combine(
                 "Reports",
-                Infrastructure.Settings.SiteNameShort,
+                defaultHostName,
                 log.StartTime.ToString(SessionConstants.SessionFileNameFormat),
                 Name);
             var tempDir = Infrastructure.Storage.GetNewTempFolder(destinationDir);

@@ -44,6 +44,7 @@ namespace DaaS.Sessions
         public List<Instance> InstancesSpecified { get; private set; }
         public string BlobStorageHostName { get; internal set; }
         public new string BlobSasUri { get; internal set; }
+        public string DefaultHostName { get; internal set; }
 
         #region Status Checking
 
@@ -242,6 +243,7 @@ namespace DaaS.Sessions
                     new XElement(SessionXml.Description, Description),
                     new XElement(SessionXml.BlobSasUri, BlobSasUri),
                     new XElement(SessionXml.BlobStorageHostName, BlobStorageHostName),
+                    new XElement(SessionXml.DefaultHostName, DefaultHostName),
                     instancesXml,
                     diagnoserSessionsXml
                     )
@@ -284,6 +286,17 @@ namespace DaaS.Sessions
                 BlobStorageHostName = blobStorageHostNameXml.Value;
             }
 
+            var defaultHostNameXml = sessionXml.Element(SessionXml.DefaultHostName);
+            if (defaultHostNameXml != null)
+            {
+                DefaultHostName = defaultHostNameXml.Value;
+            }
+
+            if (string.IsNullOrWhiteSpace(DefaultHostName))
+            {
+                DefaultHostName = Settings.Instance.SiteNameShort;
+            }
+
             var instancesXml = sessionXml.Element(SessionXml.Instances);
             if (instancesXml != null)
             {
@@ -301,7 +314,7 @@ namespace DaaS.Sessions
             var diagnosersXml = sessionXml.Element(SessionXml.Diagnosers);
             foreach (var diagnoserSessionXml in diagnosersXml.Elements())
             {
-                _diagnoserSessions.Add(new DiagnoserSession(diagnoserSessionXml, StartTime, EndTime));
+                _diagnoserSessions.Add(new DiagnoserSession(diagnoserSessionXml, StartTime, EndTime, DefaultHostName));
             }
 
             RelativePath = GetDesiredRelativePath();

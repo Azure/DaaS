@@ -162,28 +162,28 @@ namespace DaaS.Storage
             BlobSasUri = blobSasUri;
         }
 
-        internal static Log GetLog(DateTime startTime, DateTime endTime, string relativePath, Collector collector, double fileSize, string blobSasUri)
+        internal static Log GetLog(DateTime startTime, DateTime endTime, string relativePath, Collector collector, double fileSize, string blobSasUri, string defaultHostName)
         {
             // Create a log object reflecting that new location & name
             var log = new Log(startTime, endTime, collector, fileSize, blobSasUri);
-            var logDestinationDir = log.GetRelativeDirectory();
+            var logDestinationDir = log.GetRelativeDirectory(defaultHostName);
             log.FileName = log.GetPermanentFileName(Path.GetFileName(relativePath));
             log.RelativePath = Path.Combine(logDestinationDir, log.FileName);
 
             return log;
         }
 
-        private string GetRelativeDirectory()
+        private string GetRelativeDirectory(string defaultHostName)
         {
-            var path = GetRelativeDirectory(StartTime, EndTime, Collector);
+            var path = GetRelativeDirectory(StartTime, EndTime, Collector, defaultHostName);
             return path;
         }
 
-        internal static string GetRelativeDirectory(DateTime startTime, DateTime endTime, Collector collector)
+        internal static string GetRelativeDirectory(DateTime startTime, DateTime endTime, Collector collector, string defaultHostName)
         {
             var path = Path.Combine(
                 "Logs",
-                Infrastructure.Settings.SiteNameShort,
+                defaultHostName,
                 startTime.ToString(SessionConstants.SessionFileNameFormat),
                 Settings.InstanceName,
                 collector.Name);

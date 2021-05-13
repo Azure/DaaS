@@ -279,7 +279,8 @@ namespace DaaS.Sessions
             {
                 Description = description,
                 BlobSasUri = blobSasUri,
-                BlobStorageHostName = BlobController.GetBlobStorageHostName(blobSasUri)
+                BlobStorageHostName = BlobController.GetBlobStorageHostName(blobSasUri),
+                DefaultHostName = Settings.DefaultHostName
             };
             session.Save();
             Logger.LogNewSession(session.SessionId.ToString(),
@@ -289,7 +290,8 @@ namespace DaaS.Sessions
                 invokedViaDaasConsole,
                 !string.IsNullOrWhiteSpace(session.BlobSasUri),
                 sasUriInEnvironmentVariable,
-                sandboxAvailable);
+                sandboxAvailable,
+                session.DefaultHostName);
 
             return session;
         }
@@ -573,6 +575,10 @@ namespace DaaS.Sessions
             }
         }
 
+        public void RemoveOlderFilesFromBlob(object state)
+        {
+            BlobController.RemoveOlderFilesFromBlob();
+        }
 
         public async Task<bool> Delete(Session session, bool deleteActiveSessions = false)
         {
@@ -597,7 +603,7 @@ namespace DaaS.Sessions
                                     var logPath = Path.Combine(
                                                 Settings.UserSiteStorageDirectory,
                                                "Logs",
-                                               Infrastructure.Settings.SiteNameShort,
+                                               session.DefaultHostName,
                                                session.StartTime.ToString(SessionConstants.SessionFileNameFormat),
                                                instance.Name,
                                                diagnoser.Diagnoser.Collector.Name);
@@ -617,7 +623,7 @@ namespace DaaS.Sessions
                     var reportsPath = Path.Combine(
                               rootPath,
                               "Reports",
-                              Infrastructure.Settings.SiteNameShort,
+                              session.DefaultHostName,
                               session.StartTime.ToString(SessionConstants.SessionFileNameFormat));
 
                     if (Directory.Exists(reportsPath))
@@ -913,7 +919,7 @@ namespace DaaS.Sessions
             try
             {
                 Logger.LogDiagnostic("Running collector {0} for session {1} with StartTime {2}", diagnoser.Collector.Name, session.SessionId, session.StartTime.ToString());
-                var logs = (await diagnoser.CollectLogs(session.StartTime, session.EndTime, session.SessionId.ToString(), session.BlobSasUri, ct));
+                var logs = (await diagnoser.CollectLogs(session.StartTime, session.EndTime, session.SessionId.ToString(), session.BlobSasUri, session.DefaultHostName, ct));
                 if (logs == null || !logs.Any())
                 {
                     Logger.LogDiagnostic("We were not able to run the collector (maybe some another instance is already running it or it's not yet time to run the collector)");
@@ -1035,7 +1041,7 @@ namespace DaaS.Sessions
 
                         try
                         {
-                            reports = await diagnoser.Analyze(log, session.SessionId.ToString(), session.BlobSasUri, ct);
+                            reports = await diagnoser.Analyze(log, session.SessionId.ToString(), session.BlobSasUri, session.DefaultHostName, ct);
                         }
                         catch (OperationCanceledException)
                         {

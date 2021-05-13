@@ -39,6 +39,7 @@ namespace DaaS
             //
             // Some diagnosers may not pass the output directory
             //
+
             if (string.IsNullOrWhiteSpace(outputPath))
             {
                 return;
@@ -59,6 +60,7 @@ namespace DaaS
                 try
                 {
                     statusFilePath = outputPath.ToLower().Replace(localTemp, daasPath);
+                    LogVerboseEvent($"statusFilePath = {statusFilePath}");
 
                     if (!Directory.Exists(statusFilePath))
                     {
@@ -210,7 +212,7 @@ namespace DaaS
             LogDiagnostic("Session [ERR] - {0} {1} {2} {3} {4}", sessionId, message, ex.GetType().ToString(), ex.Message, ex.StackTrace);
         }
 
-        public static void LogNewSession(string sessionId, string mode, string diagnosers, string Instances, bool invokedViaDaasConsole, bool hasblobSasUri, bool sasUriInEnvironmentVariable, bool sandboxAvailable)
+        public static void LogNewSession(string sessionId, string mode, string diagnosers, string Instances, bool invokedViaDaasConsole, bool hasblobSasUri, bool sasUriInEnvironmentVariable, bool sandboxAvailable, string defaultHostName)
         {
             var details = new
             {
@@ -218,7 +220,8 @@ namespace DaaS
                 invokedViaDaasConsole,
                 hasblobSasUri,
                 sasUriInEnvironmentVariable,
-                sandboxAvailable
+                sandboxAvailable,
+                defaultHostName
             };
 
             DaasEventSource.Instance.LogNewSession(SiteName, _assemblyVersion, sessionId, mode, diagnosers, JsonConvert.SerializeObject(details));
