@@ -16,6 +16,10 @@ using System.Web.Http;
 
 namespace DiagnosticsExtension.Controllers
 {
+    /// <summary>
+    /// Worker instances are running an udp echo server on port 30000. This controller is for checking the connection between target 
+    /// worker instance by pinging and checking the echoed result.
+    /// </summary>
     [RoutePrefix("api/udpechotest")]
     public class UdpEchoTestController : ApiController
     {
@@ -38,9 +42,6 @@ namespace DiagnosticsExtension.Controllers
                         udpClient.Connect(ip, port);
                         byte[] sendBytes = Encoding.ASCII.GetBytes("ping");
                         await udpClient.SendAsync(sendBytes, sendBytes.Length);
-
-                        //IPEndPoint object will allow us to read datagrams sent from any source.
-                        IPEndPoint RemoteIpEndPoint = new IPEndPoint(IPAddress.Any, 0);
 
                         // Blocks until a message returns on this socket from a remote host.
                         var recieved = await udpClient.ReceiveAsync();
@@ -72,7 +73,7 @@ namespace DiagnosticsExtension.Controllers
                 }
                 udpClient.Close();
             }
-            return Request.CreateResponse(HttpStatusCode.OK, new { success, exceptions });
+            return Request.CreateResponse(HttpStatusCode.OK, new { success, exceptions, hostName = Environment.MachineName });
         }
     }
 }
