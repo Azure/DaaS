@@ -479,6 +479,11 @@ namespace DaaS.Sessions
             return Infrastructure.Settings.GetDiagnosers();
         }
 
+        public bool IsSandboxAvailable()
+        {
+            return Settings.IsSandBoxAvailable();
+        }
+
         public static void RecursiveDelete(string path)
         {
             if (Directory.Exists(path))
