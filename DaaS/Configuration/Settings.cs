@@ -545,9 +545,17 @@ namespace DaaS.Configuration
             {
                 diagnosers[diagnoser.Name.ToLower()] = diagnoser;
             }
-            foreach (var diagnoser in LoadDiagnosers(privateSettingsXml, collectors, analyzers))
+
+            try
             {
-                diagnosers[diagnoser.Name.ToLower()] = diagnoser;
+                foreach (var diagnoser in LoadDiagnosers(privateSettingsXml, collectors, analyzers))
+                {
+                    diagnosers[diagnoser.Name.ToLower()] = diagnoser;
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarningEvent("Failed while loading private diagnosers", ex);
             }
 
             return diagnosers.Values;
@@ -575,7 +583,6 @@ namespace DaaS.Configuration
                     {
                         Logger.LogErrorEvent("Failed while getting Settings", e);
                     }
-
                 }
             }
 
@@ -630,10 +637,9 @@ namespace DaaS.Configuration
                     }
                     catch (Exception ex)
                     {
-                        Logger.LogErrorEvent("Failed while reading the PrivateSettings.xml", ex);
+                        Logger.LogWarningEvent("Failed while reading the PrivateSettings.xml", ex);
                         SetupSettings(true);
                     }
-
                 }
             }
             return privateSettingsXml;

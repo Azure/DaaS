@@ -17,7 +17,7 @@ using DaaS.Sessions;
 using DaaS;
 using Newtonsoft.Json;
 
-namespace ConsoleTester
+namespace DaaSConsole
 {
     class Program
     {
@@ -46,11 +46,11 @@ namespace ConsoleTester
         private class Argument
         {
             public Options Command;
-            public String Usage;
-            public String Description;
+            public string Usage;
+            public string Description;
         }
 
-        static Settings settings = new Settings();
+        static readonly Settings settings = new Settings();
 
         static void Main(string[] args)
         {
@@ -284,9 +284,7 @@ namespace ConsoleTester
                         diagnosersToRun,
                         true, Instances, null, blobSasUri);
                 }
-                Console.WriteLine("Waiting for collection to complete...");
-
-                Console.WriteLine($"Going to sleep for {timeToRunFor} seconds");
+                Console.WriteLine("Waiting for collection to complete. Going to sleep for {timeToRunFor} seconds...");
                 Thread.Sleep(timeToRunFor);
                 Console.WriteLine("done sleeping");
 

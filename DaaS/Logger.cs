@@ -200,9 +200,36 @@ namespace DaaS
 
             LogErrorEvent(message, exception.GetType().ToString(), exception.Message, exception.StackTrace, details);
         }
+
+        public static void LogWarningEvent(string message, Exception exception, string details = "")
+        {
+            LogWarningEvent(message, exception.GetType().ToString(), exception.Message, exception.StackTrace, details);
+        }
+
+        private static void LogWarningEvent(string message, string exceptionType, string exceptionMessage, string exceptionStackTrace, string details)
+        {
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(CallerComponent))
+                {
+                    message = $"{CallerComponent}: {message}";
+                }
+                Trace.TraceWarning($"{DateTime.UtcNow } {message} {exceptionType}:{exceptionMessage} {details} {exceptionStackTrace}");
+
+                // 
+                // TODO :: Change to LogWarningEvent post ANT96
+                // 
+                
+                DaasEventSource.Instance.LogErrorEvent(SiteName, _assemblyVersion, "[WARNING:]" + message, exceptionType, exceptionMessage, exceptionStackTrace, details);
+            }
+            catch (Exception)
+            {
+            }
+        }
+
         public static void LogErrorEvent(string message, string exception)
         {
-            LogErrorEvent(message, string.Empty, message, string.Empty, string.Empty);
+            LogErrorEvent(message, exceptionType:string.Empty, exceptionMessage:exception, string.Empty, string.Empty);
             LogDiagnostic("[ERR] - {0} {1}", message, exception);
         }
 

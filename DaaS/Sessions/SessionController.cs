@@ -19,6 +19,7 @@ using DaaS.Storage;
 using System.Diagnostics;
 using System.Threading;
 using System.Text;
+using System.Xml;
 
 namespace DaaS.Sessions
 {
@@ -333,12 +334,17 @@ namespace DaaS.Sessions
                         }
                         else
                         {
-                            using (
-                                var sessionFileContentStream = Infrastructure.Storage.ReadFile(sessionFilePath,
-                                Session.GetSessionStorageLocation()))
+                            using (var sessionFileContentStream = Infrastructure.Storage.ReadFile(sessionFilePath,Session.GetSessionStorageLocation()))
                             {
-                                var session = new Session(sessionFileContentStream, sessionFilePath);
-                                sessions.Add(session);
+                                try
+                                {
+                                    var session = new Session(sessionFileContentStream, sessionFilePath);
+                                    sessions.Add(session);
+                                }
+                                catch(XmlException xmlEx)
+                                {
+                                    Logger.LogWarningEvent("Encountered exception while loading single session", xmlEx);
+                                }
                             }
                         }
                     }
