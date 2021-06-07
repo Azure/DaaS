@@ -20,9 +20,7 @@ namespace DaaS.Diagnostics
     {
         public string Name { get; internal set; }
         public string Description { get; internal set; }
-
         public string ProcessCleanupOnCancel { get; internal set; }
-
         internal Collector Collector { get; set; }
         internal Analyzer Analyzer { get; set; }
         public bool DiagnoserRequiresStorage { get; set; }

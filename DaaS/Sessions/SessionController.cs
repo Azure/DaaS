@@ -7,10 +7,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Threading.Tasks;
 using DaaS.Configuration;
 using DaaS.Diagnostics;
@@ -20,6 +18,7 @@ using System.Diagnostics;
 using System.Threading;
 using System.Text;
 using System.Xml;
+using Newtonsoft.Json;
 
 namespace DaaS.Sessions
 {
@@ -31,6 +30,7 @@ namespace DaaS.Sessions
     public class SessionController
     {
         private static readonly object _daasVersionUpdateLock = new object();
+        private static readonly AlertingStorageQueue _alertingStorageQueue = new AlertingStorageQueue();
         private static bool _daasVersionCheckInProgress = false;
 
         public string BlobStorageSasUri
@@ -1007,7 +1007,30 @@ namespace DaaS.Sessions
                 diagnoserSession.AnalyzerStartTime = DateTime.UtcNow;
             }
             Logger.LogSessionVerboseEvent($"Marking Collector as Complete for Session {session.SessionId} and going to start Analyzer", session.SessionId.ToString());
+            LogMessageToAlertingQueue(session);
             return true;
+        }
+
+        private static void LogMessageToAlertingQueue(Session session)
+        {
+            try
+            {
+                var message = new
+                {
+                    Category = "DiagnosticToolInvoked",
+                    DiagnosticTool = session.GetDiagnoserSessions().FirstOrDefault().Diagnoser.Name,
+                    TimeStampUtc = DateTime.UtcNow,
+                    SiteName = Settings.GetDefaultHostName(fullHostName: true),
+                    SessionId = session.SessionId.ToString(),
+                    Files = session.GetDiagnoserSessions().FirstOrDefault().GetLogs().Select(x => x.FileName).ToList()
+                };
+
+                _alertingStorageQueue.WriteMessageToAzureQueue(JsonConvert.SerializeObject(message));
+            }
+            catch (Exception ex)
+            {
+                Logger.LogSessionErrorEvent("Unhandled exception while writing to AlertingStorageQueue for session", ex, session.SessionId.ToString());
+            }
         }
 
         private async Task RunAnalyzerAsync(Session session, string diagnoserName, CancellationToken ct)

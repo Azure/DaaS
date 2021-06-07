@@ -28,13 +28,12 @@ namespace DaaSRunner
         }
 
         private static Verbosity VerbosityLevel = Verbosity.Information;
-
         private static SessionController _DaaS = new SessionController();
-        static int cleanOutHeartBeats = 0;
-        static double sleepIntervalForHeartbeatCheck = 0;
-        static DateTime _lastHeartbeatSent = DateTime.MinValue;
-        static DateTime _lastInstanceCountCheck = DateTime.MinValue;
-        static int InstanceCountCheckFrequency = 30;
+        private static int cleanOutHeartBeats = 0;
+        private static double sleepIntervalForHeartbeatCheck = 0;
+        private static DateTime _lastHeartbeatSent = DateTime.MinValue;
+        private static DateTime _lastInstanceCountCheck = DateTime.MinValue;
+        private static int InstanceCountCheckFrequency = 30;
         private static bool m_MonitoringEnabled = false;
         private static readonly CpuMonitoring m_CpuMonitoring = new CpuMonitoring();
         private static MonitoringSession m_MonitoringSession = null;

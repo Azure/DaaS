@@ -24,7 +24,7 @@ namespace DaaS.ApplicationInfo
         // it contains light-up implemenation that we care about and
         // would have to be used by aspnet core web apps
         private const string AspNetCoreAssembly = "Microsoft.AspNetCore.Hosting";
-        private readonly string[] AdditionalConfigurationSections = new string[] { "monitoring", "applicationInitialization", "rewrite", "aspNetCore"};
+        private readonly string[] AdditionalConfigurationSections = new string[] { "monitoring", "applicationInitialization", "rewrite", "aspNetCore", "httpRuntime"};
 
         /// <summary>
         /// Reads the following sources

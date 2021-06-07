@@ -33,7 +33,7 @@ namespace MemoryDumpCollector
         private static string _outputDir = null;
         private static bool _includeChildProcesses = false;
         private static string _cdbFolder;
-        
+
         private static List<int> _processesToIgnore = new List<int>();
         private static readonly string[] _additionalProcesses = new string[] { "java" };
 
@@ -161,11 +161,18 @@ namespace MemoryDumpCollector
 
                 Console.WriteLine("Will take dump of following processes:");
                 Logger.LogDiagnoserEvent("Will take dump of following processes:");
+
+                int mainSiteWorkerProcessId = -1;
                 foreach (var p in processesToDump.Values)
                 {
                     Console.WriteLine("  " + p.ProcessName + " - Id: " + p.Id);
                     processList.Add($"{p.ProcessName}({p.Id})");
                     Logger.LogDiagnoserEvent("  " + p.ProcessName + " - Id: " + p.Id);
+
+                    if (p.ProcessName.Equals("w3wp", StringComparison.OrdinalIgnoreCase))
+                    {
+                        mainSiteWorkerProcessId = p.Id;
+                    }
                 }
 
                 Logger.LogStatus($"Collecting dumps of processes - { string.Join(",", processList) }");
@@ -173,11 +180,42 @@ namespace MemoryDumpCollector
                 {
                     GetMemoryDumpProcDump(p, _outputDir);
                 }
+
+                LaunchStackTracer(mainSiteWorkerProcessId);
+
             }
             catch (Exception ex)
             {
                 Logger.LogDiagnoserErrorEvent($"Un-handled exception in MemoryDumpCollector", ex);
             }
+        }
+
+        private static void LaunchStackTracer(int mainSiteWorkerProcessId)
+        {
+            if (mainSiteWorkerProcessId == -1)
+            {
+                Logger.LogDiagnoserWarningEvent("Failed to determine main site worker process", new ApplicationException("w3wp process for the main site not found"));
+                return;
+            }
+
+            string stackTracerCmd = Environment.ExpandEnvironmentVariables(@"%ProgramFiles%\IIS\Microsoft Web Hosting Framework\DWASMod\stacktracer\stacktracer.exe");
+            string stackTracerArgs = $"-p:{mainSiteWorkerProcessId} -r:ManualDumpCollection -c:true";
+            Logger.LogDiagnoserEvent($"Launching process {stackTracerCmd} {stackTracerArgs}");
+
+            var stackTracer = new Process
+            {
+                StartInfo = new ProcessStartInfo()
+                {
+                    FileName = stackTracerCmd,
+                    Arguments = stackTracerArgs,
+                    UseShellExecute = false
+                }
+            };
+
+            stackTracer.Start();
+            stackTracer.WaitForExit();
+
+            Logger.LogDiagnoserEvent("StackTracer completed");
         }
 
         private static void AddtoIgnoredProcessList(Process process)
@@ -346,7 +384,7 @@ namespace MemoryDumpCollector
                     Logger.TraceFatal($"ProcDump failed to run. Detailed ProcDump output: {Environment.NewLine} {procDumpOutput}");
                 }
 
-                
+
             }
             catch (Exception ex)
             {
@@ -357,7 +395,7 @@ namespace MemoryDumpCollector
         private static string CleanupProcdumpOutput(string procDumpOutput)
         {
             var output = new List<string>();
-            foreach(var line in procDumpOutput.Split(Environment.NewLine.ToCharArray()))
+            foreach (var line in procDumpOutput.Split(Environment.NewLine.ToCharArray()))
             {
                 if (string.IsNullOrWhiteSpace(line) || line.StartsWith("ProcDump v")
                     || line.StartsWith("Copyright") || line.StartsWith("Sysinternals")

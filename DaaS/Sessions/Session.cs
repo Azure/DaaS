@@ -9,18 +9,15 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.Serialization;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Xml;
 using System.Xml.Linq;
 using DaaS.Configuration;
 using DaaS.Diagnostics;
 using DaaS.HeartBeats;
 using DaaS.Leases;
 using DaaS.Storage;
-using File = DaaS.Storage.File;
 
 namespace DaaS.Sessions
 {
@@ -414,7 +411,6 @@ namespace DaaS.Sessions
                 var totalMinutes = DateTime.UtcNow.Subtract(StartTime).TotalMinutes;
                 Logger.LogSessionVerboseEvent($"Session {SessionId} is marked {Status} after {totalMinutes:0.00} min", SessionId.ToString());
             }
-
         }
 
         public IEnumerable<DiagnoserSession> GetDiagnoserSessions()
@@ -553,7 +549,7 @@ namespace DaaS.Sessions
                     if (loopCount > lognum * 300)
                     {
                         ++lognum;
-                        Logger.LogSessionVerboseEvent($"Waiting to someone to delete the session lock file , loop {lognum}", SessionId.ToString());
+                        Logger.LogSessionVerboseEvent($"Waiting to delete the session lock file , loop {lognum}", SessionId.ToString());
                     }
                     Thread.Sleep(1000);
                     loopCount++;

@@ -482,7 +482,7 @@ namespace DaaS.Configuration
             }
         }
 
-        internal static string GetDefaultHostName()
+        internal static string GetDefaultHostName(bool fullHostName = false)
         {
             if (IsSandBoxAvailable())
             {
@@ -493,10 +493,16 @@ namespace DaaS.Configuration
                     string value = Encoding.Unicode.GetString(valueBuffer, 0, copiedBytes);
                     if (!string.IsNullOrWhiteSpace(value))
                     {
+                        if (fullHostName)
+                        {
+                            return value.Replace(".scm.", ".");
+                        }
+
                         if (value.Contains("."))
                         {
                             value = value.Split('.')[0];
                         }
+
                         value = ShortenString(value);
                         return value;
                     }

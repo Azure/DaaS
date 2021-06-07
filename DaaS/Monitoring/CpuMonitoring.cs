@@ -11,7 +11,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Text;
 using Newtonsoft.Json;
 using System.Threading;
 using DaaS.Storage;
@@ -23,19 +22,14 @@ namespace DaaS
 {
     public class CpuMonitoring
     {
-        static ConcurrentDictionary<int, MonitoredProcess> ProcessList;
-
+        
+        const int MaxLinesInLogFile = 40 * 1000;
         private int _loggerCount = 0;
-        const int MAX_LINES_IN_LOGFILE = 40 * 1000;
-        public double CpuUsageLastMinute
-        {
-            get;
-            private set;
-        }
+        private readonly AlertingStorageQueue _alertingStorageQueue = new AlertingStorageQueue();
 
+        static ConcurrentDictionary<int, MonitoredProcess> ProcessList;
         static List<string> _processesToMonitor = new List<string>();
         static string _sessionId = string.Empty;
-
         static readonly string[] _processesAlwaysExcluded = new string[] { "daasrunner", "daasconsole", "workerforwarder" ,
                                                                             "msvsmon", "cmd", "powershell", "SnapshotHolder_x64",
                                                                             "SnapshotHolder_x86", "ApplicationInsightsProfiler",
@@ -44,6 +38,15 @@ namespace DaaS
                                                                             "procdump", "procdump64", "cdb","loganalysisworker", "PhpReportGen",
                                                                             "DumpAnalyzer", "MemoryDumpCollector", "SnapshotUploader64", 
                                                                             "SnapshotUploader86", "crashmon", "dbghost", "SnapshotHolder", "SnapshotUploader"};
+
+        
+
+        public double CpuUsageLastMinute
+        {
+            get;
+            private set;
+        }
+
         public void InitializeMonitoring(MonitoringSession session)
         {
             if (session != null)
@@ -355,7 +358,7 @@ namespace DaaS
 
             string logMessage = $"[{DateTime.UtcNow.ToShortDateString()} {DateTime.UtcNow.ToString("hh:mm:ss")}] {message}{Environment.NewLine}";
 
-            if (_loggerCount > MAX_LINES_IN_LOGFILE)
+            if (_loggerCount > MaxLinesInLogFile)
             {
                 var sessionDirectory = GetLogsFolderForSession(_sessionId);
                 var existingFileCount = FileSystemHelpers.GetFilesInDirectory(sessionDirectory, $"{Environment.MachineName}*.log", false, SearchOption.TopDirectoryOnly).Count;
@@ -449,6 +452,10 @@ namespace DaaS
                     {
                         var blockBlob = BlobController.GetBlobForFile(relativeFilePath, blobSasUri);
                         blockBlob.UploadFromFile(sourceFile, accessCondition);
+                        if (EnqueueEventToAzureQueue(fileName, blockBlob.Uri.ToString()))
+                        {
+                            AppendToMonitoringLog("Message dropped successfully in Azure Queue for alerting");
+                        }
                     });
 
                     while(!taskToUpload.IsCompleted)
@@ -465,6 +472,35 @@ namespace DaaS
                     Logger.LogCpuMonitoringErrorEvent("Failed copying file to blob storage", ex, sessionId);
                 }
             }
+        }
+
+        private bool EnqueueEventToAzureQueue(string fileName, string fileNameOnBlob)
+        {
+            if (_alertingStorageQueue == null)
+            {
+                return false;
+            }
+
+            var message = new
+            {
+                Category = "CpuMonitoring",
+                TimeStampUtc = DateTime.UtcNow,
+                SiteName = Configuration.Settings.GetDefaultHostName(fullHostName:true),
+                SessionId = _sessionId,
+                FileName = fileName,
+                BlobFileName = fileNameOnBlob
+            };
+
+            try
+            {
+                return _alertingStorageQueue.WriteMessageToAzureQueue(JsonConvert.SerializeObject(message));
+            }
+            catch (Exception ex)
+            {
+                Logger.LogCpuMonitoringErrorEvent("Unhandled exception while writing to AlertingStorageQueue", ex, _sessionId);
+            }
+
+            return false;
         }
 
         public static string GetLogsFolderForSession(string sessionId)
