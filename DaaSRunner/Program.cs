@@ -162,7 +162,7 @@ namespace DaaSRunner
             int numberOfDays = _DaaS.MaxNumberOfDaysForSessions;
             var completedSessions = _DaaS.GetAllInActiveSessions().OrderByDescending(s => s.StartTime).ToList();
             MonitoringSessionController controllerMonitoring = new MonitoringSessionController();
-            var completedMonitoringSessions = controllerMonitoring.GetAllCompletedSessions();
+            var completedMonitoringSessions = controllerMonitoring.GetAllCompletedSessions().OrderByDescending(s => s.StartDate).ToList();
 
             Logger.LogVerboseEvent($"Starting cleanup for Completed Sessions MaxDiagnosticSessionsToKeep = [{maxSessionsToKeep}] MaxNumberOfDaysForSessions= [{numberOfDays}]");
             List<Session> sessionsToRemove = completedSessions.Skip(maxSessionsToKeep).ToList();

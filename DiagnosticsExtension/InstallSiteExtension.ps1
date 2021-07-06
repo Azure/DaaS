@@ -4,8 +4,11 @@
 # them at once
 
 $ProgressPreference = 'SilentlyContinue'
+$sitesFileName = $args[0]
+"Using file $sitesFileName"
+$sitesFile = '.\' + $sitesFileName
 
-$allWebSites = (Get-Content '.\sites.json' | Out-String | ConvertFrom-Json)
+$allWebSites = (Get-Content $sitesFile | Out-String | ConvertFrom-Json)
 
 $siteExtensionArchive = "C:\temp\DaasSiteExtension.zip"
 if (Test-Path $siteExtensionArchive) {
