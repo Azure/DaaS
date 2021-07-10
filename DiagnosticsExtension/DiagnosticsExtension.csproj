@@ -193,6 +193,7 @@
     <Compile Include="Controllers\CpuMonitoringController.cs" />
     <Compile Include="Controllers\CrashMonitoringController.cs" />
     <Compile Include="Controllers\DaasAdministerController.cs" />
+    <Compile Include="Controllers\ConnectionStringValidationController.cs" />
     <Compile Include="Controllers\UdpEchoTestController.cs" />
     <Compile Include="Controllers\DatabaseTestController.cs" />
     <Compile Include="Controllers\DownloadFileController.cs" />
@@ -213,6 +214,10 @@
     <Compile Include="Controllers\SessionsController.cs" />
     <Compile Include="Controllers\StdoutLogsController.cs" />
     <Compile Include="LoggingHandler.cs" />
+    <Compile Include="Models\ConnectionStringValidator\ConnectionStringType.cs" />
+    <Compile Include="Models\ConnectionStringValidator\ConnectionStringValidationResult.cs" />
+    <Compile Include="Models\ConnectionStringValidator\IConnectionStringValidator.cs" />
+    <Compile Include="Models\ConnectionStringValidator\SqlServerValidator.cs" />
     <Compile Include="Models\LogsSettings.cs" />
     <Compile Include="Models\MsiValidatorModels.cs" />
     <Compile Include="Models\SasUriResponse.cs" />
