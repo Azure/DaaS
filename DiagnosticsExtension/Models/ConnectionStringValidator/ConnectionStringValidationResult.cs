@@ -10,11 +10,11 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
     {
         public enum ResultStatus
         {
-            Succeeded,
+            Success,
+            AuthFailure,
+            ConnectionFailure,
             EndpointNotFound,
-            ConnectionFailed,
-            AuthFailed,
-            MsiFailed,
+            MsiFailure,
             UnknownError
         }
 

@@ -29,6 +29,7 @@ namespace DiagnosticsExtension.Controllers
         [Route("test")]
         public async Task<HttpResponseMessage> Test(string connStr, int? typeId = null)
         {
+            // register all validators here
             var typeValidatorMap = new IConnectionStringValidator[]
             {
                 new SqlServerValidator()
@@ -39,7 +40,7 @@ namespace DiagnosticsExtension.Controllers
                 var enumType = (ConnectionStringType)typeId.Value;
                 if (typeValidatorMap.ContainsKey(enumType))
                 {
-                    var result = await typeValidatorMap[enumType].Test(connStr);
+                    var result = await typeValidatorMap[enumType].Validate(connStr);
                     return Request.CreateResponse(HttpStatusCode.OK, new { result, connStr });
                 }
                 else
@@ -49,21 +50,23 @@ namespace DiagnosticsExtension.Controllers
             }
             else
             {
+                var exceptions = new List<Exception>();
                 foreach (var p in typeValidatorMap)
                 {
                     try
                     {
                         if (p.Value.IsValid(connStr))
                         {
-                            var result = await p.Value.Test(connStr);
+                            var result = await p.Value.Validate(connStr);
                             return Request.CreateResponse(HttpStatusCode.OK, new { result, connStr });
                         }
                     }
                     catch (Exception e)
-                    { 
+                    {
+                        exceptions.Add(e);
                     }
                 }
-                return Request.CreateErrorResponse(HttpStatusCode.NotFound, $"No supported validator found for provided connection string");
+                return Request.CreateErrorResponse(HttpStatusCode.NotFound, new AggregateException($"No supported validator found for provided connection string", exceptions));
             }
         }
 

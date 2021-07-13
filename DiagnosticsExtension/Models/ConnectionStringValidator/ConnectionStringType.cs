@@ -7,9 +7,17 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
 {
     public enum ConnectionStringType
     {
+        // Jeff
         SqlServer,
+        MySql,
+        KeyVault,
+        Http,
         RedisCache,
+
+        // Sid
         StorageAccount,
-        Http
+        ServiceBus,
+        EventHubs,
+        CosmosDB
     }
 }

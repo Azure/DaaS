@@ -11,7 +11,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
         // verify provided string is a valid connection string that can be tested by the validator
         bool IsValid(string connStr);
 
-        Task<ConnectionStringValidationResult> Test(string connStr, string clientId = null);  // clientId used for Used Assigned Managed Identity
+        Task<ConnectionStringValidationResult> Validate(string connStr, string clientId = null);  // clientId used for Used Assigned Managed Identity
 
         string ProviderName { get; }
 

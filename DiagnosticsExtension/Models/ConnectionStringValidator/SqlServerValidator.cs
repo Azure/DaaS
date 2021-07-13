@@ -18,7 +18,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             throw new NotImplementedException();
         }
 
-        async public Task<ConnectionStringValidationResult> Test(string connStr, string clientId = null)
+        async public Task<ConnectionStringValidationResult> Validate(string connStr, string clientId = null)
         {
             var response = new ConnectionStringValidationResult();
             using (SqlConnection conn = new SqlConnection())
@@ -48,7 +48,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                                 var adalError = msi.Result.GetTokenTestResult.ErrorDetails;
                                 var e = new Exception(adalError.Message);
                                 e.Data["AdalError"] = adalError;
-                                response.Status = ConnectionStringValidationResult.ResultStatus.MsiFailed;
+                                response.Status = ConnectionStringValidationResult.ResultStatus.MsiFailure;
                                 response.Exception = e;
                                 return response;
                             }
@@ -57,7 +57,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
 
 
                     await conn.OpenAsync();
-                    response.Status = ConnectionStringValidationResult.ResultStatus.Succeeded;
+                    response.Status = ConnectionStringValidationResult.ResultStatus.Success;
                 }
                 catch (Exception e)
                 {
