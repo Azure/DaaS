@@ -26,8 +26,8 @@ namespace DiagnosticsExtension.Controllers
     public class ConnectionStringValidationController : ApiController
     {
         [HttpGet]
-        [Route("test")]
-        public async Task<HttpResponseMessage> Test(string connStr, int? typeId = null)
+        [Route("validate")]
+        public async Task<HttpResponseMessage> Validate(string connStr, int? typeId = null)
         {
             // register all validators here
             var typeValidatorMap = new IConnectionStringValidator[]
@@ -71,14 +71,14 @@ namespace DiagnosticsExtension.Controllers
         }
 
         [HttpGet]
-        [Route("testappsetting")]
-        public async Task<HttpResponseMessage> TestAppSetting(string appSettingName, int? typeId = null)
+        [Route("validateappsetting")]
+        public async Task<HttpResponseMessage> ValidateAppSetting(string appSettingName, int? typeId = null)
         {
             var envDict = Environment.GetEnvironmentVariables();
             if (envDict.Contains(appSettingName))
             {
                 var connectionString = (string)envDict[appSettingName];
-                return await Test(connectionString, typeId);
+                return await Validate(connectionString, typeId);
             }
             else
             {
