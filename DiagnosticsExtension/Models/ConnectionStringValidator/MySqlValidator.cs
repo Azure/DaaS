@@ -1,25 +1,25 @@
 ﻿using DiagnosticsExtension.Controllers;
 using DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions;
+using MySql.Data.MySqlClient;
 using System;
 using System.Collections.Generic;
-using System.Data.SqlClient;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Web;
 
 namespace DiagnosticsExtension.Models.ConnectionStringValidator
 {
-    public class SqlServerValidator : IConnectionStringValidator
+    public class MySqlValidator : IConnectionStringValidator
     {
-        public string ProviderName => "System.Data.SqlClient";
+        public string ProviderName => "MySql.Data.MySqlClient";
 
-        public ConnectionStringType Type => ConnectionStringType.SqlServer;
+        public ConnectionStringType Type => ConnectionStringType.MySql;
 
         public bool IsValid(string connStr)
         {
             try
             {
-                var builder = new SqlConnectionStringBuilder(connStr);
+                var builder = new MySqlConnectionStringBuilder(connStr);
             }
             catch (Exception)
             {
@@ -36,31 +36,21 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             {
                 try
                 {
-                    var builder = new SqlConnectionStringBuilder(connStr);
+                    var builder = new MySqlConnectionStringBuilder(connStr);
                 }
                 catch (Exception e)
                 {
-                    throw new MalformedConnectionStringException(e.Message ,e);
+                    throw new MalformedConnectionStringException(e.Message, e);
                 }
 
-                var result = await DatabaseTestController.TestSqlServerConnectionString(connStr, null, clientId);
+                var result = await DatabaseTestController.TestMySqlConnectionString(connStr, null, clientId);
                 if (result.Succeeded)
                 {
                     response.Status = ConnectionStringValidationResult.ResultStatus.Success;
                 }
                 else
                 {
-                    if (result.MsiAdalError != null)
-                    {
-                        response.Status = ConnectionStringValidationResult.ResultStatus.MsiFailure;
-                        var e = new Exception(result.MsiAdalError.Message);
-                        e.Data["AdalError"] = result.MsiAdalError;
-                        response.Exception = e;
-                    }
-                    else
-                    {
-                        throw new Exception("Unexpected state reached: result.Succeeded == false &&  result.MsiAdalError == null is unexpected!");
-                    }
+                    throw new Exception("Unexpected state reached: result.Succeeded == false is unexpected!");
                 }
             }
             catch (Exception e)
@@ -69,27 +59,19 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                 {
                     response.Status = ConnectionStringValidationResult.ResultStatus.MalformedConnectionString;
                 }
-                else if (e is InvalidOperationException && e.Message.StartsWith("Cannot set the AccessToken property"))
+                else if (e is MySqlException)
                 {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.MalformedConnectionString;
-                }
-                else if (e is SqlException)
-                {
-                    if (e.Message.Contains("The server was not found or was not accessible"))
+                    if (e.Message.StartsWith("Unable to connect to any of the specified MySQL hosts."))
                     {
                         response.Status = ConnectionStringValidationResult.ResultStatus.EndpointNotReachable;
                     }
-                    else if (e.Message.StartsWith("A network-related or instance-specific error"))
-                    {
-                        response.Status = ConnectionStringValidationResult.ResultStatus.ConnectionFailure;
-                    }
-                    else if (e.Message.ToLower().Contains("login failed"))
-                    {
-                        response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
-                    }
-                    else if (e.Message.Contains("not allow"))
+                    else if (e.Message.Contains("not allowed"))
                     {
                         response.Status = ConnectionStringValidationResult.ResultStatus.Forbidden;
+                    }
+                    else if (e.Message.StartsWith("Authentication to host"))
+                    {
+                        response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
                     }
                     else
                     {

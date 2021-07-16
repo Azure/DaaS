@@ -445,51 +445,11 @@ namespace DiagnosticsExtension.Controllers
             {
                 if (databaseType == DatabaseType.SqlDatabase || databaseType == DatabaseType.SqlServer)
                 {
-                    using (SqlConnection conn = new SqlConnection())
-                    {
-                        conn.ConnectionString = connectionString;
-                        SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder(conn.ConnectionString);
-                        string userId = builder.UserID;
-                        string password = builder.Password;
-                        bool hasConnectivityWithAzureAd = true;
-
-                        if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(password))
-                        {
-                            MsiValidator msi = new MsiValidator();
-
-                            data.IsMsiEnabled = msi.IsEnabled();
-
-                            if (data.IsMsiEnabled)
-                            {
-                                MsiValidatorInput input = new MsiValidatorInput(ResourceType.Sql, clientId);
-                                hasConnectivityWithAzureAd = await msi.GetTokenAsync(input);
-
-                                if (hasConnectivityWithAzureAd)
-                                    conn.AccessToken = msi.Result.GetTokenTestResult.TokenInformation.AccessToken;
-                                else
-                                    data.MsiAdalError = msi.Result.GetTokenTestResult.ErrorDetails;
-                            }
-                        }
-
-                        if (hasConnectivityWithAzureAd) // when connectionString has credentials or when we have access token from azure ad
-                        {
-                            await conn.OpenAsync();
-                            data.Succeeded = true;
-                        }
-                        else
-                        {
-                            data.Succeeded = false;
-                        }
-                    }
+                    data = await TestSqlServerConnectionString(connectionString, name, clientId);
                 }
                 else if (databaseType == DatabaseType.MySql)
                 {
-                    using (MySqlConnection conn = new MySqlConnection())
-                    {
-                        conn.ConnectionString = connectionString;
-                        await conn.OpenAsync();
-                        data.Succeeded = true;
-                    }
+                    data = await TestMySqlConnectionString(connectionString, name, clientId);
                 }
                 else if (databaseType == DatabaseType.PostgreSql)
                 {
@@ -592,6 +552,75 @@ namespace DiagnosticsExtension.Controllers
                 connection.ConnectionString = connectionString;
             }
             return connection;
+        }
+
+        public static async Task<TestConnectionData> TestSqlServerConnectionString(string connectionString, string name, string clientId)
+        {
+            TestConnectionData data = new TestConnectionData
+            {
+                ConnectionString = connectionString,
+                Name = name
+            };
+            data.Succeeded = false;
+
+            using (SqlConnection conn = new SqlConnection())
+            {
+                conn.ConnectionString = connectionString;
+                SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder(conn.ConnectionString);
+                string userId = builder.UserID;
+                string password = builder.Password;
+                bool hasConnectivityWithAzureAd = true;
+
+                if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(password))
+                {
+                    // when we have access token from azure ad
+                    MsiValidator msi = new MsiValidator();
+
+                    data.IsMsiEnabled = msi.IsEnabled();
+
+                    if (data.IsMsiEnabled)
+                    {
+                        MsiValidatorInput input = new MsiValidatorInput(ResourceType.Sql, clientId);
+                        hasConnectivityWithAzureAd = await msi.GetTokenAsync(input);
+
+                        if (hasConnectivityWithAzureAd)
+                        {
+                            conn.AccessToken = msi.Result.GetTokenTestResult.TokenInformation.AccessToken;
+                            await conn.OpenAsync();
+                            data.Succeeded = true;
+                        }
+                        else
+                        {
+                            data.MsiAdalError = msi.Result.GetTokenTestResult.ErrorDetails;
+                        }
+                    }
+                }
+                else
+                {
+                    // when connectionString has credentials
+                    await conn.OpenAsync();
+                    data.Succeeded = true;
+                }
+            }
+
+            return data;
+        }
+
+        public static async Task<TestConnectionData> TestMySqlConnectionString(string connectionString, string name, string clientId)
+        {
+            TestConnectionData data = new TestConnectionData
+            {
+                ConnectionString = connectionString,
+                Name = name
+            };
+            using (MySqlConnection conn = new MySqlConnection())
+            {
+                conn.ConnectionString = connectionString;
+                await conn.OpenAsync();
+                data.Succeeded = true;
+            }
+
+            return data;
         }
     }
 }

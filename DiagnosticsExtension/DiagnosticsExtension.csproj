@@ -216,7 +216,11 @@
     <Compile Include="LoggingHandler.cs" />
     <Compile Include="Models\ConnectionStringValidator\ConnectionStringType.cs" />
     <Compile Include="Models\ConnectionStringValidator\ConnectionStringValidationResult.cs" />
+    <Compile Include="Models\ConnectionStringValidator\Exceptions\MalformedConnectionStringException.cs" />
     <Compile Include="Models\ConnectionStringValidator\IConnectionStringValidator.cs" />
+    <Compile Include="Models\ConnectionStringValidator\HttpValidator.cs" />
+    <Compile Include="Models\ConnectionStringValidator\KeyVaultValidator.cs" />
+    <Compile Include="Models\ConnectionStringValidator\MySqlValidator.cs" />
     <Compile Include="Models\ConnectionStringValidator\SqlServerValidator.cs" />
     <Compile Include="Models\LogsSettings.cs" />
     <Compile Include="Models\MsiValidatorModels.cs" />
