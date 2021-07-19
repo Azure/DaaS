@@ -115,23 +115,5 @@ namespace DiagnosticsExtension.Controllers
                 return Request.CreateErrorResponse(HttpStatusCode.NotFound, $"AppSetting {appSettingName} not found");
             }
         }
-
-        [HttpGet]
-        [Route("test")]
-        public async Task<IHttpActionResult> Test()
-        {
-            try
-            {
-                MsiValidator msi = new MsiValidator();
-                MsiValidatorInput input = new MsiValidatorInput(ResourceType.KeyVault, "fdc4ce08-1981-464a-a490-1604c022df3f");
-                bool success = await msi.GetTokenAsync(input);
-
-                return Ok(new[] { msi.Result.GetTokenTestResult.TokenInformation.AccessToken });
-            }
-            catch (Exception e)
-            {
-                return Ok(e);
-            }
-        }
     }
 }
