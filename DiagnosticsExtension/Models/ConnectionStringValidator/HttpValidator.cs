@@ -55,7 +55,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                     var resp = await client.GetAsync(connStr);
                     int statusCode = (int)resp.StatusCode;
                     response.Payload = $"StatusCode: {statusCode}";
-                    if (statusCode >= 200 && statusCode < 300)
+                    if (resp.IsSuccessStatusCode)
                     {
                         response.Status = ConnectionStringValidationResult.ResultStatus.Success;
                     }

@@ -26,19 +26,27 @@ namespace DiagnosticsExtension.Controllers
     [RoutePrefix("api/connectionstringvalidation")]
     public class ConnectionStringValidationController : ApiController
     {
-        [HttpGet]
-        [Route("validate")]
-        public async Task<HttpResponseMessage> Validate(string connStr, int? typeId = null)
+        private IConnectionStringValidator[] validators;
+        private Dictionary<ConnectionStringType, IConnectionStringValidator> typeValidatorMap;
+
+        public ConnectionStringValidationController()
         {
             // register all validators here, the order of validators decides the order of connection string matching
-            var validators = new IConnectionStringValidator[]
+            validators = new IConnectionStringValidator[]
             {
                 new SqlServerValidator(),
                 new MySqlValidator(),
                 new KeyVaultValidator(),
                 new HttpValidator()
             };
-            var typeValidatorMap = validators.ToDictionary(v => v.Type, v => v);
+            typeValidatorMap = validators.ToDictionary(v => v.Type, v => v);
+        }
+
+        [HttpGet]
+        [Route("validate")]
+        public async Task<HttpResponseMessage> Validate(string connStr, int? typeId = null)
+        {
+            
 
             if (typeId != null)
             {
@@ -82,11 +90,13 @@ namespace DiagnosticsExtension.Controllers
             var body = await Request.Content.ReadAsStringAsync();
             string connStr = null;
             int? typeId = null;
+            string type = null;
             try
             {
                 var json = JsonConvert.DeserializeObject<JToken>(body);
                 connStr = (string)json["connStr"];
                 typeId = (int?)json["typeId"];
+                type = (string)json["type"];
                 if (string.IsNullOrWhiteSpace(connStr))
                 {
                     throw new Exception("Null or empty connection string");
@@ -96,6 +106,19 @@ namespace DiagnosticsExtension.Controllers
             {
                 return Request.CreateErrorResponse(HttpStatusCode.BadRequest, e);
             }
+            if (typeId == null && type != null) 
+            {
+                bool success = Enum.TryParse(type, out ConnectionStringType csType);
+                if (success)
+                {
+                    typeId = (int) csType;
+                }
+                else
+                {
+                    return Request.CreateErrorResponse(HttpStatusCode.BadRequest, $"type {type} is not supported");
+                }
+            }
+
             var result = await Validate(connStr, typeId);
             return result;
         }
@@ -113,6 +136,21 @@ namespace DiagnosticsExtension.Controllers
             else
             {
                 return Request.CreateErrorResponse(HttpStatusCode.NotFound, $"AppSetting {appSettingName} not found");
+            }
+        }
+
+        [HttpGet]
+        [Route("validateappsetting")]
+        public async Task<HttpResponseMessage> ValidateAppSetting(string appSettingName, string type)
+        {
+            bool success = Enum.TryParse(type, out ConnectionStringType csType);
+            if (success)
+            {
+                return await ValidateAppSetting(appSettingName, (int)csType);
+            }
+            else
+            {
+                return Request.CreateErrorResponse(HttpStatusCode.BadRequest, $"type {type} is not supported");
             }
         }
     }

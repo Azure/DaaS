@@ -73,67 +73,76 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                     }
 
                     MsiValidator msi = new MsiValidator();
-                    MsiValidatorInput input = new MsiValidatorInput(ResourceType.KeyVault, clientId);
-                    bool success = await msi.GetTokenAsync(input);
-                    var msiResult = msi.Result.GetTokenTestResult;
-                    if (success)
+                    if (msi.IsEnabled())
                     {
-                        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", msiResult.TokenInformation.AccessToken);
-                        var resp = await client.GetAsync(connStr);
-                        int statusCode = (int)resp.StatusCode;
-                        response.Payload = $"StatusCode: {statusCode}";
-                        if (statusCode >= 200 && statusCode < 300)
+                        MsiValidatorInput input = new MsiValidatorInput(ResourceType.KeyVault, clientId);
+                        bool success = await msi.GetTokenAsync(input);
+                        var msiResult = msi.Result.GetTokenTestResult;
+
+                        if (success)
                         {
-                            response.Status = ConnectionStringValidationResult.ResultStatus.Success;
-                        }
-                        else if (statusCode == 401)
-                        {
-                            response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
-                        }
-                        else if (statusCode == 403)
-                        {
-                            response.Status = ConnectionStringValidationResult.ResultStatus.Forbidden;
-                        }
-                        else if (statusCode == 404)
-                        {
-                            response.Status = ConnectionStringValidationResult.ResultStatus.ContentNotFound;
+                            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", msiResult.TokenInformation.AccessToken);
                         }
                         else
                         {
-                            response.Status = ConnectionStringValidationResult.ResultStatus.UnknownResponse;
+                            response.Status = ConnectionStringValidationResult.ResultStatus.MsiFailure;
+                            var e = new Exception(msiResult.ErrorDetails.Message);
+                            e.Data["AdalError"] = msiResult.ErrorDetails;
+                            throw e;
                         }
+                    }
+
+                    var resp = await client.GetAsync(connStr);
+                    int statusCode = (int)resp.StatusCode;
+                    response.Payload = $"StatusCode: {statusCode}";
+                    if (resp.IsSuccessStatusCode)
+                    {
+                        response.Status = ConnectionStringValidationResult.ResultStatus.Success;
+                    }
+                    else if (statusCode == 401)
+                    {
+                        response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
+                    }
+                    else if (statusCode == 403)
+                    {
+                        response.Status = ConnectionStringValidationResult.ResultStatus.Forbidden;
+                    }
+                    else if (statusCode == 404)
+                    {
+                        response.Status = ConnectionStringValidationResult.ResultStatus.ContentNotFound;
                     }
                     else
                     {
-                        response.Status = ConnectionStringValidationResult.ResultStatus.MsiFailure;
-                        var e = new Exception(msiResult.ErrorDetails.Message);
-                        e.Data["AdalError"] = msiResult.ErrorDetails;
-                        response.Exception = e;
+                        response.Status = ConnectionStringValidationResult.ResultStatus.UnknownResponse;
                     }
+
                 }
                 catch (Exception e)
                 {
-                    if (e is MalformedConnectionStringException)
+                    response.Exception = e;
+                    if (response.Status == null)
                     {
-                        response.Status = ConnectionStringValidationResult.ResultStatus.MalformedConnectionString;
-                    }
-                    else if (e is HttpRequestException)
-                    {
-                        var inner = e.InnerException;
-                        if (inner != null && (inner.Message.StartsWith("The remote name could not be resolved") || inner.Message.StartsWith("Unable to connect to the remote server")))
+                        if (e is MalformedConnectionStringException)
                         {
-                            response.Status = ConnectionStringValidationResult.ResultStatus.EndpointNotReachable;
+                            response.Status = ConnectionStringValidationResult.ResultStatus.MalformedConnectionString;
+                        }
+                        else if (e is HttpRequestException)
+                        {
+                            var inner = e.InnerException;
+                            if (inner != null && (inner.Message.StartsWith("The remote name could not be resolved") || inner.Message.StartsWith("Unable to connect to the remote server")))
+                            {
+                                response.Status = ConnectionStringValidationResult.ResultStatus.EndpointNotReachable;
+                            }
+                            else
+                            {
+                                response.Status = ConnectionStringValidationResult.ResultStatus.ConnectionFailure;
+                            }
                         }
                         else
                         {
-                            response.Status = ConnectionStringValidationResult.ResultStatus.ConnectionFailure;
+                            response.Status = ConnectionStringValidationResult.ResultStatus.UnknownError;
                         }
                     }
-                    else
-                    {
-                        response.Status = ConnectionStringValidationResult.ResultStatus.UnknownError;
-                    }
-                    response.Exception = e;
                 }
             }
 
