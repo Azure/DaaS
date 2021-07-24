@@ -28,7 +28,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             return true;
         }
 
-        async public Task<ConnectionStringValidationResult> Validate(string connStr, string clientId = null)
+        public async Task<ConnectionStringValidationResult> Validate(string connStr, string clientId = null)
         {
             var response = new ConnectionStringValidationResult(Type);
 
@@ -43,7 +43,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                     throw new MalformedConnectionStringException(e.Message ,e);
                 }
 
-                var result = await DatabaseTestController.TestSqlServerConnectionString(connStr, null, clientId);
+                var result = await TestSqlServerConnectionString(connStr, null, clientId);
                 if (result.Succeeded)
                 {
                     response.Status = ConnectionStringValidationResult.ResultStatus.Success;
@@ -104,6 +104,58 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             }
 
             return response;
+        }
+
+        public async Task<TestConnectionData> TestSqlServerConnectionString(string connectionString, string name, string clientId)
+        {
+            TestConnectionData data = new TestConnectionData
+            {
+                ConnectionString = connectionString,
+                Name = name
+            };
+            data.Succeeded = false;
+
+            using (SqlConnection conn = new SqlConnection())
+            {
+                conn.ConnectionString = connectionString;
+                SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder(conn.ConnectionString);
+                string userId = builder.UserID;
+                string password = builder.Password;
+                bool hasConnectivityWithAzureAd = true;
+
+                if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(password))
+                {
+                    // when we have access token from azure ad
+                    MsiValidator msi = new MsiValidator();
+
+                    data.IsMsiEnabled = msi.IsEnabled();
+
+                    if (data.IsMsiEnabled)
+                    {
+                        MsiValidatorInput input = new MsiValidatorInput(ResourceType.Sql, clientId);
+                        hasConnectivityWithAzureAd = await msi.GetTokenAsync(input);
+
+                        if (hasConnectivityWithAzureAd)
+                        {
+                            conn.AccessToken = msi.Result.GetTokenTestResult.TokenInformation.AccessToken;
+                            await conn.OpenAsync();
+                            data.Succeeded = true;
+                        }
+                        else
+                        {
+                            data.MsiAdalError = msi.Result.GetTokenTestResult.ErrorDetails;
+                        }
+                    }
+                }
+                else
+                {
+                    // when connectionString has credentials
+                    await conn.OpenAsync();
+                    data.Succeeded = true;
+                }
+            }
+
+            return data;
         }
     }
 }

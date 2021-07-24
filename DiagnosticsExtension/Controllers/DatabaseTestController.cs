@@ -6,6 +6,7 @@
 //-----------------------------------------------------------------------
 
 using DiagnosticsExtension.Models;
+using DiagnosticsExtension.Models.ConnectionStringValidator;
 using Microsoft.WindowsAzure.Storage;
 using MySql.Data.MySqlClient;
 using Newtonsoft.Json;
@@ -445,11 +446,13 @@ namespace DiagnosticsExtension.Controllers
             {
                 if (databaseType == DatabaseType.SqlDatabase || databaseType == DatabaseType.SqlServer)
                 {
-                    data = await TestSqlServerConnectionString(connectionString, name, clientId);
+                    var sqlServerValidator = new SqlServerValidator();
+                    data = await sqlServerValidator.TestSqlServerConnectionString(connectionString, name, clientId);
                 }
                 else if (databaseType == DatabaseType.MySql)
                 {
-                    data = await TestMySqlConnectionString(connectionString, name, clientId);
+                    var mySqlValidator = new MySqlValidator();
+                    data = await mySqlValidator.TestMySqlConnectionString(connectionString, name, clientId);
                 }
                 else if (databaseType == DatabaseType.PostgreSql)
                 {
@@ -606,21 +609,6 @@ namespace DiagnosticsExtension.Controllers
             return data;
         }
 
-        public static async Task<TestConnectionData> TestMySqlConnectionString(string connectionString, string name, string clientId)
-        {
-            TestConnectionData data = new TestConnectionData
-            {
-                ConnectionString = connectionString,
-                Name = name
-            };
-            using (MySqlConnection conn = new MySqlConnection())
-            {
-                conn.ConnectionString = connectionString;
-                await conn.OpenAsync();
-                data.Succeeded = true;
-            }
-
-            return data;
-        }
+        
     }
 }

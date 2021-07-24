@@ -43,7 +43,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                     throw new MalformedConnectionStringException(e.Message, e);
                 }
 
-                var result = await DatabaseTestController.TestMySqlConnectionString(connStr, null, clientId);
+                var result = await TestMySqlConnectionString(connStr, null, clientId);
                 if (result.Succeeded)
                 {
                     response.Status = ConnectionStringValidationResult.ResultStatus.Success;
@@ -86,6 +86,23 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             }
 
             return response;
+        }
+
+        public async Task<TestConnectionData> TestMySqlConnectionString(string connectionString, string name, string clientId)
+        {
+            TestConnectionData data = new TestConnectionData
+            {
+                ConnectionString = connectionString,
+                Name = name
+            };
+            using (MySqlConnection conn = new MySqlConnection())
+            {
+                conn.ConnectionString = connectionString;
+                await conn.OpenAsync();
+                data.Succeeded = true;
+            }
+
+            return data;
         }
     }
 }
