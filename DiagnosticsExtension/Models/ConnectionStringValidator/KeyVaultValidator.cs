@@ -20,7 +20,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
 
         public ConnectionStringType Type => ConnectionStringType.KeyVault;
 
-        public bool IsValid(string connStr)
+        public async Task<bool> IsValid(string connStr)
         {
             try
             {

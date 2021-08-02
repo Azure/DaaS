@@ -15,7 +15,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
 
         public ConnectionStringType Type => ConnectionStringType.SqlServer;
 
-        public bool IsValid(string connStr)
+        public async Task<bool> IsValid(string connStr)
         {
             try
             {
@@ -34,15 +34,6 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
 
             try
             {
-                try
-                {
-                    var builder = new SqlConnectionStringBuilder(connStr);
-                }
-                catch (Exception e)
-                {
-                    throw new MalformedConnectionStringException(e.Message ,e);
-                }
-
                 var result = await TestSqlServerConnectionString(connStr, null, clientId);
                 if (result.Succeeded)
                 {
@@ -114,6 +105,15 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                 Name = name
             };
             data.Succeeded = false;
+
+            try
+            {
+                var builder = new SqlConnectionStringBuilder(connectionString);
+            }
+            catch (Exception e)
+            {
+                throw new MalformedConnectionStringException(e.Message, e);
+            }
 
             using (SqlConnection conn = new SqlConnection())
             {
