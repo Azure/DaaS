@@ -38,8 +38,8 @@ namespace DiagnosticsExtension.Controllers
                 new MySqlValidator(),
                 new KeyVaultValidator(),
                 new StorageValidator(),
-                //new ServiceBusValidator(),
-                //new EventHubsValidator(),
+                new ServiceBusValidator(),
+                new EventHubsValidator(),
                 new HttpValidator()
             };
             typeValidatorMap = validators.ToDictionary(v => v.Type, v => v);
