@@ -51,6 +51,24 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                 {
                     response.Status = ConnectionStringValidationResult.ResultStatus.EmptyConnectionString;
                 }
+                else if (e is ArgumentNullException ||
+                         e.Message.Contains("could not be found") ||
+                         e.Message.Contains("was not found"))
+                {
+                    response.Status = ConnectionStringValidationResult.ResultStatus.MalformedConnectionString;
+                }
+                else if (e.Message.Contains("No such host is known"))
+                {
+                    response.Status = ConnectionStringValidationResult.ResultStatus.DnsLookupFailed;
+                }
+                else if (e.Message.Contains("InvalidSignature"))
+                {
+                    response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
+                }
+                else if (e.Message.Contains("Ip has been prevented to connect to the endpoint"))
+                {
+                    response.Status = ConnectionStringValidationResult.ResultStatus.Forbidden;
+                }
                 else
                 {
                     response.Status = ConnectionStringValidationResult.ResultStatus.UnknownError;
@@ -70,6 +88,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                 Succeeded = true
             };
             var client = EventHubClient.CreateFromConnectionString(connectionString);
+            await client.GetRuntimeInformationAsync();
             await client.CloseAsync();
 
             return data;
