@@ -1,8 +1,10 @@
 ﻿using DiagnosticsExtension.Controllers;
 using DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions;
 using Microsoft.Azure.ServiceBus;
+using Microsoft.Azure.ServiceBus.Core;
 using Microsoft.Azure.ServiceBus.Management;
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace DiagnosticsExtension.Models.ConnectionStringValidator
@@ -56,10 +58,25 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                 {
                     response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
                 }
+                else if (e is ArgumentException && e.Message.Contains("entityPath is null") ||
+                         e.Message.Contains("HostNotFound") ||
+                         e.Message.Contains("could not be found") ||
+                         e.Message.Contains("The argument  is null or white space"))
+                {
+                    response.Status = ConnectionStringValidationResult.ResultStatus.MalformedConnectionString;
+                }
                 else if (e.InnerException != null && e.InnerException.InnerException != null &&
                          e.InnerException.InnerException.Message.Contains("The remote name could not be resolved"))
                 {
                     response.Status = ConnectionStringValidationResult.ResultStatus.DnsLookupFailed;
+                }
+                else if (e.Message.Contains("claim is empty or token is invalid"))
+                {
+                    response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
+                }
+                else if (e.Message.Contains("Ip has been prevented to connect to the endpoint"))
+                {
+                    response.Status = ConnectionStringValidationResult.ResultStatus.Forbidden;
                 }
                 else
                 {
@@ -77,10 +94,10 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             {
                 throw new EmptyConnectionStringException();
             }
-            ServiceBusConnectionStringBuilder builder = null;
+            ServiceBusConnectionStringBuilder connectionStringBuilder = null;
             try
             {
-                builder = new ServiceBusConnectionStringBuilder(connectionString);
+                connectionStringBuilder = new ServiceBusConnectionStringBuilder(connectionString);
             }
             catch (Exception e)
             {
@@ -93,9 +110,9 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                 Succeeded = true
             };
 
-            var mgmtClient = new ManagementClient(builder);
-            //await mgmtClient.GetNamespaceInfoAsync();
-            await mgmtClient.GetQueuesAsync();
+            MessageReceiver msgReceiver = new MessageReceiver(connectionStringBuilder, ReceiveMode.PeekLock, prefetchCount: 1);
+            Message msg = await msgReceiver.PeekAsync();
+
             return data;
         }
     }
