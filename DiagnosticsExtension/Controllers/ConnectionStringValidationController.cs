@@ -37,6 +37,9 @@ namespace DiagnosticsExtension.Controllers
                 new SqlServerValidator(),
                 new MySqlValidator(),
                 new KeyVaultValidator(),
+                new StorageValidator(),
+                new ServiceBusValidator(),
+                new EventHubsValidator(),
                 new HttpValidator()
             };
             typeValidatorMap = validators.ToDictionary(v => v.Type, v => v);
@@ -44,42 +47,32 @@ namespace DiagnosticsExtension.Controllers
 
         [HttpGet]
         [Route("validate")]
-        public async Task<HttpResponseMessage> Validate(string connStr, int? typeId = null)
+        public async Task<HttpResponseMessage> Validate(string connStr, string type)
         {
-            
-
-            if (typeId != null)
+            bool success = Enum.TryParse(type, out ConnectionStringType csType);
+            if (success)
             {
-                var enumType = (ConnectionStringType)typeId.Value;
-                if (typeValidatorMap.ContainsKey(enumType))
-                {
-                    var result = await typeValidatorMap[enumType].Validate(connStr);
-                    return Request.CreateResponse(HttpStatusCode.OK, result);
-                }
-                else
-                {
-                    return Request.CreateErrorResponse(HttpStatusCode.NotFound, $"No supported validator found for typeId={typeId.Value}");
-                }
+                return await Validate(connStr, (int)csType);
             }
             else
             {
-                var exceptions = new List<Exception>();
-                foreach (var validator in validators)
-                {
-                    try
-                    {
-                        if (validator.IsValid(connStr))
-                        {
-                            var result = await validator.Validate(connStr);
-                            return Request.CreateResponse(HttpStatusCode.OK, result);
-                        }
-                    }
-                    catch (Exception e)
-                    {
-                        exceptions.Add(e);
-                    }
-                }
-                return Request.CreateErrorResponse(HttpStatusCode.NotFound, new AggregateException($"No supported validator found for provided connection string", exceptions));
+                return Request.CreateErrorResponse(HttpStatusCode.BadRequest, $"type '{type}' is not supported");
+            }
+        }
+
+        [HttpGet]
+        [Route("validate")]
+        public async Task<HttpResponseMessage> Validate(string connStr, int typeId)
+        {
+            var enumType = (ConnectionStringType)typeId;
+            if (typeValidatorMap.ContainsKey(enumType))
+            {
+                var result = await typeValidatorMap[enumType].ValidateAsync(connStr);
+                return Request.CreateResponse(HttpStatusCode.OK, result);
+            }
+            else
+            {
+                return Request.CreateErrorResponse(HttpStatusCode.NotFound, $"No supported validator found for typeId={typeId}");
             }
         }
 
@@ -101,6 +94,10 @@ namespace DiagnosticsExtension.Controllers
                 {
                     throw new Exception("Null or empty connection string");
                 }
+                if (typeId == null && type == null)
+                {
+                    throw new Exception("Either typeId or type are required");
+                }
             }
             catch (Exception e)
             {
@@ -115,17 +112,17 @@ namespace DiagnosticsExtension.Controllers
                 }
                 else
                 {
-                    return Request.CreateErrorResponse(HttpStatusCode.BadRequest, $"type {type} is not supported");
+                    return Request.CreateErrorResponse(HttpStatusCode.BadRequest, $"type '{type}' is not supported");
                 }
             }
 
-            var result = await Validate(connStr, typeId);
+            var result = await Validate(connStr, typeId.Value);
             return result;
         }
 
         [HttpGet]
         [Route("validateappsetting")]
-        public async Task<HttpResponseMessage> ValidateAppSetting(string appSettingName, int? typeId = null)
+        public async Task<HttpResponseMessage> ValidateAppSetting(string appSettingName, int typeId)
         {
             var envDict = Environment.GetEnvironmentVariables();
             if (envDict.Contains(appSettingName))

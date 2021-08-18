@@ -20,14 +20,10 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
 
         public ConnectionStringType Type => ConnectionStringType.Http;
 
-        public bool IsValid(string connStr)
+        public async Task<bool> IsValidAsync(string connStr)
         {
             try
             {
-                if (!connStr.StartsWith("http"))
-                {
-                    connStr += "https://";
-                }
                 var uri = new Uri(connStr);
                 return true;
             }
@@ -37,7 +33,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             }
         }
 
-        async public Task<ConnectionStringValidationResult> Validate(string connStr, string clientId = null)
+        async public Task<ConnectionStringValidationResult> ValidateAsync(string connStr, string clientId = null)
         {
             var response = new ConnectionStringValidationResult(Type);
 

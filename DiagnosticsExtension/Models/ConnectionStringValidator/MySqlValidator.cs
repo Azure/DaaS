@@ -15,7 +15,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
 
         public ConnectionStringType Type => ConnectionStringType.MySql;
 
-        public bool IsValid(string connStr)
+        public async Task<bool> IsValidAsync(string connStr)
         {
             try
             {
@@ -28,21 +28,12 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             return true;
         }
 
-        async public Task<ConnectionStringValidationResult> Validate(string connStr, string clientId = null)
+        async public Task<ConnectionStringValidationResult> ValidateAsync(string connStr, string clientId = null)
         {
             var response = new ConnectionStringValidationResult(Type);
 
             try
             {
-                try
-                {
-                    var builder = new MySqlConnectionStringBuilder(connStr);
-                }
-                catch (Exception e)
-                {
-                    throw new MalformedConnectionStringException(e.Message, e);
-                }
-
                 var result = await TestMySqlConnectionString(connStr, null, clientId);
                 if (result.Succeeded)
                 {
@@ -90,6 +81,15 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
 
         public async Task<TestConnectionData> TestMySqlConnectionString(string connectionString, string name, string clientId)
         {
+            try
+            {
+                var builder = new MySqlConnectionStringBuilder(connectionString);
+            }
+            catch (Exception e)
+            {
+                throw new MalformedConnectionStringException(e.Message, e);
+            }
+
             TestConnectionData data = new TestConnectionData
             {
                 ConnectionString = connectionString,

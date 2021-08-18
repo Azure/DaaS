@@ -29,7 +29,9 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             UnknownResponse,
             EndpointNotReachable,
             ConnectionFailure,
+            DnsLookupFailed,
             MsiFailure,
+            EmptyConnectionString,
             MalformedConnectionString,
             UnknownError
         }
