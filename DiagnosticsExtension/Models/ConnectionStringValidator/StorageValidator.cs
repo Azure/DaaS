@@ -104,9 +104,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
 
             CloudBlobClient client = storageAccount.CreateCloudBlobClient();
             client.GetServiceProperties();
-            IEnumerable<CloudBlobContainer> containers = client.ListContainers();
-            if (containers.Count() == 0)
-            { }
+            client.ListContainers();
 
             return data;
         }
