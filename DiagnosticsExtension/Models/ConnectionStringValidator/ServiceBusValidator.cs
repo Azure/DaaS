@@ -15,7 +15,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
 
         public ConnectionStringType Type => ConnectionStringType.ServiceBus;
 
-        public async Task<bool> IsValid(string connectionString)
+        public async Task<bool> IsValidAsync(string connectionString)
         {
             try
             {
@@ -28,7 +28,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             return true;
         }
 
-        async public Task<ConnectionStringValidationResult> Validate(string connectionString, string clientId = null)
+        async public Task<ConnectionStringValidationResult> ValidateAsync(string connectionString, string clientId = null)
         {
             var response = new ConnectionStringValidationResult(Type);
 

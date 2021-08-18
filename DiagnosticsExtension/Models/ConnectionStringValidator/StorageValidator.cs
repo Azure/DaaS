@@ -15,7 +15,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
 
         public ConnectionStringType Type => ConnectionStringType.StorageAccount;
 
-        public async Task<bool> IsValid(string connStr)
+        public async Task<bool> IsValidAsync(string connStr)
         {
             try
             {
@@ -28,7 +28,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             return true;
         }
 
-        public async Task<ConnectionStringValidationResult> Validate(string connStr, string clientId = null)
+        public async Task<ConnectionStringValidationResult> ValidateAsync(string connStr, string clientId = null)
         {
             var response = new ConnectionStringValidationResult(Type);
 

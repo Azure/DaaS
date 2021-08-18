@@ -67,7 +67,7 @@ namespace DiagnosticsExtension.Controllers
             var enumType = (ConnectionStringType)typeId;
             if (typeValidatorMap.ContainsKey(enumType))
             {
-                var result = await typeValidatorMap[enumType].Validate(connStr);
+                var result = await typeValidatorMap[enumType].ValidateAsync(connStr);
                 return Request.CreateResponse(HttpStatusCode.OK, result);
             }
             else
