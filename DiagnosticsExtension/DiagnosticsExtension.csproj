@@ -291,6 +291,7 @@
     <Compile Include="Controllers\SessionsController.cs" />
     <Compile Include="Controllers\StdoutLogsController.cs" />
     <Compile Include="LoggingHandler.cs" />
+    <Compile Include="Models\ConnectionStringValidator\ConnectionStringRequestBody.cs" />
     <Compile Include="Models\ConnectionStringValidator\ConnectionStringType.cs" />
     <Compile Include="Models\ConnectionStringValidator\ConnectionStringValidationResult.cs" />
     <Compile Include="Models\ConnectionStringValidator\EventHubsValidator.cs" />

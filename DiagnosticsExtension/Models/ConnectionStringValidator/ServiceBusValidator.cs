@@ -1,4 +1,11 @@
-﻿using DiagnosticsExtension.Controllers;
+﻿//-----------------------------------------------------------------------
+// <copyright file="ServiceBusValidator.cs" company="Microsoft Corporation">
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See LICENSE in the project root for license information.
+// </copyright>
+//-----------------------------------------------------------------------
+
+using DiagnosticsExtension.Controllers;
 using DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions;
 using Microsoft.Azure.ServiceBus;
 using Microsoft.Azure.ServiceBus.Core;
@@ -34,7 +41,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
 
             try
             {
-                var result = await TestConnectionString(connectionString, null, clientId);
+                var result = await TestConnectionStringAsync(connectionString, null, clientId);
                 if (result.Succeeded)
                 {
                     response.Status = ConnectionStringValidationResult.ResultStatus.Success;
@@ -54,7 +61,9 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                 {
                     response.Status = ConnectionStringValidationResult.ResultStatus.EmptyConnectionString;
                 }
-                else if (e is ArgumentException && e.Message.Contains("Authentication "))
+                else if ((e is ArgumentException && e.Message.Contains("Authentication ")) ||
+                         e.Message.Contains("claim is empty or token is invalid") ||
+                         e.Message.Contains("InvalidSignature"))
                 {
                     response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
                 }
@@ -70,10 +79,6 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                 {
                     response.Status = ConnectionStringValidationResult.ResultStatus.DnsLookupFailed;
                 }
-                else if (e.Message.Contains("claim is empty or token is invalid"))
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
-                }
                 else if (e.Message.Contains("Ip has been prevented to connect to the endpoint"))
                 {
                     response.Status = ConnectionStringValidationResult.ResultStatus.Forbidden;
@@ -88,7 +93,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             return response;
         }
 
-        protected async Task<TestConnectionData> TestConnectionString(string connectionString, string name = null, string clientId = null)
+        protected async Task<TestConnectionData> TestConnectionStringAsync(string connectionString, string name = null, string clientId = null)
         {
             if (String.IsNullOrEmpty(connectionString))
             {

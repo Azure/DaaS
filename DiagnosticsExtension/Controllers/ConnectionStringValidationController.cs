@@ -1,5 +1,5 @@
 //-----------------------------------------------------------------------
-// <copyright file="UdpEchoTestController.cs" company="Microsoft Corporation">
+// <copyright file="ConnectionStringValidationController.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 // </copyright>
@@ -26,13 +26,12 @@ namespace DiagnosticsExtension.Controllers
     [RoutePrefix("api/connectionstringvalidation")]
     public class ConnectionStringValidationController : ApiController
     {
-        private IConnectionStringValidator[] validators;
-        private Dictionary<ConnectionStringType, IConnectionStringValidator> typeValidatorMap;
+        private readonly Dictionary<ConnectionStringType, IConnectionStringValidator> typeValidatorMap;
 
         public ConnectionStringValidationController()
         {
             // register all validators here, the order of validators decides the order of connection string matching
-            validators = new IConnectionStringValidator[]
+            var validators = new IConnectionStringValidator[]
             {
                 new SqlServerValidator(),
                 new MySqlValidator(),
@@ -50,104 +49,47 @@ namespace DiagnosticsExtension.Controllers
         public async Task<HttpResponseMessage> Validate(string connStr, string type)
         {
             bool success = Enum.TryParse(type, out ConnectionStringType csType);
-            if (success)
+            if (success && typeValidatorMap.ContainsKey(csType))
             {
-                return await Validate(connStr, (int)csType);
-            }
-            else
-            {
-                return Request.CreateErrorResponse(HttpStatusCode.BadRequest, $"type '{type}' is not supported");
-            }
-        }
-
-        [HttpGet]
-        [Route("validate")]
-        public async Task<HttpResponseMessage> Validate(string connStr, int typeId)
-        {
-            var enumType = (ConnectionStringType)typeId;
-            if (typeValidatorMap.ContainsKey(enumType))
-            {
-                var result = await typeValidatorMap[enumType].ValidateAsync(connStr);
+                var result = await typeValidatorMap[csType].ValidateAsync(connStr);
                 return Request.CreateResponse(HttpStatusCode.OK, result);
             }
             else
             {
-                return Request.CreateErrorResponse(HttpStatusCode.NotFound, $"No supported validator found for typeId={typeId}");
+                return Request.CreateErrorResponse(HttpStatusCode.BadRequest, $"Type '{type}' is not supported");
             }
         }
 
         [HttpPost]
         [Route("validate")]
-        public async Task<HttpResponseMessage> Validate()
+        public async Task<HttpResponseMessage> Validate([FromBody] ConnectionStringRequestBody requestBody)
         {
-            var body = await Request.Content.ReadAsStringAsync();
-            string connStr = null;
-            int? typeId = null;
-            string type = null;
-            try
+            if (string.IsNullOrWhiteSpace(requestBody.ConnectionString))
             {
-                var json = JsonConvert.DeserializeObject<JToken>(body);
-                connStr = (string)json["connStr"];
-                typeId = (int?)json["typeId"];
-                type = (string)json["type"];
-                if (string.IsNullOrWhiteSpace(connStr))
-                {
-                    throw new Exception("Null or empty connection string");
-                }
-                if (typeId == null && type == null)
-                {
-                    throw new Exception("Either typeId or type are required");
-                }
+                return Request.CreateErrorResponse(HttpStatusCode.BadRequest, "ConnectionString is not specified in the request body");
             }
-            catch (Exception e)
+            if (string.IsNullOrWhiteSpace(requestBody.Type))
             {
-                return Request.CreateErrorResponse(HttpStatusCode.BadRequest, e);
-            }
-            if (typeId == null && type != null) 
-            {
-                bool success = Enum.TryParse(type, out ConnectionStringType csType);
-                if (success)
-                {
-                    typeId = (int) csType;
-                }
-                else
-                {
-                    return Request.CreateErrorResponse(HttpStatusCode.BadRequest, $"type '{type}' is not supported");
-                }
+                return Request.CreateErrorResponse(HttpStatusCode.BadRequest, "Type is not specified in the request body");
             }
 
-            var result = await Validate(connStr, typeId.Value);
+            var result = await Validate(requestBody.ConnectionString, requestBody.Type);
             return result;
-        }
-
-        [HttpGet]
-        [Route("validateappsetting")]
-        public async Task<HttpResponseMessage> ValidateAppSetting(string appSettingName, int typeId)
-        {
-            var envDict = Environment.GetEnvironmentVariables();
-            if (envDict.Contains(appSettingName))
-            {
-                var connectionString = (string)envDict[appSettingName];
-                return await Validate(connectionString, typeId);
-            }
-            else
-            {
-                return Request.CreateErrorResponse(HttpStatusCode.NotFound, $"AppSetting {appSettingName} not found");
-            }
         }
 
         [HttpGet]
         [Route("validateappsetting")]
         public async Task<HttpResponseMessage> ValidateAppSetting(string appSettingName, string type)
         {
-            bool success = Enum.TryParse(type, out ConnectionStringType csType);
-            if (success)
+            var envDict = Environment.GetEnvironmentVariables();
+            if (envDict.Contains(appSettingName))
             {
-                return await ValidateAppSetting(appSettingName, (int)csType);
+                var connectionString = (string)envDict[appSettingName];
+                return await Validate(connectionString, type);
             }
             else
             {
-                return Request.CreateErrorResponse(HttpStatusCode.BadRequest, $"type {type} is not supported");
+                return Request.CreateErrorResponse(HttpStatusCode.NotFound, $"AppSetting {appSettingName} not found");
             }
         }
     }

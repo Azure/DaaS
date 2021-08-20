@@ -1,4 +1,11 @@
-﻿using DiagnosticsExtension.Controllers;
+﻿//-----------------------------------------------------------------------
+// <copyright file="EventHubsValidator.cs" company="Microsoft Corporation">
+// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License. See LICENSE in the project root for license information.
+// </copyright>
+//-----------------------------------------------------------------------
+
+using DiagnosticsExtension.Controllers;
 using DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions;
 using Microsoft.Azure.EventHubs;
 using System;
@@ -31,7 +38,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
 
             try
             {
-                var result = await TestConnectionString(connectionString, null, clientId);
+                var result = await TestConnectionStringAsync(connectionString, null, clientId);
                 if (result.Succeeded)
                 {
                     response.Status = ConnectionStringValidationResult.ResultStatus.Success;
@@ -79,7 +86,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             return response;
         }
 
-        protected async Task<TestConnectionData> TestConnectionString(string connectionString, string name, string clientId)
+        protected async Task<TestConnectionData> TestConnectionStringAsync(string connectionString, string name, string clientId)
         {
             TestConnectionData data = new TestConnectionData
             {
