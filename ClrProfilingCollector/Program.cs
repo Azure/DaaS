@@ -1,9 +1,9 @@
-//-----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="Program.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using System;
 using System.Collections.Generic;
@@ -29,12 +29,13 @@ namespace ClrProflingCollector
             string daasOutputFilePath = args[0];
 
             bool Is64bit = false;
-            bool collectRawStacks = args.Contains("collectRawStacks") ? true : false;
-            bool cpuStacksOnly = args.Contains("cpuStacksOnly") ? true : false;
+            bool collectRawStacks = args.Contains("collectRawStacks");
+            bool cpuStacksOnly = args.Contains("cpuStacksOnly");
             if (cpuStacksOnly)
             {
                 collectRawStacks = false;
             }
+
             Logger.Init("", daasOutputFilePath, "ClrProfilingCollector", true);
 
             ClrProfilingCollectorStats stats = new ClrProfilingCollectorStats
@@ -129,7 +130,7 @@ namespace ClrProflingCollector
 
             if (result.StatusCode != System.Net.HttpStatusCode.OK)
             {
-                Logger.TraceFatal($"Failed to profile process {processId.ToString()}. Profiling call failed with {result.StatusCode }", false);
+                Logger.TraceFatal($"Failed to profile process {processId}. Profiling call failed with {result.StatusCode }", false);
                 Logger.LogDiagnoserErrorEvent($"Failed to start profiling for the process", $"Profiling call failed with {result.StatusCode } and message {result.Message}");
                 return;
             }

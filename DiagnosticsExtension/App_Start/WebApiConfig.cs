@@ -1,9 +1,9 @@
-//-----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="WebApiConfig.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using System;
 using System.Collections.Generic;
@@ -48,6 +48,30 @@ namespace DiagnosticsExtension
                 name: "SessionApi",
                 routeTemplate: "api/session/{sessionId}/{detailed}",
                 defaults: new { controller = "SingleSession", detailed = RouteParameter.Optional }
+            );
+
+            config.Routes.MapHttpRoute(
+                name: "SessionV2Api",
+                routeTemplate: "sessions/{sessionId}",
+                defaults: new { controller = "SessionV2",  sessionId = RouteParameter.Optional}
+            );
+
+            config.Routes.MapHttpRoute(
+                name: "ActiveSessionV2Api",
+                routeTemplate: "activesession",
+                defaults: new { controller = "ActiveSessionV2"}
+            );
+
+            config.Routes.MapHttpRoute(
+                name: "DiagnosersV2Api",
+                routeTemplate: "diagnosers",
+                defaults: new { controller = "DiagnosersV2"}
+            );
+
+            config.Routes.MapHttpRoute(
+                name: "SettingsV2Api",
+                routeTemplate: "settings",
+                defaults: new { controller = "SettingsV2" }
             );
 
             config.Routes.MapHttpRoute(

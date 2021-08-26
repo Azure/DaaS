@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.27130.2027
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.31529.145
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DaaS", "DaaS\DaaS.csproj", "{DABB639A-C90B-4FC7-8715-6AAB66671C57}"
 EndProject
@@ -45,6 +45,16 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StackTracer64", "StackTracer64\StackTracer64.csproj", "{45A1002B-3ADD-4FDE-9A66-372DD8CF6ACF}"
 	ProjectSection(ProjectDependencies) = postProject
 		{DABB639A-C90B-4FC7-8715-6AAB66671C57} = {DABB639A-C90B-4FC7-8715-6AAB66671C57}
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DiagnosticAnalysisLauncher", "DiagnosticAnalysisLauncher\DiagnosticAnalysisLauncher.csproj", "{906659C0-743D-41F5-97A0-4D7B4354C22A}"
+	ProjectSection(ProjectDependencies) = postProject
+		{DABB639A-C90B-4FC7-8715-6AAB66671C57} = {DABB639A-C90B-4FC7-8715-6AAB66671C57}
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{E7F4BBF3-B31F-46F2-AD63-FAFD895FF1D6}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
 	EndProjectSection
 EndProject
 Global
@@ -97,6 +107,10 @@ Global
 		{45A1002B-3ADD-4FDE-9A66-372DD8CF6ACF}.Debug|x64.Build.0 = Debug|x64
 		{45A1002B-3ADD-4FDE-9A66-372DD8CF6ACF}.Release|x64.ActiveCfg = Release|x64
 		{45A1002B-3ADD-4FDE-9A66-372DD8CF6ACF}.Release|x64.Build.0 = Release|x64
+		{906659C0-743D-41F5-97A0-4D7B4354C22A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{906659C0-743D-41F5-97A0-4D7B4354C22A}.Debug|x64.Build.0 = Debug|Any CPU
+		{906659C0-743D-41F5-97A0-4D7B4354C22A}.Release|x64.ActiveCfg = Release|Any CPU
+		{906659C0-743D-41F5-97A0-4D7B4354C22A}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

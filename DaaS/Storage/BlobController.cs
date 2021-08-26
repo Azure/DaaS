@@ -1,9 +1,9 @@
-//-----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="BlobController.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using System;
 using System.Collections.Concurrent;
@@ -139,7 +139,7 @@ namespace DaaS.Storage
             
             blobSasUri = GetActualBlobSasUri(blobSasUri);
             var blobUriSections = blobSasUri.Split('?');
-            if (blobSasUri.Length >= 2)
+            if (blobUriSections.Length >= 2)
             {
                 var path = blobUriSections[0] + "/" + relativeFilePath.ConvertBackSlashesToForwardSlashes() + "?" +
                            string.Join("?", blobUriSections, 1, blobUriSections.Length - 1);
