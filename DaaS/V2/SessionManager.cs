@@ -59,6 +59,12 @@ namespace DaaS.V2
 
         public async Task<string> SubmitNewSessionAsync(Session session)
         {
+            var computeMode = Environment.GetEnvironmentVariable("WEBSITE_COMPUTE_MODE");
+            if (computeMode != null && !computeMode.Equals("Dedicated", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new AccessViolationException("DaaS is only supported on websites running in Dedicated SKU");
+            }
+
             var activeSession = await GetActiveSessionAsync();
             if (activeSession != null)
             {

@@ -22,7 +22,7 @@ namespace DaaS.V2
         {
             var warnings = new List<string>();
             var collector = new Collector(this);
-            if (!string.IsNullOrEmpty(collector.Warning))
+            if (!string.IsNullOrWhiteSpace(collector.Warning))
             {
                 if (!collector.PreValidationSucceeded(out string additionalInfo))
                 {

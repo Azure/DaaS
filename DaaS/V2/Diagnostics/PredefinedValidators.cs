@@ -82,6 +82,20 @@ namespace DaaS.V2
             return javaExePath;
         }
 
+        private bool CheckToolExists(string toolPath, string toolName, out string additionalError)
+        {
+            additionalError = string.Empty;
+            var javaToolPath = Path.Combine(toolPath, toolName);
+            if (File.Exists(javaToolPath))
+            {
+                return true;
+            }
+
+            var jcmdPath = Path.Combine(toolPath, "jcmd.exe");
+            additionalError = GetAdditionalError(toolName, jcmdPath);
+            return false;
+        }
+
         private bool CheckJavaProcessAndTools(string toolName, out string AdditionalError)
         {
             AdditionalError = string.Empty;
@@ -94,17 +108,8 @@ namespace DaaS.V2
             var javaFolderPath = GetJavaFolderPathFromConfig(out bool pathInConfigNotJavaExe);
             if (!string.IsNullOrWhiteSpace(javaFolderPath))
             {
-                var javaToolPath = Path.Combine(javaFolderPath, toolName);
-                if (File.Exists(javaToolPath))
-                {
-                    return true;
-                }
-                else
-                {
-                    var jcmdPath = Path.Combine(javaFolderPath, "jcmd.exe");
-                    AdditionalError = GetAdditionalError(toolName, jcmdPath);
-                    return false;
-                }
+
+                return CheckToolExists(javaFolderPath, toolName, out AdditionalError);
             }
             else
             {
@@ -115,18 +120,9 @@ namespace DaaS.V2
                 var rtJarHandle = GetJarFileHandle(javaProcess.Id);
                 if (!string.IsNullOrWhiteSpace(rtJarHandle) && rtJarHandle.Length > 0)
                 {
-                    var parentPath = rtJarHandle.Replace(@"\jre\lib\rt.jar", "").Replace("c:", "d:");
-                    var javaToolPath = Path.Combine(parentPath, "bin", toolName);
-                    if (File.Exists(javaToolPath))
-                    {
-                        return true;
-                    }
-                    else
-                    {
-                        var jcmdPath = Path.Combine(parentPath, "bin", "jcmd.exe");
-                        AdditionalError = GetAdditionalError(toolName, jcmdPath);
-                        return false;
-                    }
+                    var parentPath = rtJarHandle.Replace(@"\jre\lib\rt.jar", "").Replace("c:", GetOsDrive());
+                    var javaToolPath = Path.Combine(parentPath, "bin");
+                    return CheckToolExists(javaToolPath, toolName, out AdditionalError);
                 }
                 else
                 {
@@ -143,20 +139,22 @@ namespace DaaS.V2
                     }
                     else
                     {
-                        var javaToolPath = Path.Combine(javaHome, "bin", toolName);
-                        if (File.Exists(javaToolPath))
-                        {
-                            return true;
-                        }
-                        else
-                        {
-                            var jcmdPath = Path.Combine(javaHome, "bin", "jcmd.exe");
-                            AdditionalError = GetAdditionalError(toolName, jcmdPath);
-                            return false;
-                        }
+                        var javaToolPath = Path.Combine(javaHome, "bin");
+                        return CheckToolExists(javaToolPath, toolName, out AdditionalError);
                     }
                 }
             }
+        }
+
+        private string GetOsDrive()
+        {
+            var systemDrive = Environment.GetEnvironmentVariable("SystemDrive");
+            if (!string.IsNullOrWhiteSpace(systemDrive))
+            {
+                return systemDrive;
+            }
+
+            return string.Empty;
         }
 
         private string GetJarFileHandle(int processId)
