@@ -652,7 +652,7 @@ namespace DaaS.V2
             var output = new List<Report>();
             foreach (var report in reports)
             {
-                int relativePathSegments = report.RelativePath.Split('/').Length;
+                int relativePathSegments = report.PartialRelativePath.Split('/').Length;
 
                 if (relativePathSegments == minRelativePathSegments)
                 {
@@ -688,11 +688,11 @@ namespace DaaS.V2
                 {
                     if (diagnoser.RequiresStorageAccount)
                     {
-                        log.FullPermanentStoragePath = GetPathWithSasUri(log.RelativePath);
+                        log.RelativePath = GetPathWithSasUri(log.PartialRelativePath);
                     }
                     else
                     {
-                        log.FullPermanentStoragePath = $"{Utility.GetScmHostName()}/api/vfs/{log.RelativePath}";
+                        log.RelativePath = $"{Utility.GetScmHostName()}/api/vfs/{log.PartialRelativePath}";
                     }
                 }
             }

@@ -12,9 +12,9 @@ namespace DaaS.V2
     public class Report
     {
         public string Name { get; set; }
-        public string RelativePath { get; set; }
+        public string PartialRelativePath { get; set; }
         //[JsonIgnore]
         public string TempPath { get; set; }
-        public string FullPermanentStoragePath { get; set; }
+        public string RelativePath { get; set; }
     }
 }

@@ -15,11 +15,11 @@ namespace DaaS.V2
     {
         public DateTime StartTime { get; set; }
         public string Name { get; set; }
-        public string RelativePath { get; set; }
+        public string PartialRelativePath { get; set; }
         public long Size { get; set; }
         public List<Report> Reports { get; set; } = new List<Report>();
         public string TempPath { get; set; }
-        public string FullPermanentStoragePath { get; set; }
+        public string RelativePath { get; set; }
 
         internal string GetReportTempPath(string sessionId)
         {

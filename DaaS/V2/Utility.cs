@@ -20,7 +20,7 @@ namespace DaaS.V2
         public static string GetScmHostName()
         {
             var scmHostName = Settings.Instance.DefaultScmHostName;
-            if (!string.IsNullOrEmpty(scmHostName)
+            if (!string.IsNullOrWhiteSpace(scmHostName)
                 && scmHostName.Contains(".scm."))
             {
                 return $"https://{Settings.Instance.DefaultScmHostName}";

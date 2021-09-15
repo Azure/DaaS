@@ -243,7 +243,7 @@ namespace DaaS.V2
                 {
                     var blob = Storage.BlobController.GetBlobForFile(logPath, _blobSasUri);
                     await blob.UploadFromFileAsync(log.TempPath);
-                    log.RelativePath = ConvertBackSlashesToForwardSlashes(logPath);
+                    log.PartialRelativePath = ConvertBackSlashesToForwardSlashes(logPath);
                     Logger.LogVerboseEvent($"Uploaded {logPath} to blob storage");
                 }
                 catch (Exception ex)
@@ -262,7 +262,7 @@ namespace DaaS.V2
                     GetInstanceId(),
                     Path.GetFileName(log.TempPath));
 
-                log.RelativePath = ConvertBackSlashesToForwardSlashes(logPath, DaasDirectory.LogsDirRelativePath);
+                log.PartialRelativePath = ConvertBackSlashesToForwardSlashes(logPath, DaasDirectory.LogsDirRelativePath);
                 string destination = Path.Combine(DaasDirectory.LogsDir, logPath);
 
                 try
