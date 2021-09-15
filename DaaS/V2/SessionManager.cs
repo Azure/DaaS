@@ -89,9 +89,15 @@ namespace DaaS.V2
                 throw new ArgumentException("Please specify a valid diagnostic tool to run");
             }
 
-            if (!GetDiagnosers().Any(x => x.Name == session.Tool))
+            var diagnoser = Infrastructure.Settings.Diagnosers.FirstOrDefault(x => x.Name == session.Tool);
+            if (diagnoser == null)
             {
                 throw new ArgumentException($"Invalid diagnostic tool '{session.Tool}' ");
+            }
+
+            if (diagnoser.RequiresStorageAccount && string.IsNullOrWhiteSpace(Settings.Instance.BlobSasUri))
+            {
+                throw new ArgumentException($"The tool '{session.Tool}' requires that WEBSITE_DAAS_STORAGE_SASURI setting must be specified");
             }
 
             if (InvokedViaAutomation)
@@ -251,8 +257,8 @@ namespace DaaS.V2
                 orphanedInstanceNames = activeSession.Instances.Where(x => !activeInstances.Contains(x)).ToList();
             }
 
-            LogSessionError("Identified orphaned instances for session", 
-                activeSession.SessionId, 
+            LogSessionError("Identified orphaned instances for session",
+                activeSession.SessionId,
                 new OperationCanceledException($"Orphaning instance(s) {string.Join(",", orphanedInstanceNames)} as they haven't picked up the session"));
 
             var orphandedInstances = new List<ActiveInstance>();
@@ -652,7 +658,7 @@ namespace DaaS.V2
             var output = new List<Report>();
             foreach (var report in reports)
             {
-                int relativePathSegments = report.PartialRelativePath.Split('/').Length;
+                int relativePathSegments = report.PartialPath.Split('/').Length;
 
                 if (relativePathSegments == minRelativePathSegments)
                 {
@@ -688,11 +694,11 @@ namespace DaaS.V2
                 {
                     if (diagnoser.RequiresStorageAccount)
                     {
-                        log.RelativePath = GetPathWithSasUri(log.PartialRelativePath);
+                        log.RelativePath = GetPathWithSasUri(log.PartialPath);
                     }
                     else
                     {
-                        log.RelativePath = $"{Utility.GetScmHostName()}/api/vfs/{log.PartialRelativePath}";
+                        log.RelativePath = $"{Utility.GetScmHostName()}/api/vfs/{log.PartialPath}";
                     }
                 }
             }

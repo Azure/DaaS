@@ -15,7 +15,7 @@ namespace DaaS.V2
     {
         public DateTime StartTime { get; set; }
         public string Name { get; set; }
-        public string PartialRelativePath { get; set; }
+        public string PartialPath { get; set; }
         public long Size { get; set; }
         public List<Report> Reports { get; set; } = new List<Report>();
         public string TempPath { get; set; }

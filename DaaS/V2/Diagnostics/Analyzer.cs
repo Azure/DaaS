@@ -108,8 +108,8 @@ namespace DaaS.V2
                 foreach (var report in log.Reports)
                 {
                     string reportRelativePath = report.TempPath.Replace(DaasDirectory.ReportsTempDir + "\\", "");
-                    report.PartialRelativePath = ConvertBackSlashesToForwardSlashes(reportRelativePath, DaasDirectory.ReportsDirRelativePath);
-                    report.RelativePath = $"{Utility.GetScmHostName()}/api/vfs/{report.PartialRelativePath}";
+                    report.PartialPath = ConvertBackSlashesToForwardSlashes(reportRelativePath, DaasDirectory.ReportsDirRelativePath);
+                    report.RelativePath = $"{Utility.GetScmHostName()}/api/vfs/{report.PartialPath}";
                     string destination = Path.Combine(DaasDirectory.ReportsDir, reportRelativePath);
 
                     Logger.LogVerboseEvent($"destination = {destination}, source = {report.TempPath}");
