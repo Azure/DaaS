@@ -74,7 +74,7 @@ namespace DiagnosticsExtension.Controllers
             try
             {
                 await _sessionManager.DeleteSessionAsync(sessionId);
-                return Ok();
+                return Ok($"Session {sessionId} deleted successfully");
             }
             catch (Exception ex)
             {
