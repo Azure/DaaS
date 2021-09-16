@@ -39,3 +39,7 @@ $cmdToExecute = "Executing: " + $dumpAnalyzerTempPath + " -dumpFile $dumpFile -s
 &$dumpAnalyzerTempPath -dumpFile "$dumpFile" -symbols "$symbolpath" -Rules $rules -out "$outputPath"
 [DaaS.Logger]::LogDiagnoserVerboseEvent("DumpAnalyzer completed")
 
+$diagnosticsAnalysisLauncher = [IO.Path]::Combine($PSScriptRoot, 'DiagnosticAnalysisLauncher.exe')
+[DaaS.Logger]::LogDiagnoserVerboseEvent("DiagnosticAnalysisLauncher path = " + $diagnosticsAnalysisLauncher)
+&$diagnosticsAnalysisLauncher "$dumpFile"
+

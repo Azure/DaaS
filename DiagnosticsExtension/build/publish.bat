@@ -1,0 +1,1 @@
+"C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\MSBuild\Current\Bin\msbuild.exe" ..\DiagnosticsExtension.csproj /p:Configuration=Release /t:WebPublish /p:WebPublishMethod=FileSystem /p:DeleteExistingFiles=True /p:publishUrl=C:\source\DaaS\DiagnosticsExtension\bin\Release\PublishOutput /p:PublishProfile=FolderProfile /v:m

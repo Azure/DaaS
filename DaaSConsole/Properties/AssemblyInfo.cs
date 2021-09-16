@@ -1,9 +1,9 @@
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 // <copyright file="AssemblyInfo.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -37,5 +37,5 @@ using System.Runtime.InteropServices;
 // [assembly: AssemblyVersion("1.0.*")]
 //[assembly: AssemblyVersion("1.0.0.0")]
 [assembly: AssemblyCopyright("")]
-[assembly: AssemblyVersion("1.55.0701.01")]
-[assembly: AssemblyFileVersion("1.55.0701.01")]
+[assembly: AssemblyVersion("1.56.0821.01")]
+[assembly: AssemblyFileVersion("1.56.0821.01")]

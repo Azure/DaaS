@@ -1,9 +1,9 @@
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 // <copyright file="LockFile.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -15,7 +15,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace DaaS.Sessions
+namespace DaaS
 {
     public static class InstanceIdUtility
     {
@@ -316,7 +316,7 @@ namespace DaaS.Sessions
             return item.HasLock.Task;
         }
 
-        public void Release()
+        public virtual void Release()
         {
             // Normally, this should never be null here, but currently some LiveScmEditorController code calls Release() incorrectly
             if (_lockStream == null)
