@@ -15,12 +15,14 @@ namespace DaaS.V2
         public string Name { get; }
         public List<string> Warnings { get; }
         public string Description { get; }
+        public bool RequiresStorageAccount { get; }
 
         public DiagnoserDetails(Diagnoser diagnoser)
         {
             Name = diagnoser.Name;
             Warnings = new List<string>(diagnoser.GetWarnings());
             Description = diagnoser.Description;
+            RequiresStorageAccount = diagnoser.RequiresStorageAccount;
         }
     }
 }

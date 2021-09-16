@@ -278,7 +278,6 @@
     <Compile Include="App_Start\SwaggerConfig.cs" />
     <Compile Include="App_Start\UnityConfig.cs" />
     <Compile Include="App_Start\WebApiConfig.cs" />
-    <Compile Include="Controllers\ActiveSessionV2Controller.cs" />
     <Compile Include="Controllers\AppInfoController.cs" />
     <Compile Include="Controllers\BlobInfoController.cs" />
     <Compile Include="Controllers\CertificateTestController.cs" />

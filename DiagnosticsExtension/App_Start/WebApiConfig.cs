@@ -51,15 +51,15 @@ namespace DiagnosticsExtension
             );
 
             config.Routes.MapHttpRoute(
-                name: "SessionV2Api",
-                routeTemplate: "sessions/{sessionId}",
-                defaults: new { controller = "SessionV2",  sessionId = RouteParameter.Optional}
+                name: "ActiveSessionV2Api",
+                routeTemplate: "sessions/active",
+                defaults: new { controller = "SessionV2" }
             );
 
             config.Routes.MapHttpRoute(
-                name: "ActiveSessionV2Api",
-                routeTemplate: "activesession",
-                defaults: new { controller = "ActiveSessionV2"}
+                name: "SessionV2Api",
+                routeTemplate: "sessions/{sessionId}",
+                defaults: new { controller = "SessionV2",  sessionId = RouteParameter.Optional}
             );
 
             config.Routes.MapHttpRoute(

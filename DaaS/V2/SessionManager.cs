@@ -5,6 +5,7 @@
 // </copyright>
 // -----------------------------------------------------------------------
 
+using Microsoft.WindowsAzure.Storage.Blob;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -89,7 +90,7 @@ namespace DaaS.V2
                 throw new ArgumentException("Please specify a valid diagnostic tool to run");
             }
 
-            var diagnoser = Infrastructure.Settings.Diagnosers.FirstOrDefault(x => x.Name == session.Tool);
+            var diagnoser = GetDiagnoserForSession(session);
             if (diagnoser == null)
             {
                 throw new ArgumentException($"Invalid diagnostic tool '{session.Tool}' ");
@@ -209,7 +210,7 @@ namespace DaaS.V2
         {
             EnsureSessionDirectories();
 
-            await Task.Run(() =>
+            await Task.Run(async () =>
             {
                 var sessionFile = Path.Combine(SessionDirectories.CompletedSessionsDir, sessionId + ".json");
                 if (!FileSystemHelpers.FileExists(sessionFile))
@@ -217,12 +218,67 @@ namespace DaaS.V2
                     throw new ArgumentException($"Session {sessionId} does not exist");
                 }
 
-                var sessionDirectory = Path.Combine(DaasDirectory.LogsDir, sessionId);
-                FileSystemHelpers.DeleteDirectorySafe(sessionDirectory, ignoreErrors: false);
+                try
+                {
+                    var deleteFilesFromBlob = false;
+                    var session = await FromJsonFileAsync<Session>(sessionFile); ;
+                    var diagnoser = GetDiagnoserForSession(session);
+                    if (diagnoser.RequiresStorageAccount)
+                    {
+                        deleteFilesFromBlob = true;
+                    }
 
-                FileSystemHelpers.DeleteFile(sessionFile);
-                Logger.LogSessionVerboseEvent("Session deleted", sessionId);
+                    if (deleteFilesFromBlob)
+                    {
+                        await DeleteLogsFromBlob(session);
+                    }
+
+                    DeleteFolderSafe(Path.Combine(DaasDirectory.LogsDir, sessionId));
+                    DeleteFolderSafe(Path.Combine(DaasDirectory.ReportsDir, sessionId));
+                    FileSystemHelpers.DeleteFile(sessionFile);
+                    Logger.LogSessionVerboseEvent("Session deleted", sessionId);
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogSessionErrorEvent("Failed while deleting session", ex, sessionId);
+                    throw;
+                }
             });
+        }
+
+        private static void DeleteFolderSafe(string directory)
+        {
+            FileSystemHelpers.DeleteDirectoryContentsSafe(directory, ignoreErrors: false);
+            FileSystemHelpers.DeleteDirectorySafe(directory, ignoreErrors: false);
+        }
+
+        private static async Task DeleteLogsFromBlob(Session session)
+        {
+            if (session.ActiveInstances == null)
+            {
+                return;
+            }
+
+            foreach (var activeInstance in session.ActiveInstances)
+            {
+                foreach (var log in activeInstance.Logs)
+                {
+                    await DeleteLogFromBlob(log, session.SessionId);
+                }
+            }
+        }
+
+        private static async Task DeleteLogFromBlob(LogFile log, string sessionId)
+        {
+            try
+            {
+                var fileBlob = Storage.BlobController.GetBlobForFile(log.PartialPath, Infrastructure.Settings.BlobSasUri);
+                await fileBlob.DeleteIfExistsAsync(DeleteSnapshotsOption.None, null, null, null);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogSessionErrorEvent($"Failed while deleting {log.PartialPath} from blob", ex, sessionId);
+            }
         }
 
         public List<DiagnoserDetails> GetDiagnosers()
@@ -304,6 +360,16 @@ namespace DaaS.V2
         public bool IncludeSasUri { get; set; }
         public bool InvokedViaAutomation { get; set; }
         #endregion
+
+        private Diagnoser GetDiagnoserForSession(Session session)
+        {
+            return GetDiagnoserForSession(session.Tool);
+        }
+
+        private Diagnoser GetDiagnoserForSession(string toolName)
+        {
+            return Infrastructure.Settings.Diagnosers.FirstOrDefault(x => x.Name == toolName);
+        }
 
         private async Task AnalyzeAndUpdateSessionAsync(CancellationToken token)
         {
@@ -392,7 +458,7 @@ namespace DaaS.V2
 
         private Analyzer GetAnalyzerForSession(string toolName)
         {
-            var diagnoser = Infrastructure.Settings.Diagnosers.FirstOrDefault(x => x.Name == toolName);
+            var diagnoser = GetDiagnoserForSession(toolName);
             if (diagnoser == null)
             {
                 throw new Exception("Diagnostic tool not found");
@@ -409,7 +475,7 @@ namespace DaaS.V2
 
         private Collector GetCollectorForSession(string toolName)
         {
-            var diagnoser = Infrastructure.Settings.Diagnosers.FirstOrDefault(x => x.Name == toolName);
+            var diagnoser = GetDiagnoserForSession(toolName);
             if (diagnoser == null)
             {
                 throw new Exception("Diagnostic tool not found");
@@ -682,7 +748,7 @@ namespace DaaS.V2
                 return;
             }
 
-            var diagnoser = Infrastructure.Settings.Diagnosers.FirstOrDefault(x => x.Name == session.Tool);
+            var diagnoser = GetDiagnoserForSession(session);
             if (diagnoser == null)
             {
                 return;
