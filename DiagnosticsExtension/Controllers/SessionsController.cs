@@ -1,9 +1,9 @@
-//-----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="SessionsController.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using System.Data.Odbc;
 using DaaS.HeartBeats;
@@ -223,12 +223,6 @@ namespace DiagnosticsExtension.Controllers
 
         public HttpResponseMessage Post([FromBody]NewSessionInfo input)
         {
-            //Simulate Delay
-            //System.Threading.Thread.Sleep(20000);
-
-            //Simulate Failure
-            //return "";
-
             String SessionId = String.Empty;
             string InstancesSubmitted = "";
             try

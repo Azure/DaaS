@@ -1,9 +1,0 @@
-﻿[
-  {
-    "SiteName": "sitename",
-    "ResourceGroup": "resourcegroup",
-    "SubscriptionId": "subscriptionId",
-    "PublishingPassword": "publishingprofilepassword",
-    "KuduEndpoint": "<sitename>.scm.azurewebsites.net"
-  }
-]

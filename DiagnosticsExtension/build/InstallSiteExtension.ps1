@@ -4,18 +4,26 @@
 # them at once
 
 $ProgressPreference = 'SilentlyContinue'
-$sitesFileName = $args[0]
-"Using file $sitesFileName"
-$sitesFile = '.\' + $sitesFileName
+$sitesFile = $args[0]
+"Using file $sitesFile"
+$mode = $args[1]
 
 $allWebSites = (Get-Content $sitesFile | Out-String | ConvertFrom-Json)
 
-$siteExtensionArchive = "C:\temp\DaasSiteExtension.zip"
-if (Test-Path $siteExtensionArchive) {
-      "Removing existing temporary zip file"
-      Remove-Item $siteExtensionArchive
-      "Removed temporary file"
-    }
+if ($mode -ne "uninstall"){
+    $siteExtensionArchive = "C:\temp\DaasSiteExtension.zip"
+    if (Test-Path $siteExtensionArchive) {
+          "Removing existing temporary zip file"
+          Remove-Item $siteExtensionArchive
+          "Removed temporary file"
+        }
+}
+
+
+#.\build.bat
+#.\publish.bat
+
+if ([string]::IsNullOrEmpty($(Get-AzureRmContext).Account)) {Login-AzureRmAccount}
 
 foreach($webapp in $allWebSites)
 {
@@ -29,7 +37,6 @@ foreach($webapp in $allWebSites)
 
     "[$webAppName]"
     Select-AzureRmSubscription -SubscriptionId $subscriptionId  | Out-Null
- 
     
     $kuduApiUrl = "https://$kuduEndpoint/api/zip/SiteExtensions/DaaS/"
 
@@ -51,7 +58,10 @@ foreach($webapp in $allWebSites)
     Invoke-AzureRmResourceAction -ResourceGroupName $rgName -ResourceType Microsoft.Web/sites -ResourceName $webAppName -Action start -ApiVersion 2015-08-01 -Force
 }
 
-Compress-Archive -Path  "C:\source\DaaS\DiagnosticsExtension\bin\Release\PublishOutput\*" -DestinationPath $siteExtensionArchive -Force
+if ($mode -ne "uninstall"){
+    Compress-Archive -Path  "C:\source\DaaS\DiagnosticsExtension\bin\Release\PublishOutput\*" -DestinationPath $siteExtensionArchive -Force
+    Timeout /t 20 /nobreak
+}
 
 foreach($webapp in $allWebSites)
 {
@@ -71,49 +81,55 @@ foreach($webapp in $allWebSites)
 
     "    Existing DaaS version is " + $DaaSVersion.Version
 
-    "    Uploading Site Extension"
     
-    try{
-        Invoke-RestMethod -Uri $kuduApiUrl `
-                            -Headers @{"Authorization"=$authorizationHeader;"If-Match"="*"} `
-                            -Method PUT `
-                            -InFile $siteExtensionArchive `
-                            -ContentType "multipart/form-data" | Out-Null
+    if ($mode -ne "uninstall") {
+
+        "    Uploading Site Extension"
+    
+        try{
+            Invoke-RestMethod -Uri $kuduApiUrl `
+                                -Headers @{"Authorization"=$authorizationHeader;"If-Match"="*"} `
+                                -Method PUT `
+                                -InFile $siteExtensionArchive `
+                                -ContentType "multipart/form-data" | Out-Null
+        }
+        catch {
+            Write-Host "    Encountered " + $_.Exception.Response.StatusCode + " while uploading DaaS site extension"
+        }
+
+        "    Site Extension uploaded"
+
+        # Action Stop
+        "    Stopping WebApp" 
+        Invoke-AzureRmResourceAction –ResourceGroupName $rgName -ResourceType Microsoft.Web/sites -ResourceName $webAppName -Action stop -ApiVersion 2015-08-01 -Force
+
+        # Action stop
+        "    Starting WebApp"
+        Invoke-AzureRmResourceAction -ResourceGroupName $rgName -ResourceType Microsoft.Web/sites -ResourceName $webAppName -Action start -ApiVersion 2015-08-01 -Force
     }
-    catch {
-        Write-Host "    Encountered " + $_.Exception.Response.StatusCode + " while uploading DaaS site extension"
-    }
-
-    "    Site Extension uploaded"
-
-    # Action Stop
-    "    Stopping WebApp" 
-    Invoke-AzureRmResourceAction –ResourceGroupName $rgName -ResourceType Microsoft.Web/sites -ResourceName $webAppName -Action stop -ApiVersion 2015-08-01 -Force
-
-    # Action stop
-    "    Starting WebApp"
-    Invoke-AzureRmResourceAction -ResourceGroupName $rgName -ResourceType Microsoft.Web/sites -ResourceName $webAppName -Action start -ApiVersion 2015-08-01 -Force
 
 }
 
 
-#Give some time for the site to warmup
-Timeout /t 20 /nobreak
+if ($mode -ne "uninstall") {
+    #Give some time for the site to warmup
+    Timeout /t 20 /nobreak
 
-foreach($webapp in $allWebSites)
-{
-    $webAppName = $webapp.SiteName
-    $userName = '$' + $webapp.SiteName
-    $userPassword = $webapp.PublishingPassword
-    $kuduEndpoint = $webapp.KuduEndpoint
-    $kuduApiUrl = "https://$kuduEndpoint/api/zip/SiteExtensions/DaaS/"
-    $authorizationHeader = "Basic {0}" -f [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f $userName , $userPassword)))
+    foreach($webapp in $allWebSites)
+    {
+        $webAppName = $webapp.SiteName
+        $userName = '$' + $webapp.SiteName
+        $userPassword = $webapp.PublishingPassword
+        $kuduEndpoint = $webapp.KuduEndpoint
+        $kuduApiUrl = "https://$kuduEndpoint/api/zip/SiteExtensions/DaaS/"
+        $authorizationHeader = "Basic {0}" -f [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f $userName , $userPassword)))
     
-    "[$webAppName]"
-    "    DaaS Warming up"
+        "[$webAppName]"
+        "    DaaS Warming up"
     
-    $DaaSVersion = Invoke-RestMethod -Uri "https://$kuduEndpoint/daas/api/v2/daasversion" `
-                            -Headers @{"Authorization"=$authorizationHeader;"If-Match"="*"}
+        $DaaSVersion = Invoke-RestMethod -Uri "https://$kuduEndpoint/daas/api/v2/daasversion" `
+                                -Headers @{"Authorization"=$authorizationHeader;"If-Match"="*"}
 
-    "    DaaS version is " + $DaaSVersion.Version
+        "    DaaS version is " + $DaaSVersion.Version
+    }
 }

@@ -1,9 +1,9 @@
-//-----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="Analyzer.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using System;
 using System.Collections.Generic;
@@ -62,7 +62,7 @@ namespace DaaS.Diagnostics
 
         private async Task RunAnalyzerAsync(Lease lease, Log log, string outputDir, string sessionId, CancellationToken ct)
         {
-            await log.CacheLogInTempFolderAsync();
+            await log.CacheLogInTempFolderAsync(sessionId);
 
             Logger.LogSessionVerboseEvent($"Cached log file {log.FileName} in TempFolder", sessionId);
 

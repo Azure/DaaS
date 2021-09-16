@@ -1,9 +1,9 @@
-﻿//-----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="EnvironmentVariables.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using System;
 using System.IO;
@@ -68,11 +68,35 @@ namespace DaaS
             }
         }
 
-        public static string DaasWebJob
+        public static string DaasWebJobDirectory
         {
             get
             {
                 return Environment.ExpandEnvironmentVariables(@"%HOME%\site\Jobs\Continuous\DaaS");
+            }
+        }
+
+        public static string DaasConsoleDirectory
+        {
+            get
+            {
+                return Environment.ExpandEnvironmentVariables(@"%HOME%\data\DaaS\bin");
+            }
+        }
+
+        public static string DaasRunner
+        {
+            get
+            {
+                return Environment.ExpandEnvironmentVariables(@"%HOME%\site\Jobs\Continuous\DaaS\DaasRunner.exe");
+            }
+        }
+
+        public static string DaasConsole
+        {
+            get
+            {
+                return Environment.ExpandEnvironmentVariables(@"%HOME%\data\DaaS\bin\DaasConsole.exe");
             }
         }
 

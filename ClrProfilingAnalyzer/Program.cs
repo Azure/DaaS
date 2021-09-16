@@ -1,9 +1,9 @@
-//-----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="Program.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using System;
 using System.Collections.Generic;
@@ -87,7 +87,7 @@ namespace ClrProfilingAnalyzer
 
             try
             {
-                Logger.LogInfo($"Extracting to file {localFilePath}");
+                Logger.LogDiagnoserVerboseEvent($"Extracting to file {localFilePath}");
                 if (!File.Exists(localFilePath))
                 {
                     package.ExtractResourceToPath(ref resource.ResourceId, localFilePath);
@@ -167,7 +167,7 @@ namespace ClrProfilingAnalyzer
 
                 string etlFilePath = ExtractEtlFromDiagSession();
 
-                Logger.LogInfo(string.Format("Opening Trace File {0}", etlFilePath));
+                Logger.LogDiagnoserVerboseEvent($"Opening Trace File {etlFilePath}");
 
                 if (string.IsNullOrWhiteSpace(etlFilePath))
                 {
@@ -175,10 +175,10 @@ namespace ClrProfilingAnalyzer
                 }
 
                 TraceLog dataFile = TraceLog.OpenOrConvert(etlFilePath);
-                Logger.LogInfo(string.Format("Trace File {0} opened", etlFilePath));
+                Logger.LogDiagnoserVerboseEvent($"Trace File {etlFilePath} opened");
 
                 string fileName = Path.GetFileNameWithoutExtension(m_DiagSessionPath);
-                m_ProcessId = ExtraceProcessIdFromEtlFileName(fileName);
+                m_ProcessId = ExtractProcessIdFromEtlFileName(fileName);
 
                 if (m_ProcessId == 0)
                 {
@@ -198,7 +198,7 @@ namespace ClrProfilingAnalyzer
                 Logger.LogStatus("Parsing IIS events from the trace file");
                 iisRequests = IisRequestParser.ParseIISEvents(dataFile, m_ProcessId, iisRequests);
 
-                Logger.LogInfo(string.Format("Finished Parsing IIS Events, found {0} requests", iisRequests.Count()));
+                Logger.LogDiagnoserVerboseEvent($"Finished Parsing IIS Events, found {iisRequests.Count()} requests");
                 stopWatch.Stop();
                 stats.TimeToParseIISEventsInSeconds = stopWatch.Elapsed.TotalSeconds;
 
@@ -207,7 +207,7 @@ namespace ClrProfilingAnalyzer
                 
                 var coreParserResults= AspNetCoreRequestParser.ParseDotNetCoreRequests(dataFile, MIN_REQUEST_DURATION_IN_MILLISECONDS);
                 
-                Logger.LogInfo(string.Format("Finished Parsing .net core Events, found {0} requests", coreParserResults.Requests.Count()));
+                Logger.LogDiagnoserVerboseEvent($"Finished Parsing .net core Events, found {coreParserResults.Requests.Count()} requests");
                 stopWatch.Stop();
                 stats.TimeToParseNetCoreEventsInSeconds = stopWatch.Elapsed.TotalSeconds;
                 stats.SlowRequestCountAspNetCore = coreParserResults.Requests.Count();
@@ -533,10 +533,10 @@ namespace ClrProfilingAnalyzer
             // TODO: This is Required so we dont end up analyzing the ClrProfilingCollector.Diaglog
             // Once we ensure that DaaS is coded to ignore files of certain extensions, we will
             // remove this logic. Right now it is required to keept DaaS happy !!!
-            Logger.LogInfo($"m_DiagSessionPath = {m_DiagSessionPath}");
+            Logger.LogDiagnoserVerboseEvent($"m_DiagSessionPath = {m_DiagSessionPath}");
             if (!m_DiagSessionPath.EndsWith(".zip"))
             {
-                Logger.LogInfo($"Ignoring file {m_DiagSessionPath} as it is not a zip file");
+                Logger.LogDiagnoserVerboseEvent($"Ignoring file {m_DiagSessionPath} as it is not a zip file");
                 string logsDir = Path.Combine(m_OutputPath, "logs");
                 if (!Directory.Exists(logsDir))
                 {
@@ -551,19 +551,17 @@ namespace ClrProfilingAnalyzer
             }
             else
             {
-                string directoryName = Path.GetDirectoryName(m_DiagSessionPath);
-
-                string newFolderName = Path.Combine(directoryName, Path.GetFileNameWithoutExtension(m_DiagSessionPath));
+                string newFolderName = Path.Combine(Path.GetDirectoryName(m_DiagSessionPath), Path.GetFileNameWithoutExtension(m_DiagSessionPath));
                 if (FileSystemHelpers.DirectoryExists(newFolderName))
                 {
                     FileSystemHelpers.DeleteDirectoryContentsSafe(newFolderName);
                     FileSystemHelpers.DeleteDirectorySafe(newFolderName);
                 }
 
-                Logger.LogInfo($"Extracing {m_DiagSessionPath} to Extract to  {directoryName}");
-                ZipFile.ExtractToDirectory(m_DiagSessionPath, directoryName);
+                Logger.LogDiagnoserVerboseEvent($"Extracting {m_DiagSessionPath} to {newFolderName}");
+                ZipFile.ExtractToDirectory(m_DiagSessionPath, newFolderName);
 
-                var extractedFiles = Directory.EnumerateFiles(directoryName);
+                var extractedFiles = Directory.EnumerateFiles(newFolderName);
                 if (extractedFiles.Any(x => x.ToLower().EndsWith(".diagsession")))
                 {
                     m_DiagSessionPath = extractedFiles.FirstOrDefault(x => x.ToLower().EndsWith(".diagsession"));
@@ -579,8 +577,6 @@ namespace ClrProfilingAnalyzer
                 {
                     return false;
                 }
-
-
             }
 
         }
@@ -1101,8 +1097,10 @@ namespace ClrProfilingAnalyzer
             }
         }
 
+        //
         // fileName will be in this format profile_b4f747_IISProfiling_w3wp_4860
-        private static int ExtraceProcessIdFromEtlFileName(string fileName)
+        //
+        private static int ExtractProcessIdFromEtlFileName(string fileName)
         {
             int processId = 0;
             int processIdStartIndex = fileName.IndexOf("w3wp_") + 5;
@@ -1113,11 +1111,11 @@ namespace ClrProfilingAnalyzer
                 if (underScorePosition > 0)
                 {
                     processIdString = processIdString.Substring(0, underScorePosition);
-                    Int32.TryParse(processIdString, out processId);
+                    int.TryParse(processIdString, out processId);
                 }
                 else
                 {
-                    Int32.TryParse(processIdString, out processId);
+                    int.TryParse(processIdString, out processId);
                 }
 
             }
@@ -1128,7 +1126,7 @@ namespace ClrProfilingAnalyzer
         {
             string etlFilePath = "";
 
-            Logger.LogInfo($"Opening DiagSessionFile {m_DiagSessionPath}");
+            Logger.LogDiagnoserVerboseEvent($"Opening DiagSessionFile {m_DiagSessionPath}");
 
             string directoryName = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             string pathToNativePackagingDll = Path.Combine(directoryName, "DiagnosticsHub.Packaging.dll");
@@ -1150,7 +1148,7 @@ namespace ClrProfilingAnalyzer
                 try
                 {
                     localFilePath = GetLocalFilePath(m_DiagSessionPath, dhPackage, resource, ".etl");
-                    Logger.LogInfo($"Found '{resource.ResourceId } resource '{resource.Name}'. Loading ...");
+                    Logger.LogDiagnoserVerboseEvent($"Found '{resource.ResourceId } resource '{resource.Name}'. Loading ...");
                     etlFilePath = localFilePath;
                 }
                 catch (Exception)
@@ -1178,20 +1176,20 @@ namespace ClrProfilingAnalyzer
                         unCompressedPath = Path.Combine(Path.GetDirectoryName(m_DiagSessionPath), "UnCompressed");
                     }
 
-                    Logger.LogInfo($"Uncompressing {m_DiagSessionPath} to {unCompressedPath}...");
+                    Logger.LogDiagnoserVerboseEvent($"Uncompressing {m_DiagSessionPath} to {unCompressedPath}...");
                     if (Directory.Exists(unCompressedPath))
                     {
                         DeleteDirectory(unCompressedPath);
                     }
 
-                    System.IO.Compression.ZipFile.ExtractToDirectory(m_DiagSessionPath, unCompressedPath);
+                    ZipFile.ExtractToDirectory(m_DiagSessionPath, unCompressedPath);
 
                     foreach (var dir in Directory.GetDirectories(unCompressedPath))
                     {
                         if (string.IsNullOrWhiteSpace(localFilePath))
                         {
                             localFilePath = Directory.GetFiles(dir, "*.etl").FirstOrDefault();
-                            Logger.LogInfo($"Found {localFilePath}");
+                            Logger.LogDiagnoserVerboseEvent($"Found {localFilePath}");
                             etlFilePath = localFilePath;
                         }
 
@@ -1276,7 +1274,6 @@ namespace ClrProfilingAnalyzer
                 {
                     var childEvents = pipeLineEvents.Where(x => ((x.StartTimeRelativeMSec > pipeLineEvent.StartTimeRelativeMSec) && (x.EndTimeRelativeMSec <= pipeLineEvent.EndTimeRelativeMSec) && (x.EndTimeRelativeMSec != 0)));
                     PipelineNode node = new PipelineNode(pipeLineEvent.StartTimeRelativeMSec, pipeLineEvent.EndTimeRelativeMSec, pipeLineEvent.Name);
-                    //Logger.LogInfo("LEVEL = " + level + "     " + node.name + " " + node.startTimeRelativeMSec + " " + node.endTimeRelativeMSec);
 
                     if (childEvents.Count() > 0)
                     {

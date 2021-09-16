@@ -1,9 +1,9 @@
-//-----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="BlobController.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using System;
 using System.Collections.Concurrent;
@@ -126,7 +126,7 @@ namespace DaaS.Storage
             {
                 Logger.LogErrorEvent("Exception while trying to parse Uri for BLOB", ex);
             }
-            
+
             return string.Empty;
         }
 
@@ -136,10 +136,10 @@ namespace DaaS.Storage
             {
                 throw new Exception("Blob storage isn't configured. Can't access a file from blob storage");
             }
-            
+
             blobSasUri = GetActualBlobSasUri(blobSasUri);
             var blobUriSections = blobSasUri.Split('?');
-            if (blobSasUri.Length >= 2)
+            if (blobUriSections.Length >= 2)
             {
                 var path = blobUriSections[0] + "/" + relativeFilePath.ConvertBackSlashesToForwardSlashes() + "?" +
                            string.Join("?", blobUriSections, 1, blobUriSections.Length - 1);
@@ -180,7 +180,7 @@ namespace DaaS.Storage
                 string defaultHostNameMatch = $"Logs/{Settings.GetDefaultHostName()}/";
 
                 foreach (var blob in GetBlobs()
-                    .Where(x => x.Name.EndsWith(".diaglog") && 
+                    .Where(x => x.Name.EndsWith(".diaglog") &&
                     (x.Name.StartsWith(siteNameMatch) || x.Name.StartsWith(siteNameShortMatch) || x.Name.StartsWith(defaultHostNameMatch))))
                 {
                     TimeSpan? timeDifference = DateTime.UtcNow - blob.Properties.LastModified;
@@ -198,18 +198,43 @@ namespace DaaS.Storage
             }
         }
 
-        private static IEnumerable<CloudBlockBlob> GetBlobs()
+        public static IEnumerable<CloudBlockBlob> GetBlobs(string prefix = "")
         {
+            if (!string.IsNullOrWhiteSpace(prefix))
+            {
+                // Blob storage uses forward slashes rather than back slashes
+                prefix = prefix.ConvertBackSlashesToForwardSlashes();
+            }
+
             string blobSasUri = Settings.GetBlobSasUriFromEnvironment(out _);
 
             if (!string.IsNullOrWhiteSpace(blobSasUri))
             {
-                var container = new CloudBlobContainer(new Uri(blobSasUri));
+                CloudBlobContainer container = null;
+
+                blobSasUri = GetActualBlobSasUri(blobSasUri);
+                if (!Containers.ContainsKey(blobSasUri))
+                {
+                    try
+                    {
+                        container = new CloudBlobContainer(new Uri(blobSasUri));
+                        Containers.TryAdd(blobSasUri, container);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogErrorEvent("Failed while accessing blob storage", ex);
+                    }
+                }
+                else
+                {
+                    container = Containers[blobSasUri];
+                }
+
                 BlobContinuationToken continuationToken = null;
 
                 do
                 {
-                    var response = container.ListBlobsSegmented(string.Empty, true, BlobListingDetails.None, new int?(), continuationToken, null, null);
+                    var response = container.ListBlobsSegmented(prefix, true, BlobListingDetails.None, new int?(), continuationToken, null, null);
                     continuationToken = response.ContinuationToken;
                     foreach (var blob in response.Results.OfType<CloudBlockBlob>())
                     {

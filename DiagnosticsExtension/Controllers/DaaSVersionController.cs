@@ -1,9 +1,9 @@
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 // <copyright file="DaaSVersionController.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using DaaS;
 using DaaS.Configuration;
@@ -46,7 +46,7 @@ namespace DiagnosticsExtension.Controllers
             var disabledFileExists = false;
             try
             {
-                var destinationDir = EnvironmentVariables.DaasWebJob;
+                var destinationDir = EnvironmentVariables.DaasWebJobDirectory;
                 disabledFileExists = File.Exists(Path.Combine(destinationDir, "disable.job"));
             }
             catch (Exception ex)

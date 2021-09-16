@@ -1,9 +1,9 @@
-//-----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="DaasEventSource.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using System;
 using System.Collections.Generic;
@@ -35,10 +35,10 @@ namespace DaaS
             WriteEvent(1001, SiteName, Version, SessionId, ActivityId, Message);
         }
 
-        [Event(1002, Level = EventLevel.Error)]
-        public void LogSessionErrorEvent(string SiteName, string Version, string SessionId, string Message, string ExceptionType, string ExceptionMessage, string ExceptionStackTrace)
+        [Event(1002, Level = EventLevel.Error, Version = 2)]
+        public void LogSessionErrorEvent(string SiteName, string Version, string SessionId, string Message, string ExceptionType, string ExceptionMessage, string ExceptionStackTrace, string Details)
         {
-            WriteEvent(1002, SiteName, Version, SessionId, Message, ExceptionType, ExceptionMessage, ExceptionStackTrace);
+            WriteEvent(1002, SiteName, Version, SessionId, Message, ExceptionType, ExceptionMessage, ExceptionStackTrace, Details);
         }
 
         [Event(1003, Level = EventLevel.Error, Version = 2)]
@@ -62,7 +62,13 @@ namespace DaaS
         [Event(1006, Level = EventLevel.Warning)]
         public void LogWarningEvent(string SiteName, string Version, string Message, string ExceptionType, string ExceptionMessage, string ExceptionStackTrace, string Details)
         {
-            WriteEvent(1004, SiteName, Version, Message, ExceptionType, ExceptionMessage, ExceptionStackTrace, Details);
+            WriteEvent(1006, SiteName, Version, Message, ExceptionType, ExceptionMessage, ExceptionStackTrace, Details);
+        }
+
+        [Event(1007, Level = EventLevel.Warning)]
+        public void LogSessionWarningEvent(string SiteName, string Version, string SessionId, string Message, string ExceptionType, string ExceptionMessage, string ExceptionStackTrace, string Details)
+        {
+            WriteEvent(1007, SiteName, Version, SessionId, Message, ExceptionType, ExceptionMessage, ExceptionStackTrace, Details);
         }
 
         [Event(2000, Level = EventLevel.Informational)]

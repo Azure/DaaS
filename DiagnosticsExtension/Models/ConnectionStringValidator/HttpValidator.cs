@@ -1,9 +1,9 @@
-﻿//-----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="HttpValidator.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using DiagnosticsExtension.Controllers;
 using DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions;
@@ -27,16 +27,16 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
 
         public ConnectionStringType Type => ConnectionStringType.Http;
 
-        public async Task<bool> IsValidAsync(string connStr)
+        public Task<bool> IsValidAsync(string connStr)
         {
             try
             {
                 var uri = new Uri(connStr);
-                return true;
+                return Task.FromResult(true);
             }
             catch (Exception)
             {
-                return false;
+                return Task.FromResult(false);
             }
         }
 

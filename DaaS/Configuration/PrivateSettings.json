@@ -1,0 +1,12 @@
+﻿{
+  // This is a private settings file that allows you to override DaaS configuration.
+  // Some of the valid settings that can be specified here are MaxSessionsToKeep, MaxSessionAgeInDays
+  // For full list of this file's schema refer to DiagnosticSettings.json file 
+  // present in %ProgramFiles(x86)%\\SiteExtensions\\DaaS\\[Version] folder.
+
+  // E.g.
+
+  // "MaxSessionAgeInDays": 20,
+  // "MaxSessionsToKeep":  10
+
+}

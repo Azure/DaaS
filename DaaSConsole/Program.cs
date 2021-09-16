@@ -1,9 +1,9 @@
-//-----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="Program.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using System;
 using System.Collections.Generic;
@@ -17,11 +17,20 @@ using DaaS.Sessions;
 using DaaS;
 using Newtonsoft.Json;
 
+using SessionManagerV2 = DaaS.V2.SessionManager;
+using SessionV2 = DaaS.V2.Session;
+using System.IO;
+using System.Net;
+
 namespace DaaSConsole
 {
     class Program
     {
-        static SessionController SessionController = new SessionController();
+        static readonly SessionController SessionController = new SessionController();
+        static readonly SessionManagerV2 SessionManager = new SessionManagerV2()
+        {
+            InvokedViaAutomation = true
+        };
 
         enum Options
         {
@@ -54,7 +63,8 @@ namespace DaaSConsole
 
         static void Main(string[] args)
         {
-            System.Net.ServicePointManager.SecurityProtocol = System.Net.SecurityProtocolType.Tls12;
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+            ServicePointManager.ServerCertificateValidationCallback = delegate { return true; };
 
             if (args.Length == 0)
             {
@@ -68,7 +78,7 @@ namespace DaaSConsole
             {
                 Options option;
                 var currentArgument = args[argNum];
-                if (!ArguementIsAParameter(currentArgument))
+                if (!ArgumentIsAParameter(currentArgument))
                 {
                     ShowUsage();
                     return;
@@ -112,7 +122,7 @@ namespace DaaSConsole
                         }
                     case (Options.Setup):
                         {
-                            SessionController.StartSessionRunner(sourceDir: ".", extraFilesToCopy: new List<string>() { @"Configuration\DiagnosticSettings.xml" });
+                            SessionController.StartSessionRunner();
                             break;
                         }
                     case (Options.Help):
@@ -218,10 +228,71 @@ namespace DaaSConsole
             return argNum;
         }
 
+        private static string GetToolToRun(string[] args, ref int argNum)
+        {
+            string diagnoserName = string.Empty;
+            while (argNum < args.Length)
+            {
+                if (ArgumentIsAParameter(args[argNum]))
+                {
+                    // Done parsing all diagnosers
+                    break;
+                }
+
+                if (int.TryParse(args[argNum], out _))
+                {
+                    // Done parsing all diagnosers, we've reached the timespan now
+                    break;
+                }
+
+                diagnoserName = args[argNum];
+                argNum++;
+            }
+
+            return GetV2ToolName(diagnoserName);
+        }
+
+        /// <summary>
+        /// This function is needed because the diagnosers names have changed from DAAS V1 t
+        /// DAAS V2 to ensure consistency with Linux App Service. We workaround this by still
+        /// supporting old diagnoser names from DaasConsole so AutoHealing rules don't break
+        /// </summary>
+        /// <param name="diagnoserName"></param>
+        /// <returns></returns>
+        private static string GetV2ToolName(string diagnoserName)
+        {
+            string retval = diagnoserName;
+            switch (diagnoserName)
+            {
+                case "Memory Dump":
+                case "MemoryDump":
+                    retval = "MemoryDump";
+                    break;
+                case "CLR Profiler":
+                    retval = "Profiler";
+                    break;
+                case "CLR Profiler with Thread Stacks":
+                    retval = "Profiler with Thread Stacks";
+                    break;
+                case "CLR Profiler CPUStacks":
+                    retval = "Profiler with CPU Stacks";
+                    break;
+            }
+
+            return retval;
+        }
+
         private static void CollectLogsAndTakeActions(Options options, string[] args, ref int argNum)
         {
             try
             {
+                if (ShouldSubmitV2Session()  && IsSessionOption(options))
+                {
+                    var toolName = GetToolToRun(args, ref argNum);
+                    SubmitAndWaitForV2Session(toolName, string.Empty, options);
+                    return;
+                }
+
                 var diagnosersToRun = GetDiagnosersToRun(args, ref argNum);
                 TimeSpan timeToRunFor = GetTimeSpanFromArg(args, ref argNum);
                 string blobSasUri = GetBlobSasUriFromArg(args, ref argNum);
@@ -284,7 +355,7 @@ namespace DaaSConsole
                         diagnosersToRun,
                         true, Instances, null, blobSasUri);
                 }
-                Console.WriteLine("Waiting for collection to complete. Going to sleep for {timeToRunFor} seconds...");
+                Console.WriteLine($"Waiting for collection to complete. Going to sleep for {timeToRunFor} seconds...");
                 Thread.Sleep(timeToRunFor);
                 Console.WriteLine("done sleeping");
 
@@ -319,6 +390,126 @@ namespace DaaSConsole
             }
         }
 
+        private static bool ShouldSubmitV2Session()
+        {
+            try
+            {
+                var scmHostingConfigPath = Environment.ExpandEnvironmentVariables("%ProgramFiles(x86)%\\SiteExtensions\\kudu\\ScmHostingConfigurations.txt");
+                if (!File.Exists(scmHostingConfigPath))
+                {
+                    return false;
+                }
+
+                string fileContents = File.ReadAllText(scmHostingConfigPath);
+                if (!string.IsNullOrWhiteSpace(fileContents) && fileContents.Contains("UseV2ForDaaS=1"))
+                {
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarningEvent("Exception while checking ShouldSubmitV2Session", ex);
+            }
+
+            return false;
+        }
+
+        private static bool IsSessionOption(Options options)
+        {
+            return options == Options.Troubleshoot
+                || options == Options.CollectKillAnalyze
+                || options == Options.CollectLogs;
+        }
+
+        private static void SubmitAndWaitForV2Session(string toolName, string toolParams, Options options)
+        {
+            Console.WriteLine($"Running Diagnosers on { Environment.MachineName}");
+
+            var session = new SessionV2()
+            {
+                Instances = new List<string>() { Environment.MachineName },
+                Tool = toolName,
+                ToolParams = toolParams,
+                Mode = GetModeFromOptions(options)
+            };
+
+            //
+            // do not await on this call. We just want to
+            // submit and check the status in a loop
+            //
+
+            var sessionId = SessionManager.SubmitNewSessionAsync(session, invokedViaDaasConsole: true).Result;
+            Console.WriteLine($"Session submitted for '{toolName}' with Id - {sessionId}");
+            Console.Write("Waiting...");
+            while (true)
+            {
+                Thread.Sleep(10000);
+                Console.Write(".");
+                var activeSession = SessionManager.GetActiveSessionAsync().Result;
+
+                //
+                // Either the session got completed, timed out
+                // or error'ed, in either case, bail out
+                // 
+                if (activeSession == null)
+                {
+                    break;
+                }
+
+                //
+                // The session is submitted but not picked up by any instance
+                // so we should continue waiting...
+                //
+                if (activeSession.ActiveInstances == null)
+                {
+                    continue;
+                }
+
+                var currentInstance = activeSession.ActiveInstances
+                    .FirstOrDefault(x => x.Name.Equals(
+                        Environment.MachineName,
+                        StringComparison.OrdinalIgnoreCase));
+                if (currentInstance == null)
+                {
+                    //
+                    // The current instance has not picked up the session
+                    //
+                    continue;
+                }
+
+                if (currentInstance.Status == DaaS.V2.Status.Analyzing)
+                {
+                    //
+                    // Exit the loop once data has been collected and Analyzer
+                    // has been started
+                    
+                    break;
+                }
+            }
+
+            if (options == Options.CollectKillAnalyze)
+            {
+                Process mainSiteW3wpProcess = GetMainSiteW3wpProcess();
+                Console.WriteLine($"Killing process {mainSiteW3wpProcess.ProcessName} with pid {mainSiteW3wpProcess.Id}");
+                mainSiteW3wpProcess.Kill();
+                Logger.LogSessionVerboseEvent($"DaasConsole killed process {mainSiteW3wpProcess.ProcessName} with pid {mainSiteW3wpProcess.Id}", sessionId);
+            }
+        }
+
+        private static DaaS.V2.Mode GetModeFromOptions(Options options)
+        {
+            if (options == Options.CollectLogs)
+            {
+                return DaaS.V2.Mode.Collect;
+            }
+            else if (options == Options.CollectKillAnalyze || options == Options.Troubleshoot)
+            {
+                return DaaS.V2.Mode.CollectAndAnalyze;
+            }
+
+            throw new ArgumentException("Invalid diagnostic mode specified");
+        }
+
         private static string GetBlobSasUriFromArg(string[] args, ref int argNum)
         {
             var sasUri = "";
@@ -331,7 +522,7 @@ namespace DaaSConsole
                 try
                 {
                     var sasUriString = args[argNum];
-                    if (ArguementIsAParameter(sasUriString))
+                    if (ArgumentIsAParameter(sasUriString))
                     {
                         var optionString = args[argNum].Substring(1, args[argNum].Length - 1);
 
@@ -396,7 +587,7 @@ namespace DaaSConsole
             try
             {
                 var numberOfSecondsStr = args[argNum];
-                if (!ArguementIsAParameter(numberOfSecondsStr))
+                if (!ArgumentIsAParameter(numberOfSecondsStr))
                 {
                     numberOfSeconds = int.Parse(numberOfSecondsStr);
                     argNum++;
@@ -421,7 +612,7 @@ namespace DaaSConsole
                 try
                 {
                     var allInstancesString = args[argNum];
-                    if (ArguementIsAParameter(allInstancesString))
+                    if (ArgumentIsAParameter(allInstancesString))
                     {
                         Options.TryParse(args[argNum].Substring(1, args[argNum].Length - 1), true, out Options option);
                         if (option == Options.AllInstances)
@@ -441,7 +632,7 @@ namespace DaaSConsole
             return false;
         }
 
-        private static bool ArguementIsAParameter(string currentArgument)
+        private static bool ArgumentIsAParameter(string currentArgument)
         {
             return currentArgument[0].Equals('-') || currentArgument[0].Equals('/');
         }
@@ -453,7 +644,7 @@ namespace DaaSConsole
             var diagnosersToRun = new List<Diagnoser>();
             while (argNum < args.Length)
             {
-                if (ArguementIsAParameter(args[argNum]))
+                if (ArgumentIsAParameter(args[argNum]))
                 {
                     // Done parsing all diagnosers
                     break;

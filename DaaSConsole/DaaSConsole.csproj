@@ -6,11 +6,18 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{7EB4AAC5-6531-4ACC-823B-0AC99E218974}</ProjectGuid>
     <OutputType>Exe</OutputType>
+    <AllowedReferenceRelatedFileExtensions>
+          <!-- Prevent default XML and PDB files copied to output in RELEASE. 
+           Only *.allowedextension files will be included, which doesn't exist in my case.
+       -->
+          .allowedextension
+    </AllowedReferenceRelatedFileExtensions>
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>DaaSConsole</RootNamespace>
     <AssemblyName>DaaSConsole</AssemblyName>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -43,6 +50,9 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="MSBuild.ILMerge.Task">
+      <Version>1.1.3</Version>
+    </PackageReference>
     <PackageReference Include="Newtonsoft.Json">
       <Version>11.0.2</Version>
     </PackageReference>

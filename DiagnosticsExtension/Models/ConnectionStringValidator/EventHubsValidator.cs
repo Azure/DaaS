@@ -1,9 +1,9 @@
-﻿//-----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="EventHubsValidator.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using DiagnosticsExtension.Controllers;
 using DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions;
@@ -19,7 +19,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
 
         public ConnectionStringType Type => ConnectionStringType.EventHubs;
 
-        public async Task<bool> IsValidAsync(string connectionString)
+        public Task<bool> IsValidAsync(string connectionString)
         {
             try
             {
@@ -27,9 +27,10 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             }
             catch (Exception)
             {
-                return false;
+                return Task.FromResult(false);
             }
-            return true;
+            
+            return Task.FromResult(true);
         }
 
         async public Task<ConnectionStringValidationResult> ValidateAsync(string connectionString, string clientId = null)

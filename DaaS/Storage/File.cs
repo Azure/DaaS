@@ -1,9 +1,9 @@
-//-----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="File.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using System;
 using System.Collections.Generic;
@@ -211,7 +211,7 @@ namespace DaaS.Storage
             return baseName;
         }
 
-        internal async Task CacheLogInTempFolderAsync()
+        internal async Task CacheLogInTempFolderAsync(string sessionId)
         {
             if (await Infrastructure.Storage.FileExistsAsync(RelativePath, StorageLocation.TempStorage))
             {
@@ -220,7 +220,7 @@ namespace DaaS.Storage
 
             if (!string.IsNullOrWhiteSpace(BlobSasUri))
             {
-                await Infrastructure.Storage.DownloadFileFromBlobAsync(RelativePath, StorageLocation.TempStorage, BlobSasUri);
+                await Infrastructure.Storage.DownloadFileFromBlobAsync(RelativePath, StorageLocation.TempStorage, BlobSasUri, sessionId);
             }
             else
             {

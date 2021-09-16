@@ -1,9 +1,9 @@
-//-----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="Settings.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using System;
 using System.Collections.Generic;
@@ -513,7 +513,7 @@ namespace DaaS.Configuration
 
         internal static string ShortenString(string name)
         {
-            return !string.IsNullOrWhiteSpace(name) && name.Length > 40 ? name.Substring(0, 40) : name;
+            return !string.IsNullOrWhiteSpace(name) && name.Length > 20 ? name.Substring(0, 20) : name;
         }
 
         internal string GetDiagnosticToolsPath()
@@ -774,6 +774,7 @@ namespace DaaS.Configuration
                     .FirstOrDefault(
                         t =>
                             t.IsClass &&
+                            !t.FullName.Contains("DaaS.V2") &&
                             t.Name.Equals(toolXml.Name.LocalName, StringComparison.OrdinalIgnoreCase));
 
                 if (toolType == null)
@@ -783,6 +784,10 @@ namespace DaaS.Configuration
                 }
 
                 var constructor = toolType.GetConstructor(System.Type.EmptyTypes);
+                if (constructor is null)
+                {
+                    throw new ArgumentException($"{toolType} and name {toolXml.Name.LocalName} has no constructor");
+                }
                 var instance = constructor.Invoke(null);
 
                 foreach (var settingXml in toolXml.Elements())

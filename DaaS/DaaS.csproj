@@ -9,10 +9,11 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>DaaS</RootNamespace>
     <AssemblyName>DaaS</AssemblyName>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\</SolutionDir>
     <RestorePackages>true</RestorePackages>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -60,7 +61,11 @@
     <Compile Include="Diagnostics\Collector.cs" />
     <Compile Include="EnvironmentVariables.cs" />
     <Compile Include="MemoryStreamExtensions.cs" />
+    <Compile Include="Monitoring\AlwaysOnCpuRule.cs" />
     <Compile Include="Monitoring\AnalysisRequest.cs" />
+    <Compile Include="Monitoring\CpuMonitoringRuleBase.cs" />
+    <Compile Include="Monitoring\DiagnosticCpuRule.cs" />
+    <Compile Include="Monitoring\IMonitoringRule.cs" />
     <Compile Include="Monitoring\MonitoringAnalysisController.cs" />
     <Compile Include="Monitoring\CpuMonitoring.cs" />
     <Compile Include="Diagnostics\Diagnoser.cs" />
@@ -87,6 +92,29 @@
     <Compile Include="ProcessExtensions.cs" />
     <Compile Include="CancelledInstance.cs" />
     <Compile Include="RetryHelper.cs" />
+    <Compile Include="Sessions\InstanceIdUtility.cs" />
+    <Compile Include="V2\Constants.cs" />
+    <Compile Include="V2\Diagnostics\Analyzer.cs" />
+    <Compile Include="V2\Configuration\DiagnoserDetails.cs" />
+    <Compile Include="V2\Diagnostics\PredefinedValidators.cs" />
+    <Compile Include="V2\Models\ActiveInstance.cs" />
+    <Compile Include="V2\Configuration\AnalyzerConfiguration.cs" />
+    <Compile Include="V2\Diagnostics\Collector.cs" />
+    <Compile Include="V2\Configuration\CollectorConfiguration.cs" />
+    <Compile Include="V2\Directories\DaasDirectory.cs" />
+    <Compile Include="V2\Configuration\Diagnoser.cs" />
+    <Compile Include="V2\Diagnostics\DiagnosticTool.cs" />
+    <Compile Include="V2\Models\DiagnosticToolResponse.cs" />
+    <Compile Include="V2\Interfaces\ISessionManager.cs" />
+    <Compile Include="V2\Models\LogFile.cs" />
+    <Compile Include="V2\Models\Report.cs" />
+    <Compile Include="V2\Models\Session.cs" />
+    <Compile Include="V2\Directories\SessionDirectories.cs" />
+    <Compile Include="V2\SessionLockFile.cs" />
+    <Compile Include="V2\Infrastructure.cs" />
+    <Compile Include="V2\Configuration\Settings.cs" />
+    <Compile Include="V2\Models\Status.cs" />
+    <Compile Include="V2\SessionManager.cs" />
     <Compile Include="Sessions\LockFile.cs" />
     <Compile Include="Sessions\SessionConstants.cs" />
     <Compile Include="Sessions\DiagnoserSession.cs" />
@@ -104,27 +132,29 @@
     <Compile Include="Storage\StorageController.cs" />
     <Compile Include="Storage\AlertingStorageQueue.cs" />
     <Compile Include="Utilities.cs" />
+    <Compile Include="V2\Utility.cs" />
     <Compile Include="ZipArchiveExtensions.cs" />
     <Compile Include="ZipStreamContent.cs" />
     <None Include="app.config" />
-    <None Include="DiagnosticTools\DumpAnalyzer.pl">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
+    <EmbeddedResource Include="Configuration\PrivateSettings.json" />
     <None Include="DiagnosticTools\DumpAnalyzer.ps1">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Include="DiagnosticTools\JavaValidator.ps1">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Include="DiagnosticTools\mock.ps1">
+    <None Include="DiagnosticTools\mockAnalyzer.ps1">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Include="DiagnosticTools\PHPErrorLogCollector.pl">
+    <None Include="DiagnosticTools\mockCollector.ps1">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Include="DiagnosticTools\TestAnalyzer.pl">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <Content Include="Configuration\DiagnosticSettings.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <ItemGroup>
     <Content Include="Configuration\DiagnosticSettings.xml">
@@ -157,7 +187,7 @@
       <Version>2.1.0.247</Version>
     </PackageReference>
     <PackageReference Include="WindowsAzure.Storage">
-      <Version>9.3.2</Version>
+      <Version>9.3.3</Version>
     </PackageReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

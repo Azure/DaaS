@@ -1,20 +1,18 @@
-//-----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="MonitoringSessionController.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using DaaS.Configuration;
 using DaaS.Sessions;
 using DaaS.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Security;
 using System.Text;
 using System.Threading;
 
@@ -24,13 +22,22 @@ namespace DaaS
     {
         const string MonitoringFolder = "Monitoring";
 
-        const int MIN_CPU_THRESHOLD = 50;
-        const int MAX_CUSTOM_ACTIONS = 20;
-        const int MIN_MONITOR_DURATION_IN_SECONDS = 5;
-        const int MIN_THRESHOLD_DURATION_IN_SECONDS = 15;
-        readonly int MAX_SESSION_DURATION = (int)TimeSpan.FromDays(365).TotalHours;
+        const int MinCpuThreshold = 50;
+        const int MaxCustomActions = 20;
+        const int MinMonitorDurationInSeconds = 5;
+        const int MinThresholdDurationInSeconds = 15;
+        const int MaxIntervalDays = 30;
+        readonly int MaxSessionDuration = (int)TimeSpan.FromDays(365).TotalHours;
 
         public readonly static string TempFilePath = Path.Combine(EnvironmentVariables.LocalTemp, "Monitoring", "Logs");
+
+        public static string GetLogsFolderForSession(string sessionId)
+        {
+            string logsFolderPath = GetCpuMonitoringPath(MonitoringSessionDirectories.Logs);
+            string folderName = Path.Combine(logsFolderPath, sessionId);
+            FileSystemHelpers.CreateDirectoryIfNotExists(folderName);
+            return folderName;
+        }
 
         public static string GetCpuMonitoringPath(string folderName = "", bool relativePath = false)
         {
@@ -48,6 +55,7 @@ namespace DaaS
 
             return path;
         }
+
         public MonitoringSession CreateSession(MonitoringSession monitoringSession)
         {
             string cpuMonitoringActive = GetCpuMonitoringPath(MonitoringSessionDirectories.Active);
@@ -65,7 +73,15 @@ namespace DaaS
                 monitoringSession.EndDate = DateTime.MinValue.ToUniversalTime();
                 monitoringSession.SessionId = monitoringSession.StartDate.ToString(SessionConstants.SessionFileNameFormat);
                 monitoringSession.BlobStorageHostName = BlobController.GetBlobStorageHostName(monitoringSession.BlobSasUri);
+                monitoringSession.DefaultHostName = V2.Settings.Instance.DefaultHostName;
                 cpuMonitoringActive = Path.Combine(cpuMonitoringActive, monitoringSession.SessionId + ".json");
+
+                if (monitoringSession.RuleType == RuleType.AlwaysOn
+                    && monitoringSession.Mode == SessionMode.CollectKillAndAnalyze)
+                {
+                    monitoringSession.AnalysisStatus = AnalysisStatus.Continuous;
+                }
+
                 monitoringSession.SaveToDisk(cpuMonitoringActive);
                 Logger.LogNewCpuMonitoringSession(monitoringSession);
             }
@@ -75,28 +91,44 @@ namespace DaaS
 
         private void ValidateSessionParameters(MonitoringSession monitoringSession)
         {
-            if (monitoringSession.CpuThreshold < MIN_CPU_THRESHOLD)
+            if (monitoringSession.CpuThreshold < MinCpuThreshold)
             {
-                throw new InvalidOperationException($"CpuThreshold cannot be less than {MIN_CPU_THRESHOLD} percent");
+                throw new InvalidOperationException($"CpuThreshold cannot be less than {MinCpuThreshold} percent");
             }
 
-            if (monitoringSession.MaxActions > MAX_CUSTOM_ACTIONS)
+            if (monitoringSession.MaxActions > MaxCustomActions)
             {
-                throw new InvalidOperationException($"MaxActions cannot be more than {MAX_CUSTOM_ACTIONS} actions");
+                throw new InvalidOperationException($"MaxActions cannot be more than {MaxCustomActions} actions");
             }
 
-            if (monitoringSession.MaximumNumberOfHours > MAX_SESSION_DURATION)
+            if (monitoringSession.MaximumNumberOfHours > MaxSessionDuration)
             {
-                throw new InvalidOperationException($"MaximumNumberOfHours cannot be more than {MAX_SESSION_DURATION} hours");
+                throw new InvalidOperationException($"MaximumNumberOfHours cannot be more than {MaxSessionDuration} hours");
             }
 
-            if (monitoringSession.MonitorDuration < MIN_MONITOR_DURATION_IN_SECONDS)
+            if (monitoringSession.MonitorDuration < MinMonitorDurationInSeconds)
             {
-                throw new InvalidOperationException($"MonitorDuration cannot be less than {MIN_MONITOR_DURATION_IN_SECONDS} seconds");
+                throw new InvalidOperationException($"MonitorDuration cannot be less than {MinMonitorDurationInSeconds} seconds");
             }
-            if (monitoringSession.ThresholdSeconds < MIN_THRESHOLD_DURATION_IN_SECONDS)
+            if (monitoringSession.ThresholdSeconds < MinThresholdDurationInSeconds)
             {
-                throw new InvalidOperationException($"ThresholdSeconds cannot be less than {MIN_THRESHOLD_DURATION_IN_SECONDS} seconds");
+                throw new InvalidOperationException($"ThresholdSeconds cannot be less than {MinThresholdDurationInSeconds} seconds");
+            }
+            if (monitoringSession.RuleType == RuleType.AlwaysOn)
+            {
+                if (monitoringSession.ActionsInInterval > monitoringSession.MaxActions)
+                {
+                    throw new InvalidOperationException($"ActionsInInterval ({monitoringSession.ActionsInInterval}) cannot be more than MaxActions ({monitoringSession.MaxActions})");
+                }
+                if (monitoringSession.ActionsInInterval > MaxCustomActions)
+                {
+                    throw new InvalidOperationException($"ActionsInInterval cannot be more than {MaxCustomActions} actions");
+                }
+
+                if (monitoringSession.IntervalDays > MaxIntervalDays)
+                {
+                    throw new InvalidOperationException($"IntervalDays cannot be more than {MaxIntervalDays} days");
+                }
             }
         }
 
@@ -138,6 +170,8 @@ namespace DaaS
 
         public void DeleteSession(string sessionId)
         {
+            DeleteFilesFromBlob(sessionId);
+
             string cpuMonitoringCompleted = GetCpuMonitoringPath(MonitoringSessionDirectories.Completed);
             var sessionFilePath = Path.Combine(cpuMonitoringCompleted, sessionId + ".json");
             if (FileSystemHelpers.FileExists(sessionFilePath))
@@ -154,6 +188,33 @@ namespace DaaS
                 FileSystemHelpers.DeleteDirectorySafe(logsFolder);
             }
             Logger.LogCpuMonitoringVerboseEvent("Deleted session", sessionId);
+        }
+
+        private void DeleteFilesFromBlob(string sessionId)
+        {
+            try
+            {
+                var session = GetSession(sessionId);
+                if (!string.IsNullOrWhiteSpace(session.BlobSasUri))
+                {
+                    var blobSasUri = BlobController.GetActualBlobSasUri(session.BlobSasUri);
+                    var fileBlobLegacy = BlobController.GetBlobForFile(GetRelativePathForSession(sessionId), blobSasUri);
+                    if (fileBlobLegacy != null)
+                    {
+                        fileBlobLegacy.DeleteIfExists(DeleteSnapshotsOption.None);
+                    }
+
+                    var fileBlob = BlobController.GetBlobForFile(GetRelativePathForSession(session.DefaultHostName, sessionId), blobSasUri);
+                    if (fileBlob != null)
+                    {
+                        fileBlob.DeleteIfExists(DeleteSnapshotsOption.None);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogCpuMonitoringErrorEvent("Failed while deleting files from blob", ex, sessionId);
+            }
         }
 
         public void TerminateActiveMonitoringSession()
@@ -190,7 +251,7 @@ namespace DaaS
 
                     if (!FileSystemHelpers.FileExists(cpuMonitorCompletedPath))
                     {
-                        monitoringSession.FilesCollected = GetCollectedLogsForSession(monitoringSession.SessionId, monitoringSession.BlobSasUri);
+                        monitoringSession.FilesCollected = GetCollectedLogsForSession(monitoringSession);
                         Logger.LogCpuMonitoringVerboseEvent($"Found {monitoringSession.FilesCollected.Count} files collected by CPU monitoring", monitoringSession.SessionId);
                         SaveSession(monitoringSession);
                         MoveMonitoringLogsToSession(monitoringSession.SessionId);
@@ -224,15 +285,18 @@ namespace DaaS
             return true;
         }
 
-        public List<MonitoringFile> GetCollectedLogsForSession(string sessionId, string blobSasUri)
+        public List<MonitoringFile> GetCollectedLogsForSession(MonitoringSession session)
         {
             var filesCollected = new List<MonitoringFile>();
+            string folderName = GetLogsFolderForSession(session.SessionId);
+            var reports = FileSystemHelpers.GetFilesInDirectory(folderName, "*.mht", false, SearchOption.TopDirectoryOnly);
+            string blobSasUri = session.BlobSasUri;
+            string sessionId = session.SessionId;
 
             try
             {
                 if (string.IsNullOrWhiteSpace(blobSasUri))
                 {
-                    string folderName = CpuMonitoring.GetLogsFolderForSession(sessionId);
                     if (FileSystemHelpers.DirectoryExists(folderName))
                     {
                         var logFiles = FileSystemHelpers.GetFilesInDirectory(folderName, "*.dmp", false, SearchOption.TopDirectoryOnly);
@@ -245,25 +309,79 @@ namespace DaaS
                 }
                 else
                 {
-                    string directoryPath = Path.Combine("Monitoring", "Logs", sessionId);
-                    List<string> files = new List<string>();
-                    var dir = BlobController.GetBlobDirectory(directoryPath, blobSasUri);
-                    foreach (
-                        IListBlobItem item in
-                            dir.ListBlobs(useFlatBlobListing: true))
-                    {
-                        var relativePath = item.Uri.ToString().Replace(item.Container.Uri.ToString() + "/", "");
-                        string fileName = item.Uri.Segments.Last();
-                        filesCollected.Add(new MonitoringFile(fileName, relativePath));
-                    }
+                    string directoryPath = GetRelativePathForSession(session.DefaultHostName, sessionId);
+                    UpdateFilesCollected(sessionId, blobSasUri, filesCollected, reports, directoryPath);
+
+                    string directoryPathLegacy = GetRelativePathForSession(sessionId);
+                    UpdateFilesCollected(sessionId, blobSasUri, filesCollected, reports, directoryPathLegacy);
                 }
             }
             catch (Exception ex)
             {
                 Logger.LogCpuMonitoringErrorEvent("Failed while getting the list of logs collected for the session", ex, sessionId);
             }
-            
+
             return filesCollected;
+        }
+
+        private void UpdateFilesCollected(string sessionId, string blobSasUri, List<MonitoringFile> filesCollected, List<string> reports, string directoryPath)
+        {
+            try
+            {
+                var dir = BlobController.GetBlobDirectory(directoryPath, blobSasUri);
+                if (dir == null)
+                {
+                    //
+                    // The directoryPath does not exist on Blob
+                    //
+
+                    return;
+                }
+
+                foreach (
+                    IListBlobItem item in
+                        dir.ListBlobs(useFlatBlobListing: true))
+                {
+                    var relativePath = item.Uri.ToString().Replace(item.Container.Uri.ToString() + "/", "");
+                    string fileName = item.Uri.Segments.Last();
+                    var monitoringFile = new MonitoringFile(fileName, relativePath);
+                    AddReportsToMonitoringFile(sessionId, monitoringFile, reports);
+                    filesCollected.Add(monitoringFile);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogCpuMonitoringErrorEvent($"Failed while getting the list of logs collected for the session from {directoryPath}", ex, sessionId);
+            }
+        }
+
+        internal static string GetRelativePathForSession(string defaultHostName, string sessionId)
+        {
+            return Path.Combine(defaultHostName, "Monitoring", "Logs", sessionId);
+        }
+
+        internal static string GetRelativePathForSession(string sessionId)
+        {
+            return Path.Combine("Monitoring", "Logs", sessionId);
+        }
+
+        //
+        // Method is used specifically for updating the Active Session details
+        // for the AlwaysOnCpu rule type
+        //
+
+        private void AddReportsToMonitoringFile(string sessionId, MonitoringFile monitoringFile, List<string> reports)
+        {
+            string fileName = Path.GetFileNameWithoutExtension(monitoringFile.FileName);
+            if (reports.Any())
+            {
+                var reportFile = reports.FirstOrDefault(x => Path.GetFileNameWithoutExtension(x).StartsWith(fileName));
+                if (!string.IsNullOrWhiteSpace(reportFile))
+                {
+                    monitoringFile.ReportFile = Path.GetFileName(reportFile);
+                    monitoringFile.ReportFileRelativePath = MonitoringFile.GetRelativePath(sessionId, Path.GetFileName(reportFile));
+                }
+            }
         }
 
         internal void AddReportToLog(string sessionId, string logfileName, string reportFilePath, List<string> errors, bool shouldUpdateSessionStatus = true)
@@ -379,7 +497,7 @@ namespace DaaS
         {
             try
             {
-                string logsFolderPath = CpuMonitoring.GetLogsFolderForSession(sessionId);
+                string logsFolderPath = GetLogsFolderForSession(sessionId);
                 string monitoringFolderActive = GetCpuMonitoringPath(MonitoringSessionDirectories.Active);
                 var filesCollected = FileSystemHelpers.GetFilesInDirectory(monitoringFolderActive, "*.log", false, SearchOption.TopDirectoryOnly);
                 foreach (string monitoringLog in filesCollected)
@@ -417,7 +535,7 @@ namespace DaaS
             {
                 Logger.LogCpuMonitoringErrorEvent("Failed to get completed monitoring sessions", ex, string.Empty);
             }
-            
+
             return sessions;
         }
 

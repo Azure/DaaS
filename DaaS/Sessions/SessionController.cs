@@ -1,9 +1,9 @@
-//-----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="SessionController.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using System;
 using System.Collections.Generic;
@@ -209,7 +209,7 @@ namespace DaaS.Sessions
                 //
                 // This call is required so that the container gets created if it does not exist so far
                 //
-                
+
                 if (!BlobController.ValidateBlobSasUri(Settings.WebSiteDaasStorageSasUri, out Exception exceptionStorage))
                 {
                     throw new ApplicationException($"BlobSasUri specified in environment variable is invalid. Failed with error - {exceptionStorage.Message}");
@@ -234,7 +234,7 @@ namespace DaaS.Sessions
                     sasUriInEnvironmentVariable = true;
                     sandboxAvailable = false;
                 }
-                
+
             }
 
             // Make sure there is no Active Session for any of the
@@ -283,16 +283,23 @@ namespace DaaS.Sessions
                 BlobStorageHostName = BlobController.GetBlobStorageHostName(blobSasUri),
                 DefaultHostName = Settings.DefaultHostName
             };
+
             session.Save();
+
+            var details = new
+            {
+                Instances = string.Join(",", session.InstancesSpecified.Select(x => x.Name).ToArray()),
+                invokedViaDaasConsole,
+                hasBlobSasUri = !string.IsNullOrWhiteSpace(session.BlobSasUri),
+                sasUriInEnvironmentVariable,
+                sandboxAvailable,
+                session.DefaultHostName
+            };
+
             Logger.LogNewSession(session.SessionId.ToString(),
                 sessionType.ToString(),
                 string.Join(",", diagnosers.Select(x => x.Name)),
-                string.Join(",", session.InstancesSpecified.Select(x => x.Name).ToArray()),
-                invokedViaDaasConsole,
-                !string.IsNullOrWhiteSpace(session.BlobSasUri),
-                sasUriInEnvironmentVariable,
-                sandboxAvailable,
-                session.DefaultHostName);
+                details);
 
             return session;
         }
@@ -334,14 +341,14 @@ namespace DaaS.Sessions
                         }
                         else
                         {
-                            using (var sessionFileContentStream = Infrastructure.Storage.ReadFile(sessionFilePath,Session.GetSessionStorageLocation()))
+                            using (var sessionFileContentStream = Infrastructure.Storage.ReadFile(sessionFilePath, Session.GetSessionStorageLocation()))
                             {
                                 try
                                 {
                                     var session = new Session(sessionFileContentStream, sessionFilePath);
                                     sessions.Add(session);
                                 }
-                                catch(XmlException xmlEx)
+                                catch (XmlException xmlEx)
                                 {
                                     Logger.LogWarningEvent("Encountered exception while loading single session", xmlEx);
                                 }
@@ -417,7 +424,6 @@ namespace DaaS.Sessions
                         Logger.LogErrorEvent($"Failed while deleting cancelled instance file {file} with exception", exInner);
                     }
                 }
-
             }
             return cancelledInstances;
         }
@@ -433,7 +439,7 @@ namespace DaaS.Sessions
                     int retryCount = 0;
 
                     Exception exToThrow = null;
-                retryLabel:
+retryLabel:
                     if (retryCount > 2)
                     {
                         if (exToThrow != null)
@@ -725,7 +731,6 @@ namespace DaaS.Sessions
                         _runningSessions.Remove(sessionId);
                     }
                 }
-
             }
         }
 
@@ -1195,209 +1200,101 @@ namespace DaaS.Sessions
             return exceptionMessage;
         }
 
-        public void StartSessionRunner(string sourceDir = null, List<string> extraFilesToCopy = null)
+        public void StartSessionRunner()
         {
             var daasDisabled = Environment.GetEnvironmentVariable("WEBSITE_DAAS_DISABLED");
             if (daasDisabled != null && daasDisabled.Equals("True", StringComparison.OrdinalIgnoreCase))
             {
                 DeleteWebjobFolderIfExists(EnvironmentVariables.DaasWebJobAppData);
-                DeleteWebjobFolderIfExists(EnvironmentVariables.DaasWebJob);
+                DeleteWebjobFolderIfExists(EnvironmentVariables.DaasWebJobDirectory);
+                CleanUpObsoleteFiles();
+                return;
             }
-            else
+
+            if (_daasVersionCheckInProgress)
             {
-                if (_daasVersionCheckInProgress == false)
+                //
+                // Another thread updating DaasRunner
+                // so don't do anything right now
+                //
+
+                Logger.LogVerboseEvent("Another check to update DaaS bits is in progress");
+                return;
+            }
+
+
+            lock (_daasVersionUpdateLock)
+            {
+                _daasVersionCheckInProgress = true;
+            }
+
+            try
+            {
+                Logger.LogVerboseEvent("Checking DaaS bits and updating if required");
+                FileSystemHelpers.CreateDirectoryIfNotExists(EnvironmentVariables.DaasWebJobDirectory);
+                FileSystemHelpers.CreateDirectoryIfNotExists(EnvironmentVariables.DaasConsoleDirectory);
+
+                string newDaasRunner = Path.Combine(Infrastructure.GetDaasInstalationPath(), "bin", "daasrunner.exe");
+                string oldDaasRunner = EnvironmentVariables.DaasRunner;
+
+                string newDaasConsole = Path.Combine(Infrastructure.GetDaasInstalationPath(), "bin", "daasconsole.exe");
+                string oldDaasConsole = EnvironmentVariables.DaasConsole;
+
+                if (IsDaasRunnerVersionHigher(newDaasRunner, oldDaasRunner))
                 {
-                    lock (_daasVersionUpdateLock)
-                    {
-                        _daasVersionCheckInProgress = true;
-                    }
-
-                    try
-                    {
-                        Logger.LogVerboseEvent("Checking DaaS bits and updating if required");
-                        const string daaSRunner = "DaaSRunner.exe";
-                        const string daaSConsole = "DaaSConsole.exe";
-                        const string daaSDll = "DaaS.dll";
-                        const string newtonsoft = "Newtonsoft.Json.dll";
-                        const string microsoftWindowsAzureStorage = "Microsoft.WindowsAzure.Storage.dll";
-                        const string systemIoAbstractions = "System.IO.Abstractions.dll";
-
-                        var filesToCopy = new List<string>() { daaSRunner, daaSDll, microsoftWindowsAzureStorage, newtonsoft, systemIoAbstractions };
-
-                        if (extraFilesToCopy != null)
-                        {
-                            filesToCopy.AddRange(extraFilesToCopy);
-                        }
-
-                        if (sourceDir == null)
-                        {
-                            sourceDir = Path.Combine(Infrastructure.GetDaasInstalationPath(), "bin");
-                        }
-
-                        var destinationDir = @"site\jobs\Continuous\DaaS";
-                        var continousJobDirectory = Path.Combine(Settings.SiteRootDir, destinationDir);
-
-
-                        List<string> existingFiles = new List<string>();
-                        if (Directory.Exists(continousJobDirectory))
-                        {
-                            foreach (var fileName in Directory.EnumerateFiles(continousJobDirectory))
-                            {
-                                string filenameWithoutPath = Path.GetFileName(fileName);
-                                existingFiles.Add(filenameWithoutPath);
-                            }
-                        }
-                        CreateDirectoryIfNotExists(continousJobDirectory);
-                        var daasBinDirectory = Path.Combine(Settings.SiteRootDir, @"data\DaaS\bin");
-                        CreateDirectoryIfNotExists(daasBinDirectory);
-
-                        filesToCopy.Sort();
-                        existingFiles.Sort();
-
-                        bool filesMatching = true;
-                        foreach (var item in filesToCopy)
-                        {
-                            if (!existingFiles.Contains(item, StringComparer.OrdinalIgnoreCase))
-                            {
-                                filesMatching = false;
-                                break;
-                            }
-                        }
-
-                        bool versionsDifferent = !IsVersionMatch(Path.Combine(sourceDir, daaSRunner), destinationDir);
-
-                        if (versionsDifferent || filesMatching == false)
-                        {
-                            Logger.LogVerboseEvent($"Going to update DaaS bits because versionsDifferent = {versionsDifferent} and filesMatching = {filesMatching}");
-
-                            if (DeleteWebjobFolderIfExists(EnvironmentVariables.DaasWebJobAppData))
-                            {
-                                Logger.LogVerboseEvent(@"Deleted daas webjob from App_Data and moving to site\jobs\Continous folder and waiting for 30 seconds before adding the new webjob");
-                                Thread.Sleep(30000);
-                            }
-
-                            try
-                            {
-                                foreach (var file in filesToCopy)
-                                {
-                                    Logger.LogVerboseEvent($"[DAAS Webjob] Copying file {file} from {sourceDir} to {destinationDir}");
-                                    CopyFile(file, sourceDir, destinationDir);
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                Logger.LogErrorEvent("Failed while updating DaasRunner in the jobs folder", ex);
-                            }
-
-                            try
-                            {
-                                // Also copy DaaSConsole to a fixed location for auto healing invocations
-                                filesToCopy.Add(daaSConsole);
-                                filesToCopy.Remove(daaSRunner);
-                                destinationDir = @"data\DaaS\bin";
-                                foreach (var file in filesToCopy)
-                                {
-                                    Logger.LogVerboseEvent($"[DAAS bin folder] Copying file {file} from {sourceDir} to {destinationDir}");
-                                    CopyFile(file, sourceDir, destinationDir);
-                                }
-                                Logger.LogVerboseEvent("Updated DaaS webjob files with newer versions");
-                            }
-                            catch (Exception ex)
-                            {
-                                Logger.LogErrorEvent(@"Failed while copying DAAS bits to \home\data\daas\bin directory", ex);
-                            }
-                        }
-
-                        try
-                        {
-                            ValidateAllDllVersions(sourceDir, filesToCopy.Where(x => x.ToLower().EndsWith(".dll")).ToList()); ;
-                        }
-                        catch (Exception ex)
-                        {
-                            Logger.LogErrorEvent("Failed while validating daas versions in Jobs and Bin folder", ex);
-                        }
-
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.LogErrorEvent("Failed while checking or updating DaaSRunner", ex);
-                    }
-
-                    lock (_daasVersionUpdateLock)
-                    {
-                        _daasVersionCheckInProgress = false;
-                    }
-
-                    Logger.LogVerboseEvent("Done checking DaaS bits for any new updates");
+                    CopyFileWithRetry(newDaasRunner, targetFile: oldDaasRunner);
+                    CopyFileWithRetry($"{newDaasRunner}.config", targetFile: $"{oldDaasRunner}.config");
                 }
-                else
+
+                if (IsFileVersionHigher(newDaasConsole, oldDaasConsole))
                 {
-                    Logger.LogVerboseEvent("Another check to update DaaS bits is in progress");
-                    // there is already another thread updating DaasRunner
-                    // so don't do anything right now
+                    CopyFileWithRetry(newDaasConsole, targetFile: oldDaasConsole);
+                    CopyFileWithRetry($"{newDaasConsole}.config", targetFile: $"{oldDaasConsole}.config");
+                }
+
+                CleanUpObsoleteFiles();
+                Logger.LogVerboseEvent("Done checking DaaS bits for any new updates");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogErrorEvent("Failed while checking or updating DaaSRunner", ex);
+            }
+            finally
+            {
+                lock (_daasVersionUpdateLock)
+                {
+                    _daasVersionCheckInProgress = false;
                 }
             }
         }
 
-        private void ValidateAllDllVersions(string sourceDir, List<string> filesToCopy)
+        private void CleanUpObsoleteFiles()
         {
-            string destinationDir = @"site\jobs\Continuous\DaaS";
-            var outdatedFiles = CheckFileVersionInFolder(sourceDir, destinationDir, filesToCopy);
-            foreach (var file in outdatedFiles)
+            try
             {
-                Logger.LogVerboseEvent($"Version mismatch found or file not found so copying {file} from {sourceDir} to {destinationDir}");
-                CopyFile(file, sourceDir, destinationDir);
+                DeleteWebjobFolderIfExists(EnvironmentVariables.DaasWebJobAppData);
+                DeleteOlderDlls(EnvironmentVariables.DaasConsoleDirectory);
+                DeleteOlderDlls(EnvironmentVariables.DaasWebJobDirectory);
             }
-
-            destinationDir = @"data\DaaS\bin";
-            outdatedFiles = CheckFileVersionInFolder(sourceDir, destinationDir, filesToCopy);
-            foreach (var file in outdatedFiles)
+            catch (Exception ex)
             {
-                Logger.LogVerboseEvent($"Version mismatch found or file not found so copying {file} from {sourceDir} to {destinationDir}");
-                CopyFile(file, sourceDir, destinationDir);
+                Logger.LogErrorEvent("Failed while cleaning up obsolete files", ex);
             }
         }
 
-        private List<string> CheckFileVersionInFolder(string sourceDir, string destinationDir, List<string> filesToCopy)
+        private void DeleteOlderDlls(string directoryPath)
         {
-            var dllsNeedingUpdate = new List<string>();
-            StringBuilder logStatement = new StringBuilder();
-            destinationDir = Path.Combine(Settings.SiteRootDir, destinationDir);
-            foreach (var file in filesToCopy)
+            var dlls = FileSystemHelpers.GetFilesInDirectory(
+                directoryPath,
+                "*.dll",
+                isRelativePath: false,
+                SearchOption.TopDirectoryOnly);
+
+            foreach (var dll in dlls)
             {
-                var sourceFile = Path.Combine(sourceDir, file);
-                var destinationFile = Path.Combine(destinationDir, file);
-
-                // not sure if this can happen but lets be safe...
-                if (!System.IO.File.Exists(sourceFile))
-                {
-                    logStatement.Append($" Sourcefile {sourceFile} does not exist!");
-                    continue;
-                }
-
-                if (System.IO.File.Exists(destinationFile))
-                {
-                    Version sourceVersion = GetFileVersion(sourceFile);
-                    Version destinationVersion = GetFileVersion(destinationFile);
-
-                    if (sourceVersion != destinationVersion)
-                    {
-                        logStatement.Append($" Version mismatch found for {file}");
-                        dllsNeedingUpdate.Add(file);
-                    }
-                }
-                else
-                {
-                    logStatement.Append($" [{destinationFile}] does not exist in [{destinationDir}],");
-                    dllsNeedingUpdate.Add(file);
-
-                }
+                FileSystemHelpers.DeleteFileSafe(dll);
+                Logger.LogVerboseEvent($"DeleteOlderDlls - deleted {dll}");
             }
-
-            var logMsg = string.IsNullOrWhiteSpace(logStatement.ToString()) ? "All Good" : logStatement.ToString();
-
-            Logger.LogVerboseEvent($"Checking all file versions in {destinationDir} :{logMsg}");
-            return dllsNeedingUpdate;
         }
 
         private bool DeleteWebjobFolderIfExists(string fullPath)
@@ -1427,63 +1324,68 @@ namespace DaaS.Sessions
             }
         }
 
-        private static bool IsVersionMatch(string daasRunnerPath, string destinationDir)
+        private static bool IsFileVersionHigher(string newFile, string oldFile)
         {
-            var currentVersion = GetDaasRunnerVersion();
-
-            if (currentVersion != null)
+            if (!FileSystemHelpers.FileExists(oldFile))
             {
-                if (!System.IO.File.Exists(daasRunnerPath))
-                {
-                    Logger.LogVerboseEvent($"Found no DaasRunner in {daasRunnerPath}");
-                    return false;
-                }
-
-                Version packageVersion = GetFileVersion(daasRunnerPath);
-
-                //we don't match exactly if version is greater/lower - we need to copy whatever is in Daas package
-                if (packageVersion.CompareTo(currentVersion) != 0)
-                {
-                    // If we didn't find DAASRunner.exe running, then we should check if the job folder
-                    // already had a version of DAAS that matches ProgramFiles(x86)\SiteExtensions folder
-                    // to avoid changing the job directory
-                    if (currentVersion.Major == 0)
-                    {
-                        var daasRunnerInJobDirectory = Path.Combine(Settings.SiteRootDir, destinationDir, "DaasRunner.exe");
-                        Logger.LogVerboseEvent($"DaasRunner process not running so checking DaasRunner.exe version in {daasRunnerInJobDirectory}");
-
-                        Version jobAssemblyVersion = null;
-
-                        if (System.IO.File.Exists(daasRunnerInJobDirectory))
-                        {
-                            jobAssemblyVersion = GetFileVersion(daasRunnerInJobDirectory);
-                        }
-
-                        if (jobAssemblyVersion != null && packageVersion.CompareTo(jobAssemblyVersion) == 0)
-                        {
-                            Logger.LogVerboseEvent(string.Format("Current version in jobs Directory : {0} matches the version in Daas installation path : {1} so no need to copy new files", jobAssemblyVersion, packageVersion));
-                            return true;
-                        }
-                        else
-                        {
-                            Logger.LogVerboseEvent(string.Format("Current version in Jobs Folder : {0} does not match version in Daas installation path : {1}, new bits will be copied", jobAssemblyVersion == null ? "0.0.0.0" : jobAssemblyVersion.ToString(), packageVersion));
-                            return false;
-                        }
-                    }
-                    else
-                    {
-                        Logger.LogVerboseEvent(string.Format("Current version : {0} does not match version in Daas installation path : {1}, new bits will be copied", currentVersion, packageVersion));
-                        return false;
-                    }
-                }
-                else
-                {
-                    Logger.LogVerboseEvent("DaasRunner version is the same");
-                }
+                //
+                // If the file does not exist, return false
+                // to ensure that newer bits get copied
+                //
+                Logger.LogVerboseEvent($"{oldFile} does not exist, new bits will be copied");
+                return true;
             }
 
-            // if we are not able to fetch DaasRunner version then we also don't copy anything for web job
-            return true;
+            Version newVersion = GetFileVersion(newFile);
+            Version oldVersion = GetFileVersion(oldFile);
+            var fileName = Path.GetFileName(newFile);
+
+            if (oldVersion.CompareTo(newVersion) < 0)
+            {
+                Logger.LogVerboseEvent($"[{fileName}] Current version : {oldVersion} is lower than version in Daas installation path : {newVersion}, new bits will be copied");
+                return true;
+            }
+
+            Logger.LogVerboseEvent($"[{fileName}] New version ({newVersion}) is the same or less than the existing version {oldVersion}");
+            return false;
+        }
+
+        private static bool IsDaasRunnerVersionHigher(string newDaasRunner, string oldDaasRunner)
+        {
+            if (!FileSystemHelpers.FileExists(oldDaasRunner))
+            {
+                Logger.LogVerboseEvent($"Found no DaasRunner in {oldDaasRunner}");
+                return true;
+            }
+
+            var oldVersion = GetDaasRunnerVersion();
+            if (oldVersion == null)
+            {
+                //
+                // If we are not able to fetch DaasRunner version then
+                // we also don't copy anything for web job
+                //
+
+                return false;
+            }
+
+            if (oldVersion.Major == 0)
+            {
+                return IsFileVersionHigher(newDaasRunner, oldDaasRunner);
+            }
+
+            Version newVersion = GetFileVersion(newDaasRunner);
+
+            if (oldVersion.CompareTo(newVersion) < 0)
+            {
+                Logger.LogVerboseEvent($"[DaasRunner] Current version : {oldVersion} is lower than version in Daas installation path : {newVersion}, new bits will be copied");
+            }
+            else
+            {
+                Logger.LogVerboseEvent($"[DaasRunner] New version ({newVersion}) is the same or less than the existing version {oldVersion}");
+            }
+
+            return oldVersion.CompareTo(newVersion) < 0;
         }
 
         private static Version GetDaasRunnerVersion()
@@ -1513,27 +1415,19 @@ namespace DaaS.Sessions
             return null;
         }
 
-        private static void CopyFile(string file, string sourceDir, string destinationDir)
+        private static void CopyFileWithRetry(string sourceFile, string targetFile)
         {
-            // Changing this method to ensure that it doesn't have any dependency
-            // on any of the DAAS classes else we will get AssemblyLoad exceptions
-
-            var siteRootDir = Environment.GetEnvironmentVariable("HOME_EXPANDED");
-            var targetFile = Path.Combine(siteRootDir, destinationDir, file);
-            var sourceFile = Path.Combine(sourceDir, file);
-            RetryHelper.RetryOnException($"Copying file from {sourceFile} to {targetFile}...", () =>
+            string file = Path.GetFileName(sourceFile);
+            RetryHelper.RetryOnException($"Copying file {file} from {sourceFile} to {targetFile}...", () =>
             {
-                System.IO.File.Copy(sourceFile, targetFile, true);
-            }, TimeSpan.FromSeconds(1));
+                if (System.IO.File.Exists(sourceFile))
+                {
+                    Logger.LogVerboseEvent($"Copying file {file} from {sourceFile} to {targetFile}");
+                    System.IO.File.Copy(sourceFile, targetFile, true);
+                    Logger.LogVerboseEvent($"File {file} copied successfully");
+                }
 
-        }
-
-        private static void CreateDirectoryIfNotExists(string folder)
-        {
-            if (!Directory.Exists(folder))
-            {
-                Directory.CreateDirectory(folder);
-            }
+            }, TimeSpan.FromSeconds(1), 3, true, false);
         }
 
         private static Version GetFileVersion(string filePath)
@@ -1549,8 +1443,5 @@ namespace DaaS.Sessions
             }
             return ver;
         }
-
     }
-
-
 }

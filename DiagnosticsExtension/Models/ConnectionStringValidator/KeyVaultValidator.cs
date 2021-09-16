@@ -1,9 +1,9 @@
-﻿//-----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="KeyVaultValidator.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using DiagnosticsExtension.Controllers;
 using DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions;
@@ -27,7 +27,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
 
         public ConnectionStringType Type => ConnectionStringType.KeyVault;
 
-        public async Task<bool> IsValidAsync(string connStr)
+        public Task<bool> IsValidAsync(string connStr)
         {
             try
             {
@@ -40,11 +40,11 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                 {
                     throw new MalformedConnectionStringException("Malformed KeyVault connection string. A valid KV connection string should has hostname ends with vault.azure.net.");
                 }
-                return true;
+                return Task.FromResult(true);
             }
             catch (Exception)
             {
-                return false;
+                return Task.FromResult(false);
             }
         }
 

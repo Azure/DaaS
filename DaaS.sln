@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.27130.2027
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31912.275
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DaaS", "DaaS\DaaS.csproj", "{DABB639A-C90B-4FC7-8715-6AAB66671C57}"
 EndProject
@@ -11,8 +11,16 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DaaSConsole", "DaaSConsole\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DiagnosticsExtension", "DiagnosticsExtension\DiagnosticsExtension.csproj", "{571103F3-3318-469C-8BB0-2C7494FC81C1}"
 	ProjectSection(ProjectDependencies) = postProject
+		{CC2C5116-1C47-407C-9C2E-D8A53C752ED2} = {CC2C5116-1C47-407C-9C2E-D8A53C752ED2}
+		{45A1002B-3ADD-4FDE-9A66-372DD8CF6ACF} = {45A1002B-3ADD-4FDE-9A66-372DD8CF6ACF}
+		{560A5E3F-9923-4BC0-9003-D90412BC723F} = {560A5E3F-9923-4BC0-9003-D90412BC723F}
+		{5565B076-37A9-4A94-BD5F-8A937A00D2BE} = {5565B076-37A9-4A94-BD5F-8A937A00D2BE}
+		{B1CE45BE-2B96-44CA-84A4-0B8EF885389D} = {B1CE45BE-2B96-44CA-84A4-0B8EF885389D}
+		{906659C0-743D-41F5-97A0-4D7B4354C22A} = {906659C0-743D-41F5-97A0-4D7B4354C22A}
 		{7EB4AAC5-6531-4ACC-823B-0AC99E218974} = {7EB4AAC5-6531-4ACC-823B-0AC99E218974}
+		{3AE80EC7-69B6-4446-8338-7CF21067C95E} = {3AE80EC7-69B6-4446-8338-7CF21067C95E}
 		{F95417E9-7427-4B71-B6FC-6014FB4BBC85} = {F95417E9-7427-4B71-B6FC-6014FB4BBC85}
+		{34F601ED-7860-43C5-A15B-AF780F3C4299} = {34F601ED-7860-43C5-A15B-AF780F3C4299}
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ClrProfilingCollector", "ClrProfilingCollector\ClrProfilingCollector.csproj", "{CC2C5116-1C47-407C-9C2E-D8A53C752ED2}"
@@ -45,6 +53,16 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StackTracer64", "StackTracer64\StackTracer64.csproj", "{45A1002B-3ADD-4FDE-9A66-372DD8CF6ACF}"
 	ProjectSection(ProjectDependencies) = postProject
 		{DABB639A-C90B-4FC7-8715-6AAB66671C57} = {DABB639A-C90B-4FC7-8715-6AAB66671C57}
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DiagnosticAnalysisLauncher", "DiagnosticAnalysisLauncher\DiagnosticAnalysisLauncher.csproj", "{906659C0-743D-41F5-97A0-4D7B4354C22A}"
+	ProjectSection(ProjectDependencies) = postProject
+		{DABB639A-C90B-4FC7-8715-6AAB66671C57} = {DABB639A-C90B-4FC7-8715-6AAB66671C57}
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{E7F4BBF3-B31F-46F2-AD63-FAFD895FF1D6}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
 	EndProjectSection
 EndProject
 Global
@@ -97,6 +115,10 @@ Global
 		{45A1002B-3ADD-4FDE-9A66-372DD8CF6ACF}.Debug|x64.Build.0 = Debug|x64
 		{45A1002B-3ADD-4FDE-9A66-372DD8CF6ACF}.Release|x64.ActiveCfg = Release|x64
 		{45A1002B-3ADD-4FDE-9A66-372DD8CF6ACF}.Release|x64.Build.0 = Release|x64
+		{906659C0-743D-41F5-97A0-4D7B4354C22A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{906659C0-743D-41F5-97A0-4D7B4354C22A}.Debug|x64.Build.0 = Debug|Any CPU
+		{906659C0-743D-41F5-97A0-4D7B4354C22A}.Release|x64.ActiveCfg = Release|Any CPU
+		{906659C0-743D-41F5-97A0-4D7B4354C22A}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

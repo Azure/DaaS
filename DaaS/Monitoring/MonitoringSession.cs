@@ -1,9 +1,9 @@
-//-----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="MonitoringSession.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using System;
 using System.Collections.Generic;
@@ -14,11 +14,18 @@ using Newtonsoft.Json.Converters;
 
 namespace DaaS
 {
+    public enum RuleType
+    {
+        Diagnostics,
+        AlwaysOn
+    }
+
     public enum AnalysisStatus
     {
         NotStarted,
         InProgress,
-        Completed
+        Completed,
+        Continuous
     }
     public enum SessionMode
     {
@@ -49,7 +56,10 @@ namespace DaaS
             AnalysisStatus = s.AnalysisStatus;
             FilesCollected = s.FilesCollected;
             BlobStorageHostName = s.BlobStorageHostName;
+            IntervalDays = s.IntervalDays;
+            ActionsInInterval = s.ActionsInInterval;
             _blobSasUri = s.BlobSasUri;
+            DefaultHostName = s.DefaultHostName;
     }
         public new string BlobSasUri
         {
@@ -65,6 +75,9 @@ namespace DaaS
         private string _blobSasUri = string.Empty;
 
         [JsonConverter(typeof(StringEnumConverter))]
+        public RuleType RuleType { get; set; } = RuleType.Diagnostics;
+
+        [JsonConverter(typeof(StringEnumConverter))]
         public SessionMode Mode { get; set; }
         public string SessionId { get; set; }
         public DateTime StartDate { get; set; }
@@ -78,6 +91,16 @@ namespace DaaS
         public string ArgumentsToAction { get; set; }
         public int MaxActions { get; set; }
         public int MaximumNumberOfHours { get; set; }
+
+        //
+        // Added for RuleType.AlwaysOnRule
+        //
+
+        public int IntervalDays { get; set; }
+        public int ActionsInInterval { get; set; }
+        public TimeSpan ProcessWarmupTime { get; set; } = TimeSpan.FromHours(1);
+
+        public string DefaultHostName { get; set; }
         public string BlobStorageHostName { get; set; }
         public string BlobSasUri
         {

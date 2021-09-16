@@ -1,9 +1,9 @@
-//-----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="StorageController.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using System;
 using System.Collections.Generic;
@@ -29,7 +29,7 @@ namespace DaaS.Storage
         Task<bool> FileExistsAsync(string filePath, StorageLocation location, string blobSasUri = "");
         bool FileExists(string filePath, StorageLocation location, string blobSasUri = "");
         Task DeleteFileAsync(File file, string blobSasUri = "", Lease lease = null);
-        Task DeleteFileAsync(string filePath, string blobSasUri = "",  Lease lease = null);
+        Task DeleteFileAsync(string filePath, string blobSasUri = "", Lease lease = null);
         Task MoveFileAsync(File file, string newPath, StorageLocation location, string blobSasUri = "");
         Task MoveFileAsync(string oldPath, string newPath, StorageLocation location, string blobSasUri = "");
         void MoveFile(File file, string newPath, StorageLocation location, string blobSasUri = "");
@@ -38,8 +38,8 @@ namespace DaaS.Storage
         string GetNewTempFolder(string folderName);
         double GetFileSize(string directoryPath, string fileName, StorageLocation location, string blobSasUri = "");
         void RemoveAllFilesInDirectory(string directoryPath, StorageLocation location, string blobSasUri = "");
-        Task DownloadFileFromBlobAsync(string relativePath, StorageLocation location, string blobSasUri);
-        Task UploadFileToBlobAsync(string relativePath, StorageLocation location, string blobSasUri);
+        Task DownloadFileFromBlobAsync(string relativePath, StorageLocation location, string blobSasUri, string sessionId);
+        Task UploadFileToBlobAsync(string relativePath, StorageLocation location, string blobSasUri, string sessionId);
     }
 
     public enum StorageLocation
@@ -412,7 +412,6 @@ namespace DaaS.Storage
             {
                 case StorageLocation.BlobStorage:
                     throw new Exception("Blob storage path was requested, but blob storage is not configured");
-                    break;
                 case StorageLocation.TempStorage:
                     rootPath = Infrastructure.Settings.TempDir;
                     break;
@@ -459,7 +458,7 @@ namespace DaaS.Storage
 
         }
 
-        public async Task DownloadFileFromBlobAsync(string relativePath, StorageLocation location, string blobSasUri)
+        public async Task DownloadFileFromBlobAsync(string relativePath, StorageLocation location, string blobSasUri, string sessionId)
         {
             if (string.IsNullOrWhiteSpace(blobSasUri))
             {
@@ -476,11 +475,11 @@ namespace DaaS.Storage
             }
             catch (Exception ex)
             {
-                Logger.LogErrorEvent($"DownloadFileFromBlob - Failed while downloading file {relativePath} from blob", ex);
+                Logger.LogSessionErrorEvent($"DownloadFileFromBlob - Failed while downloading file {relativePath} from blob", ex, sessionId);
             }
         }
 
-        public async Task UploadFileToBlobAsync(string relativePath, StorageLocation location, string blobSasUri)
+        public async Task UploadFileToBlobAsync(string relativePath, StorageLocation location, string blobSasUri, string sessionId)
         {
             if (string.IsNullOrWhiteSpace(blobSasUri))
             {
@@ -491,12 +490,18 @@ namespace DaaS.Storage
                 var rootPath = GetRootStoragePathForWhenBlobStorageIsNotConfigured(location);
                 var fullPath = Path.Combine(rootPath, relativePath);
                 var blob = BlobController.GetBlobForFile(relativePath, blobSasUri);
-                await blob.UploadFromFileAsync(fullPath);
+
+                BlobRequestOptions blobRequestOptions = new BlobRequestOptions
+                {
+                    ServerTimeout = TimeSpan.FromMinutes(10)
+                };
+
+                await blob.UploadFromFileAsync(fullPath, null, blobRequestOptions, null);
                 Logger.LogVerboseEvent($"Uploaded {relativePath} to blob storage");
             }
             catch (Exception ex)
             {
-                Logger.LogErrorEvent($"UploadFileToBlobAsync - Failed while uploading file {relativePath} at {location} to blob", ex);
+                Logger.LogSessionErrorEvent($"UploadFileToBlobAsync - Failed while uploading file {relativePath} at {location} to blob", ex, sessionId);
             }
         }
     }

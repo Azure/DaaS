@@ -1,9 +1,9 @@
-﻿//-----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="AlertingStorageQueue.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 // </copyright>
-//-----------------------------------------------------------------------
+// -----------------------------------------------------------------------
 
 using System;
 using System.Collections.Generic;
@@ -15,13 +15,13 @@ using Microsoft.WindowsAzure.Storage.Queue;
 
 namespace DaaS.Storage
 {
-    internal class AlertingStorageQueue
+    public class AlertingStorageQueue
     {
         private const string AlertQueueName = "diagnosticalerts";
         private const int MessageExpirationInMinutes = 30;
         private CloudQueueClient _cloudQueueClient;
 
-        internal AlertingStorageQueue()
+        public AlertingStorageQueue()
         {
             string blobSasUri = Configuration.Settings.GetBlobSasUriFromEnvironment(out bool _);
 
