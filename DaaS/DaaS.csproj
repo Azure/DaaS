@@ -87,6 +87,7 @@
     <Compile Include="ProcessExtensions.cs" />
     <Compile Include="CancelledInstance.cs" />
     <Compile Include="RetryHelper.cs" />
+    <Compile Include="Sessions\InstanceIdUtility.cs" />
     <Compile Include="V2\Constants.cs" />
     <Compile Include="V2\Diagnostics\Analyzer.cs" />
     <Compile Include="V2\Configuration\DiagnoserDetails.cs" />

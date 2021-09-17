@@ -502,11 +502,8 @@ namespace DaaS.V2
                         activeSession.SessionId,
                         log.StartTime.ToString(Constants.SessionFileNameFormat));
 
-                    Logger.LogVerboseEvent("logReportPath = " + logReportPath);
-
                     if (!Directory.Exists(logReportPath))
                     {
-                        Logger.LogVerboseEvent("logReportPath does not exist");
                         continue;
                     }
 
@@ -515,13 +512,9 @@ namespace DaaS.V2
                         "*diagstatus.diaglog",
                         SearchOption.TopDirectoryOnly).FirstOrDefault();
 
-                    Logger.LogVerboseEvent("statusFile = " + statusFile);
-
-
                     if (!string.IsNullOrWhiteSpace(statusFile))
                     {
                         var statusMessages = ReadStatusFile(statusFile);
-                        Logger.LogVerboseEvent("statusMessages = " + JsonConvert.SerializeObject(statusMessages));
                         activeInstance.AnalyzerStatusMessages.AddRange(statusMessages);
                     }
                 }

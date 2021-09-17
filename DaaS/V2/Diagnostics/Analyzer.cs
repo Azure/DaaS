@@ -5,7 +5,6 @@
 // </copyright>
 // -----------------------------------------------------------------------
 
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -31,16 +30,16 @@ namespace DaaS.V2
         {
             try
             {
-                Logger.LogSessionVerboseEvent($"Inside AnalyzeLogsAsync, logs = {JsonConvert.SerializeObject(logs)}", activeSession.SessionId);
+                Logger.LogSessionVerboseEvent($"Going to analyze logs for session. File count = {logs.Count}", activeSession.SessionId);
                 if (logs.Count == 0)
                 {
                     Logger.LogSessionVerboseEvent($"Found no logs to analyze", activeSession.SessionId);
                     return;
                 }
+
                 foreach (var log in logs)
                 {
                     string tempOutputDir = log.GetReportTempPath(activeSession.SessionId);
-                    Logger.LogSessionVerboseEvent("tempOutputDir = " + tempOutputDir, activeSession.SessionId);
                     var args = ExpandVariablesInArgument(log, tempOutputDir);
 
                     CancellationTokenSource analyzerTimeoutCts = new CancellationTokenSource();
@@ -67,8 +66,6 @@ namespace DaaS.V2
 
         private string ExpandVariablesInArgument(LogFile log, string tempOutputDir)
         {
-            Logger.LogVerboseEvent($"Inside ExpandVariablesInArgument = {JsonConvert.SerializeObject(log)} , outputdir = {tempOutputDir}");
-
             var variables = new Dictionary<string, string>()
             {
                 {"logFile", log.TempPath},
@@ -91,7 +88,6 @@ namespace DaaS.V2
                 var reportDirectory = new DirectoryInfo(tempOutputDir);
                 foreach (var file in reportDirectory.GetFiles("*", SearchOption.AllDirectories))
                 {
-                    Logger.LogVerboseEvent($"Report = {file.FullName}");
                     log.Reports.Add(new Report()
                     {
                         Name = file.Name,
@@ -116,13 +112,19 @@ namespace DaaS.V2
 
                     try
                     {
-                        await MoveFileAsync(report.TempPath, destination, activeSession.SessionId, deleteAfterCopy: false);
+                        await MoveFileAsync(report.TempPath, destination, activeSession.SessionId, deleteAfterCopy: true);
                     }
                     catch (Exception ex)
                     {
                         Logger.LogSessionErrorEvent($"Failed while copying {reportRelativePath} to permanent storage", ex, activeSession.SessionId);
                     }
                 }
+
+                //
+                // Delete the log file now from the temp directory to save temp disk space
+                //
+
+                FileSystemHelpers.DeleteFileSafe(log.TempPath);
             }
         }
     }

@@ -51,7 +51,7 @@ namespace DaaS.V2
             FileSystemHelpers.EnsureDirectory(tempOutputDir);
 
             // Check to see if logs exists (another collector session could have run)
-           var logs = GetLogsForSession(tempOutputDir);
+            var logs = GetLogsForSession(tempOutputDir);
 
             if (!logs.Any())
             {
@@ -65,7 +65,7 @@ namespace DaaS.V2
                     }
                 }
                 logs = GetLogsForSession(tempOutputDir);
-                Logger.LogVerboseEvent($"logs have = {logs.Count} files");
+                Logger.LogSessionVerboseEvent($"Collected {logs.Count} log files for session", session.SessionId);
             }
 
             if (!logs.Any(x => !x.TempPath.EndsWith(".diaglog")))
@@ -80,6 +80,7 @@ namespace DaaS.V2
                         resp.Errors.Add(collectorException);
                     }
                 }
+
                 throw new Diagnostics.DiagnosticToolHasNoOutputException(Name, collectorException);
             }
 
@@ -105,7 +106,6 @@ namespace DaaS.V2
 
             foreach (var file in logsDirectory.GetFiles())
             {
-                Logger.LogVerboseEvent($"File = {file.FullName}");
                 logFiles.Add(new LogFile()
                 {
                     TempPath = file.FullName,
@@ -173,8 +173,8 @@ namespace DaaS.V2
                     }
                 }
 
-                //if for some reason, the prevalidation command is not completed in 2 sec, we will assume that the prevalidation failed  so users
-                //cannot enable the collector.  
+                // if for some reason, the prevalidation command is not completed in 2 sec, we will assume that the prevalidation failed  so users
+                // cannot enable the collector.  
                 if (!toolProcess.HasExited)
                 {
                     ret = false;
@@ -230,7 +230,7 @@ namespace DaaS.V2
             {
                 throw new InvalidOperationException("BlobSasUri cannot be empty");
             }
-            
+
             foreach (var log in logFiles)
             {
                 string logPath = Path.Combine(
@@ -276,27 +276,9 @@ namespace DaaS.V2
             }
         }
 
-        private bool GetComputerNameIfExists(out string computerName)
-        {
-            computerName = string.Empty;
-            var env = Environment.GetEnvironmentVariable("COMPUTERNAME");
-            if (!string.IsNullOrWhiteSpace(env))
-            {
-                computerName = env;
-                return true;
-            }
-
-            return false;
-        }
-
         private string GetInstanceId()
         {
-            if (GetComputerNameIfExists(out string machineName))
-            {
-                return machineName;
-            }
-
-            return InstanceIdUtility.GetInstanceId();
+            return Environment.MachineName;
         }
     }
 }
