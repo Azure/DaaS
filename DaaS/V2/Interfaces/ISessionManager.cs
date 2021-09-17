@@ -21,7 +21,7 @@ namespace DaaS.V2
         /// </summary>
         /// <param name="session"></param>
         /// <returns></returns>
-        Task<string> SubmitNewSessionAsync(Session session);
+        Task<string> SubmitNewSessionAsync(Session session, bool invokedViaDaasConsole = false);
 
         /// <summary>
         /// Lists all DaaS sessions, complete as well as active

@@ -1,4 +1,4 @@
-// -----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="Logger.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
@@ -239,18 +239,8 @@ namespace DaaS
             LogDiagnostic("Session [ERR] - {0} {1} {2} {3} {4}", sessionId, message, ex.GetType().ToString(), ex.Message, ex.StackTrace);
         }
 
-        public static void LogNewSession(string sessionId, string mode, string diagnosers, string Instances, bool invokedViaDaasConsole, bool hasblobSasUri, bool sasUriInEnvironmentVariable, bool sandboxAvailable, string defaultHostName)
-        {
-            var details = new
-            {
-                Instances,
-                invokedViaDaasConsole,
-                hasblobSasUri,
-                sasUriInEnvironmentVariable,
-                sandboxAvailable,
-                defaultHostName
-            };
-
+        public static void LogNewSession(string sessionId, string mode, string diagnosers, object details)
+        {           
             DaasEventSource.Instance.LogNewSession(SiteName, _assemblyVersion, sessionId, mode, diagnosers, JsonConvert.SerializeObject(details));
             LogDiagnostic("New Session - {0} {1} {2} {3}", sessionId, mode, diagnosers, JsonConvert.SerializeObject(details));
         }

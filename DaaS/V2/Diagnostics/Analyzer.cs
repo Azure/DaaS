@@ -108,8 +108,6 @@ namespace DaaS.V2
                     report.RelativePath = $"{Utility.GetScmHostName()}/api/vfs/{report.PartialPath}";
                     string destination = Path.Combine(DaasDirectory.ReportsDir, reportRelativePath);
 
-                    Logger.LogVerboseEvent($"destination = {destination}, source = {report.TempPath}");
-
                     try
                     {
                         await MoveFileAsync(report.TempPath, destination, activeSession.SessionId, deleteAfterCopy: true);

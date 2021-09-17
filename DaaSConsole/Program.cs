@@ -436,7 +436,7 @@ namespace DaaSConsole
             // submit and check the status in a loop
             //
 
-            var sessionId = SessionManager.SubmitNewSessionAsync(session).Result;
+            var sessionId = SessionManager.SubmitNewSessionAsync(session, invokedViaDaasConsole: true).Result;
             Console.WriteLine($"Session submitted for '{toolName}' with Id - {sessionId}");
             Console.Write("Waiting...");
             while (true)

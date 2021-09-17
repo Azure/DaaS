@@ -1,4 +1,4 @@
-// -----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="SessionController.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
@@ -283,16 +283,23 @@ namespace DaaS.Sessions
                 BlobStorageHostName = BlobController.GetBlobStorageHostName(blobSasUri),
                 DefaultHostName = Settings.DefaultHostName
             };
+
             session.Save();
+
+            var details = new
+            {
+                Instances = string.Join(",", session.InstancesSpecified.Select(x => x.Name).ToArray()),
+                invokedViaDaasConsole,
+                hasBlobSasUri = !string.IsNullOrWhiteSpace(session.BlobSasUri),
+                sasUriInEnvironmentVariable,
+                sandboxAvailable,
+                session.DefaultHostName
+            };
+
             Logger.LogNewSession(session.SessionId.ToString(),
                 sessionType.ToString(),
                 string.Join(",", diagnosers.Select(x => x.Name)),
-                string.Join(",", session.InstancesSpecified.Select(x => x.Name).ToArray()),
-                invokedViaDaasConsole,
-                !string.IsNullOrWhiteSpace(session.BlobSasUri),
-                sasUriInEnvironmentVariable,
-                sandboxAvailable,
-                session.DefaultHostName);
+                details);
 
             return session;
         }

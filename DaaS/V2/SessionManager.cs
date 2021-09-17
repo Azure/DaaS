@@ -58,7 +58,7 @@ namespace DaaS.V2
                 .Where(x => x.SessionId == sessionId).FirstOrDefault();
         }
 
-        public async Task<string> SubmitNewSessionAsync(Session session)
+        public async Task<string> SubmitNewSessionAsync(Session session, bool invokedViaDaasConsole = false)
         {
             var computeMode = Environment.GetEnvironmentVariable("WEBSITE_COMPUTE_MODE");
             if (computeMode != null && !computeMode.Equals("Dedicated", StringComparison.OrdinalIgnoreCase))
@@ -74,7 +74,7 @@ namespace DaaS.V2
 
             await ThrowIfSessionInvalid(session);
 
-            await SaveSessionAsync(session);
+            await SaveSessionAsync(session, invokedViaDaasConsole);
             return session.SessionId;
         }
 
@@ -780,28 +780,37 @@ namespace DaaS.V2
             return path;
         }
 
-        private async Task SaveSessionAsync(Session session)
+        private async Task SaveSessionAsync(Session session, bool invokedViaDaasConsole)
         {
             try
             {
                 session.StartTime = DateTime.UtcNow;
                 session.SessionId = GetSessionId(session.StartTime);
                 session.Status = Status.Active;
-                session.BlobStorageHostName = Storage.BlobController.GetBlobStorageHostName(Settings.Instance.BlobSasUri);
+
+                var diagnoser = GetDiagnoserForSession(session);
+                if (diagnoser != null && diagnoser.RequiresStorageAccount)
+                {
+                    session.BlobStorageHostName = Storage.BlobController.GetBlobStorageHostName(Settings.Instance.BlobSasUri);
+                }
+
                 session.DefaultScmHostName = Settings.Instance.DefaultScmHostName;
                 await WriteJsonAsync(session,
                     Path.Combine(SessionDirectories.ActiveSessionsDir, session.SessionId + ".json"));
+
+                var details = new
+                {
+                    Instances = string.Join(",", session.Instances),
+                    session.DefaultScmHostName,
+                    session.BlobStorageHostName,
+                    invokedViaDaasConsole
+                };
 
                 Logger.LogNewSession(
                     session.SessionId,
                     session.Mode.ToString(),
                     session.Tool,
-                    string.Join(",", session.Instances),
-                    invokedViaDaasConsole: false,
-                    hasblobSasUri: false,
-                    sasUriInEnvironmentVariable: false,
-                    IsSandboxAvailable(),
-                    defaultHostName: string.Empty);
+                    details);
             }
             catch (Exception ex)
             {
@@ -977,7 +986,7 @@ namespace DaaS.V2
             //
 
             FileSystemHelpers.DeleteFileSafe(GetActiveSessionLockPath(activeSession.SessionId));
-            Logger.LogSessionVerboseEvent($"Session is complete", activeSession.SessionId);
+            Logger.LogSessionVerboseEvent($"Session is complete after {DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes} minutes", activeSession.SessionId);
         }
     }
 }
