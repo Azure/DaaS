@@ -1,5 +1,5 @@
 ﻿// -----------------------------------------------------------------------
-// <copyright file="UdpEchoTestController.cs" company="Microsoft Corporation">
+// <copyright file="NameResolverController.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 // </copyright>
@@ -18,8 +18,8 @@ using System.Web.Http;
 namespace DiagnosticsExtension.Controllers
 {
     /// <summary>
-    /// Worker instances are running an udp echo server on port 30000. This controller is for checking the connection between target 
-    /// worker instance by pinging and checking the echoed result.
+    /// This controller simply does a DNS lookup on the worker and returns its result. This is a replacement of nameresolver CLI as it sometimes behaves inconsistently 
+    /// as the name resolving being done in the user code. Mainly used by Network Troubleshooter.
     /// </summary>
     [RoutePrefix("api/nameresolver")]
     public class NameResolverController : ApiController
@@ -38,13 +38,13 @@ namespace DiagnosticsExtension.Controllers
             catch (Exception e)
             {
                 var socketException = e as SocketException;
-                if (socketException!=null && socketException.SocketErrorCode == SocketError.HostNotFound)
+                if (socketException != null && socketException.SocketErrorCode == SocketError.HostNotFound)
                 {
                     result = new NameResolverResult { Status = "host not found" };
                 }
                 else
                 {
-                    result = new NameResolverResult { Status = "unknown error", Exception = e };
+                    result = new NameResolverResult { Status = "error", SocketError = socketException?.SocketErrorCode.ToString(), Exception = e };
                     httpStatus = HttpStatusCode.InternalServerError;
                 }
             }
@@ -57,6 +57,7 @@ namespace DiagnosticsExtension.Controllers
             public string Status;
             public List<string> IpAddresses;
             public Exception Exception;
+            public string SocketError;
         }
     }
 }
