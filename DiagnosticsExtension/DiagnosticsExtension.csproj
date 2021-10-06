@@ -288,6 +288,7 @@
     <Compile Include="Controllers\DiagnosersV2Controller.cs" />
     <Compile Include="Controllers\SessionV2Controller.cs" />
     <Compile Include="Controllers\SettingsV2Controller.cs" />
+    <Compile Include="Controllers\NameResolverController.cs" />
     <Compile Include="Controllers\UdpEchoTestController.cs" />
     <Compile Include="Controllers\DatabaseTestController.cs" />
     <Compile Include="Controllers\DownloadFileController.cs" />
