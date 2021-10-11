@@ -40,7 +40,7 @@ namespace DaaS.V2
         /// </summary>
         /// <param name="sessionId"></param>
         /// <returns></returns>
-        Task<Session> GetSessionAsync(string sessionId);
+        Task<Session> GetSessionAsync(string sessionId, bool isDetailed = false);
         bool IsSandboxAvailable();
 
         /// <summary>

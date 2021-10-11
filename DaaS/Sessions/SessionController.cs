@@ -732,7 +732,6 @@ namespace DaaS.Sessions
                         _runningSessions.Remove(sessionId);
                     }
                 }
-
             }
         }
 

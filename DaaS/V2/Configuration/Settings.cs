@@ -202,16 +202,24 @@ namespace DaaS.V2
 
         private static Settings GetPrivateSettings()
         {
-            var settingsPath = CreatePrivateSettingsFileIfNotExists();
-
+            bool privateSettingsParsed = false;
             try
             {
-                var privateSettings = JsonConvert.DeserializeObject<Settings>(File.ReadAllText(settingsPath));
-                return privateSettings;
+                var settingsPath = CreatePrivateSettingsFileIfNotExists();
+                if (!string.IsNullOrWhiteSpace(settingsPath))
+                {
+                    var privateSettings = JsonConvert.DeserializeObject<Settings>(File.ReadAllText(settingsPath));
+                    privateSettingsParsed = true;
+                    return privateSettings;
+                }
             }
             catch (Exception ex)
             {
                 Logger.LogWarningEvent("Failed while parsing private settings file, trying to overwrite the existing file", ex);
+            }
+
+            if (!privateSettingsParsed)
+            {
                 OverwritePrivateSettings();
             }
 
@@ -232,26 +240,34 @@ namespace DaaS.V2
 
         private static string CreatePrivateSettingsFileIfNotExists(bool overwriteFile = false)
         {
-            var fullPath = Path.Combine(DaasDirectory.DaasPath, PrivateSettingsFilePath);
-            if (File.Exists(fullPath) && !overwriteFile)
+            try
             {
+                var fullPath = Path.Combine(DaasDirectory.DaasPath, PrivateSettingsFilePath);
+                if (File.Exists(fullPath) && !overwriteFile)
+                {
+                    return fullPath;
+                }
+
+                if (overwriteFile)
+                {
+                    FileSystemHelpers.DeleteFileSafe(fullPath);
+                }
+                using (Stream stream = typeof(Settings).Assembly.GetManifestResourceStream("DaaS.Configuration.PrivateSettings.json"))
+                {
+                    using (FileStream file = new FileStream(fullPath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite))
+                    {
+                        stream.CopyTo(file);
+                    }
+                }
+
                 return fullPath;
             }
-
-            if (overwriteFile)
+            catch (Exception ex)
             {
-                FileSystemHelpers.DeleteFileSafe(fullPath);
+                Logger.LogWarningEvent("Failed while creating private settings file", ex);
             }
 
-            using (Stream stream = typeof(Settings).Assembly.GetManifestResourceStream("DaaS.Configuration.PrivateSettings.json"))
-            {
-                using (FileStream file = new FileStream(fullPath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite))
-                {
-                    stream.CopyTo(file);
-                }
-            }
-
-            return fullPath;
+            return string.Empty;
         }
 
         private static string GetSettingFilePath()

@@ -11,11 +11,14 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
+using System.Text;
 
 namespace DaaS
 {
     public static class Logger
     {
+        private const int MaxExceptionDepthToLog = 5;
+
         public static string StatusFile = "";
         public static string ErrorFilePath = "";
         private static string CallerComponent;
@@ -185,20 +188,42 @@ namespace DaaS
 
         public static void LogErrorEvent(string message, Exception exception)
         {
-            string details = "";
+            var details = GetExceptionDetails(exception);
+            LogErrorEvent(message, exception.GetType().ToString(), exception.Message, exception.StackTrace, details);
+        }
+
+        private static string GetExceptionDetails(Exception exception)
+        {
+            var builder = new StringBuilder();
             if (exception is StorageException storageEx && storageEx.RequestInformation != null
                 && storageEx.RequestInformation.ExtendedErrorInformation != null)
             {
                 try
                 {
-                    details = " ExtendedErrorInformation = " + JsonConvert.SerializeObject(storageEx.RequestInformation.ExtendedErrorInformation);
+                    builder.AppendLine("ExtendedErrorInformation = " + JsonConvert.SerializeObject(storageEx.RequestInformation.ExtendedErrorInformation));
                 }
                 catch (Exception)
                 {
                 }
             }
+            else if (exception is AggregateException aggregateException)
+            {
+                aggregateException.Handle((x) =>
+                {
+                    builder.AppendLine(x.ToString());
+                    return true;
+                });
+            }
 
-            LogErrorEvent(message, exception.GetType().ToString(), exception.Message, exception.StackTrace, details);
+            int currentDepth = 0;
+            while (exception.InnerException != null && currentDepth < MaxExceptionDepthToLog)
+            {
+                builder.AppendLine($"Inner Exception {currentDepth + 1} = {exception}");
+                exception = exception.InnerException;
+                ++currentDepth;
+            }
+
+            return builder.ToString();
         }
 
         public static void LogWarningEvent(string message, Exception exception, string details = "")
@@ -219,7 +244,7 @@ namespace DaaS
                 // 
                 // TODO :: Change to LogWarningEvent post ANT96
                 // 
-                
+
                 DaasEventSource.Instance.LogErrorEvent(SiteName, _assemblyVersion, "[WARNING:]" + message, exceptionType, exceptionMessage, exceptionStackTrace, details);
             }
             catch (Exception)
@@ -229,7 +254,7 @@ namespace DaaS
 
         public static void LogErrorEvent(string message, string exception)
         {
-            LogErrorEvent(message, exceptionType:string.Empty, exceptionMessage:exception, string.Empty, string.Empty);
+            LogErrorEvent(message, exceptionType: string.Empty, exceptionMessage: exception, string.Empty, string.Empty);
             LogDiagnostic("[ERR] - {0} {1}", message, exception);
         }
 
@@ -240,7 +265,7 @@ namespace DaaS
         }
 
         public static void LogNewSession(string sessionId, string mode, string diagnosers, object details)
-        {           
+        {
             DaasEventSource.Instance.LogNewSession(SiteName, _assemblyVersion, sessionId, mode, diagnosers, JsonConvert.SerializeObject(details));
             LogDiagnostic("New Session - {0} {1} {2} {3}", sessionId, mode, diagnosers, JsonConvert.SerializeObject(details));
         }

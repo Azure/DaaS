@@ -52,9 +52,9 @@ namespace DaaS.V2
             return (await LoadSessionsAsync(SessionDirectories.CompletedSessionsDir)).OrderByDescending(x => x.StartTime);
         }
 
-        public async Task<Session> GetSessionAsync(string sessionId)
+        public async Task<Session> GetSessionAsync(string sessionId, bool isDetailed = false)
         {
-            return (await LoadSessionsAsync(_allSessionsDirs))
+            return (await LoadSessionsAsync(_allSessionsDirs, isDetailed))
                 .Where(x => x.SessionId == sessionId).FirstOrDefault();
         }
 

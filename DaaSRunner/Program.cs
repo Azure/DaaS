@@ -54,7 +54,7 @@ namespace DaaSRunner
 
         private static readonly ISessionManager _sessionManager = new SessionManager();
         private static readonly ConcurrentDictionary<string, TaskAndCancellationTokenV2> _runningSessions = new ConcurrentDictionary<string, TaskAndCancellationTokenV2>();
-        private static CancellationTokenSource _cts = new CancellationTokenSource();
+        private static readonly CancellationTokenSource _cts = new CancellationTokenSource();
 
         static void Main(string[] args)
         {
@@ -108,7 +108,7 @@ namespace DaaSRunner
             return result;
         }
 
-        private static void ClearSecretIfNeeded(string sasUriPrivateSettings , bool secretInvalid)
+        private static void ClearSecretIfNeeded(string sasUriPrivateSettings, bool secretInvalid)
         {
             if (!m_SecretsCleared && !string.IsNullOrWhiteSpace(sasUriPrivateSettings))
             {
@@ -149,7 +149,7 @@ namespace DaaSRunner
                 {
                     if (!ValidateSasUri(sasUriPrivateSettings, isdefinedInEnvironmentVariable: false))
                     {
-                        ClearSecretIfNeeded(sasUriPrivateSettings, secretInvalid:true);
+                        ClearSecretIfNeeded(sasUriPrivateSettings, secretInvalid: true);
                     }
                 }
             }
@@ -550,62 +550,69 @@ namespace DaaSRunner
 
         private static void RunActiveSessionV2(CancellationToken stoppingToken)
         {
-            var activeSession = _sessionManager.GetActiveSessionAsync().Result;
-            if (activeSession == null)
+            try
             {
-                return;
-            }
-
-            // Check if all instances are finished with log collection
-            if (_sessionManager.CheckandCompleteSessionIfNeededAsync().Result)
-            {
-                return;
-            }
-
-            if (DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes > SettingsV2.Instance.OrphanInstanceTimeoutInMinutes)
-            {
-                _sessionManager.CancelOrphanedInstancesIfNeeded(activeSession).Wait();
-            }
-
-            if (DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes > SettingsV2.Instance.MaxSessionTimeInMinutes)
-            {
-                if (_runningSessions.ContainsKey(activeSession.SessionId))
+                var activeSession = _sessionManager.GetActiveSessionAsync().Result;
+                if (activeSession == null)
                 {
-                    _runningSessions[activeSession.SessionId].CancellationTokenSource.Cancel();
-                }
-
-                //
-                // Keeping this commented for now as task cancellations are propagated to collector
-                // and analyzer both. We will see if a need for this code arises
-                //
-
-                // _ = _sessionManager.CheckandCompleteSessionIfNeededAsync(forceCompletion: true).Result;
-            }
-
-            if (_sessionManager.ShouldCollectOnCurrentInstance(activeSession))
-            {
-                if (_runningSessions.ContainsKey(activeSession.SessionId))
-                {
-                    // data Collection for this session is in progress
                     return;
                 }
 
-                if (_sessionManager.HasThisInstanceCollectedLogs().Result)
+                // Check if all instances are finished with log collection
+                if (_sessionManager.CheckandCompleteSessionIfNeededAsync().Result)
                 {
-                    // This instance has already collected logs for this session
                     return;
                 }
 
-                var cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
-                var sessionTask = _sessionManager.RunToolForSessionAsync(activeSession, cts.Token);
-
-                var t = new TaskAndCancellationTokenV2
+                if (DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes > SettingsV2.Instance.OrphanInstanceTimeoutInMinutes)
                 {
-                    UnderlyingTask = sessionTask,
-                    CancellationTokenSource = cts
-                };
+                    _sessionManager.CancelOrphanedInstancesIfNeeded(activeSession).Wait();
+                }
 
-                _runningSessions[activeSession.SessionId] = t;
+                if (DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes > SettingsV2.Instance.MaxSessionTimeInMinutes)
+                {
+                    if (_runningSessions.ContainsKey(activeSession.SessionId))
+                    {
+                        _runningSessions[activeSession.SessionId].CancellationTokenSource.Cancel();
+                    }
+
+                    //
+                    // Keeping this commented for now as task cancellations are propagated to collector
+                    // and analyzer both. We will see if a need for this code arises
+                    //
+
+                    // _ = _sessionManager.CheckandCompleteSessionIfNeededAsync(forceCompletion: true).Result;
+                }
+
+                if (_sessionManager.ShouldCollectOnCurrentInstance(activeSession))
+                {
+                    if (_runningSessions.ContainsKey(activeSession.SessionId))
+                    {
+                        // data Collection for this session is in progress
+                        return;
+                    }
+
+                    if (_sessionManager.HasThisInstanceCollectedLogs().Result)
+                    {
+                        // This instance has already collected logs for this session
+                        return;
+                    }
+
+                    var cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+                    var sessionTask = _sessionManager.RunToolForSessionAsync(activeSession, cts.Token);
+
+                    var t = new TaskAndCancellationTokenV2
+                    {
+                        UnderlyingTask = sessionTask,
+                        CancellationTokenSource = cts
+                    };
+
+                    _runningSessions[activeSession.SessionId] = t;
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogErrorEvent("Failed in RunActiveSessionV2", ex);
             }
         }
 
