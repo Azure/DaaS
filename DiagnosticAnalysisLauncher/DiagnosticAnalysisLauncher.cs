@@ -40,10 +40,26 @@ namespace DiagnosticAnalysisLauncher
             AnalyzeMemoryDump(diagnosticAnalysisExePath, _dumpFile);
         }
 
+        private bool IsSiteEnabled()
+        {
+            string val = Environment.GetEnvironmentVariable("WEBSITE_ENABLE_DIAGNOSTIC_ANALYSIS_DAAS");
+            if (!string.IsNullOrWhiteSpace(val))
+            {
+                return val.Equals("true", StringComparison.OrdinalIgnoreCase);
+            }
+
+            return false;
+        }
+
         private bool IsStampEnabled()
         {
             try
             {
+                if (IsSiteEnabled())
+                {
+                    return true;
+                }
+
                 var scmHostingConfigPath = Environment.ExpandEnvironmentVariables("%ProgramFiles(x86)%\\SiteExtensions\\kudu\\ScmHostingConfigurations.txt");
                 if (!File.Exists(scmHostingConfigPath))
                 {
@@ -129,7 +145,7 @@ namespace DiagnosticAnalysisLauncher
                     TotalProcessorTime = diagnosticsAnalysis.TotalProcessorTime.TotalSeconds;
                     PrivateMemorySize64 = diagnosticsAnalysis.PrivateMemorySize64;
                 }
-                catch(Exception)
+                catch (Exception)
                 {
                 }
             }
