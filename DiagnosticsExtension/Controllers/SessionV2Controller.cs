@@ -48,6 +48,7 @@ namespace DiagnosticsExtension.Controllers
         }
 
         [HttpGet]
+        [Route("")]
         public async Task<IHttpActionResult> GetSessions()
         {
             return Ok(await _sessionManager.GetAllSessionsAsync(isDetailed: true));
@@ -60,8 +61,8 @@ namespace DiagnosticsExtension.Controllers
             return Ok(await _sessionManager.GetActiveSessionAsync(isDetailed: true));
         }
 
-        [Route("{sessionId}")]
         [HttpGet]
+        [Route("{sessionId}")]
         public async Task<IHttpActionResult> GetSession(string sessionId)
         {
             return Ok(await _sessionManager.GetSessionAsync(sessionId, isDetailed: true));

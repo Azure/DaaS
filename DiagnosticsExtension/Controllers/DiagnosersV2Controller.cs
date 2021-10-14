@@ -24,6 +24,8 @@ namespace DiagnosticsExtension.Controllers
             _sessionManager = sessionManager;
         }
 
+        [HttpGet]
+        [Route("")]
         public HttpResponseMessage Get()
         {
             try

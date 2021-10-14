@@ -51,30 +51,6 @@ namespace DiagnosticsExtension
             );
 
             config.Routes.MapHttpRoute(
-                name: "ActiveSessionV2Api",
-                routeTemplate: "sessions/active",
-                defaults: new { controller = "SessionV2" }
-            );
-
-            config.Routes.MapHttpRoute(
-                name: "SessionV2Api",
-                routeTemplate: "sessions/{sessionId}",
-                defaults: new { controller = "SessionV2",  sessionId = RouteParameter.Optional}
-            );
-
-            config.Routes.MapHttpRoute(
-                name: "DiagnosersV2Api",
-                routeTemplate: "diagnosers",
-                defaults: new { controller = "DiagnosersV2"}
-            );
-
-            config.Routes.MapHttpRoute(
-                name: "SettingsV2Api",
-                routeTemplate: "settings",
-                defaults: new { controller = "SettingsV2" }
-            );
-
-            config.Routes.MapHttpRoute(
                 name: "DownloadFilesList",
                 routeTemplate: "api/v2/session/downloadfileslist/{sessionId}/{downloadableFileType}",
                 defaults: new { controller = "DownloadFilesList" }

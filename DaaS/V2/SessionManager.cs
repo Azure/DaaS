@@ -944,7 +944,14 @@ namespace DaaS.V2
         {
             _allSessionsDirs.ForEach(x =>
             {
-                FileSystemHelpers.EnsureDirectory(x);
+                try
+                {
+                    FileSystemHelpers.EnsureDirectory(x);
+                }
+                catch(Exception)
+                {
+                    // Ignore
+                }
             });
         }
 

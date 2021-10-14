@@ -13,11 +13,12 @@ using DaaS.V2;
 
 namespace DiagnosticsExtension.Controllers
 {
+    [RoutePrefix("settings")]
     public class SettingsV2Controller : ApiController
     {
-        [Route("settings")]
-        [HttpGet]
-        public IHttpActionResult Get()
+        [HttpPost]
+        [Route("")]
+        public IHttpActionResult Post()
         {
             var settings = new Dictionary<string, object>();
             var settingsType = typeof(Settings);

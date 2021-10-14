@@ -1,4 +1,4 @@
-// -----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="CpuMonitoringController.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
@@ -20,7 +20,7 @@ namespace DiagnosticsExtension.Controllers
     {
 
         [HttpGet]
-        // GET: api/CpuMonitoring
+        [Route("")]
         public HttpResponseMessage Get()
         {
             var monitoringController = new MonitoringSessionController();
@@ -42,7 +42,7 @@ namespace DiagnosticsExtension.Controllers
         }
 
         [HttpGet]
-        // GET: api/CpuMonitoring/5
+        [Route("{sessionId}")]
         public HttpResponseMessage Get(string sessionId)
         {
             var monitoringController = new MonitoringSessionController();
@@ -58,7 +58,6 @@ namespace DiagnosticsExtension.Controllers
             }
         }
 
-        // GET: api/CpuMonitoring/active
         [HttpGet]
         [Route("active")]
         public HttpResponseMessage GetActiveSession()
@@ -81,7 +80,6 @@ namespace DiagnosticsExtension.Controllers
             }
         }
 
-        // GET: api/CpuMonitoring/monitoringlogs
         [HttpGet]
         [Route("activesessiondetails")]
         public HttpResponseMessage GetActiveSessionDetails()
@@ -108,7 +106,6 @@ namespace DiagnosticsExtension.Controllers
             }
         }
 
-        // POST: api/CpuMonitoring/stop
         [HttpPost]
         [Route("stop")]
         public HttpResponseMessage StopMonitoringSession()
@@ -126,7 +123,8 @@ namespace DiagnosticsExtension.Controllers
             }
         }
 
-        // POST: api/CpuMonitoring
+        [HttpPost]
+        [Route("")]
         public HttpResponseMessage Post([FromBody]MonitoringSession session)
         {
             var monitoringController = new MonitoringSessionController();
@@ -142,7 +140,8 @@ namespace DiagnosticsExtension.Controllers
             }
         }
 
-        // DELETE: api/CpuMonitoring/5
+        [HttpDelete]
+        [Route("{sessionId}")]
         public HttpResponseMessage Delete(string sessionId)
         {
             var monitoringController = new MonitoringSessionController();
