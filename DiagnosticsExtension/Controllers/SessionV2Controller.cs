@@ -34,9 +34,7 @@ namespace DiagnosticsExtension.Controllers
             try
             {
                 string sessionId = await _sessionManager.SubmitNewSessionAsync(session);
-                var response = this.Request.CreateResponse(HttpStatusCode.Created);
-                response.Content = new StringContent(sessionId, Encoding.UTF8, "application/json");
-                return ResponseMessage(response);
+                return ResponseMessage(Request.CreateResponse(HttpStatusCode.Accepted, sessionId));
             }
             catch (ArgumentException argEx)
             {
