@@ -8,6 +8,7 @@
 using System;
 using System.Net;
 using System.Net.Http;
+using System.Text;
 using System.Threading.Tasks;
 using System.Web.Http;
 using DaaS.V2;
@@ -25,13 +26,17 @@ namespace DiagnosticsExtension.Controllers
             _sessionManager.IncludeSasUri = true;
         }
 
+        [HttpPut]
         [HttpPost]
+        [Route("")]
         public async Task<IHttpActionResult> SubmitNewSession([FromBody] Session session)
         {
             try
             {
                 string sessionId = await _sessionManager.SubmitNewSessionAsync(session);
-                return Ok(sessionId);
+                var response = this.Request.CreateResponse(HttpStatusCode.Created);
+                response.Content = new StringContent(sessionId, Encoding.UTF8, "application/json");
+                return ResponseMessage(response);
             }
             catch (ArgumentException argEx)
             {
@@ -65,7 +70,13 @@ namespace DiagnosticsExtension.Controllers
         [Route("{sessionId}")]
         public async Task<IHttpActionResult> GetSession(string sessionId)
         {
-            return Ok(await _sessionManager.GetSessionAsync(sessionId, isDetailed: true));
+            var session = await _sessionManager.GetSessionAsync(sessionId, isDetailed: true);
+            if (session != null)
+            {
+                return Ok(session);
+            }
+
+            return ResponseMessage(Request.CreateErrorResponse(HttpStatusCode.NotFound, $"Cannot find session with Id - {sessionId}"));
         }
 
         [Route("{sessionId}")]
