@@ -529,21 +529,32 @@ namespace DaaSRunner
             if (DateTime.UtcNow.Subtract(_lastSessionCleanupTime).TotalHours > SettingsV2.Instance.HoursBetweenOldSessionsCleanup)
             {
                 _lastSessionCleanupTime = DateTime.UtcNow;
+                var allSessions = new List<SessionV2>();
 
-                var allSessions = _sessionManager.GetAllSessionsAsync().Result;
-
-                // Leave the last 'MaxSessionsToKeep' sessions and delete the older sessions
-                var olderSessions = allSessions.OrderBy(x => x.StartTime).Take(Math.Max(0, allSessions.Count() - SettingsV2.Instance.MaxSessionsToKeep));
-                foreach (var session in olderSessions)
+                try
                 {
-                    DeleteSessionSafe(session);
+                    allSessions = _sessionManager.GetAllSessionsAsync().Result.ToList();
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogWarningEvent("Failed while getting V2 sessions", ex);
                 }
 
-                // Delete all the sessions older than 'MaxSessionAgeInDays' days
-                olderSessions = allSessions.Where(x => DateTime.UtcNow.Subtract(x.StartTime).TotalDays > SettingsV2.Instance.MaxSessionAgeInDays);
-                foreach (var session in olderSessions)
+                if (allSessions.Any())
                 {
-                    DeleteSessionSafe(session);
+                    // Leave the last 'MaxSessionsToKeep' sessions and delete the older sessions
+                    var olderSessions = allSessions.OrderBy(x => x.StartTime).Take(Math.Max(0, allSessions.Count() - SettingsV2.Instance.MaxSessionsToKeep));
+                    foreach (var session in olderSessions)
+                    {
+                        DeleteSessionSafe(session);
+                    }
+
+                    // Delete all the sessions older than 'MaxSessionAgeInDays' days
+                    olderSessions = allSessions.Where(x => DateTime.UtcNow.Subtract(x.StartTime).TotalDays > SettingsV2.Instance.MaxSessionAgeInDays);
+                    foreach (var session in olderSessions)
+                    {
+                        DeleteSessionSafe(session);
+                    }
                 }
             }
         }
