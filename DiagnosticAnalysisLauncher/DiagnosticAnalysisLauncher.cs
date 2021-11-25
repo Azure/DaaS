@@ -31,6 +31,7 @@ namespace DiagnosticAnalysisLauncher
             Logger.Init(string.Empty, string.Empty, "DiagnosticAnalysisLauncher", false);
 
             if (!IsStampEnabled()
+                || !IsSiteEnabled()
                 || !GetAnalysisExePath(out string diagnosticAnalysisExePath)
                 || !File.Exists(_dumpFile))
             {
@@ -48,28 +49,23 @@ namespace DiagnosticAnalysisLauncher
                 return val.Equals("true", StringComparison.OrdinalIgnoreCase);
             }
 
-            return false;
+            return true;
         }
 
         private bool IsStampEnabled()
         {
             try
             {
-                if (IsSiteEnabled())
-                {
-                    return true;
-                }
-
                 var scmHostingConfigPath = Environment.ExpandEnvironmentVariables("%ProgramFiles(x86)%\\SiteExtensions\\kudu\\ScmHostingConfigurations.txt");
                 if (!File.Exists(scmHostingConfigPath))
                 {
-                    return false;
+                    return true;
                 }
 
                 string fileContents = File.ReadAllText(scmHostingConfigPath);
-                if (!string.IsNullOrWhiteSpace(fileContents) && fileContents.Contains("RunDiagnosticAnalysisInDaaS=1"))
+                if (!string.IsNullOrWhiteSpace(fileContents) && fileContents.Contains("RunDiagnosticAnalysisInDaaS=0"))
                 {
-                    return true;
+                    return false;
                 }
             }
             catch (Exception ex)
@@ -77,7 +73,7 @@ namespace DiagnosticAnalysisLauncher
                 Logger.LogWarningEvent("Exception while checking ScmHostingConfigurations", ex);
             }
 
-            return false;
+            return true;
         }
 
         private bool GetAnalysisExePath(out string diagnosticAnalysisExePath)
