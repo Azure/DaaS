@@ -8,7 +8,6 @@
 using System;
 using System.Net;
 using System.Net.Http;
-using System.Text;
 using System.Threading.Tasks;
 using System.Web.Http;
 using DaaS.V2;
@@ -57,6 +56,13 @@ namespace DiagnosticsExtension.Controllers
             return Ok(await _sessionManager.GetAllSessionsAsync(isDetailed: true));
         }
 
+        [HttpPost]
+        [Route("list")]
+        public async Task<IHttpActionResult> ListSessions()
+        {
+            return Ok(await _sessionManager.GetAllSessionsAsync(isDetailed: true));
+        }
+
         [HttpGet]
         [Route("active")]
         public async Task<IHttpActionResult> GetActiveSession()
@@ -64,6 +70,7 @@ namespace DiagnosticsExtension.Controllers
             return Ok(await _sessionManager.GetActiveSessionAsync(isDetailed: true));
         }
 
+        [HttpPost]
         [HttpGet]
         [Route("{sessionId}")]
         public async Task<IHttpActionResult> GetSession(string sessionId)
