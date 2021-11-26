@@ -80,7 +80,7 @@ namespace DaaS
             try
             {
                 string directoryPath = Path.Combine("Monitoring", "Logs", _sessionId);
-                var blobs = BlobController.GetBlobs(directoryPath, _blobSasUri);
+                var blobs = BlobController.GetBlobs(directoryPath);
                 if (blobs.Count() < MaxDumpsToKeepOnStorage)
                 {
                     return;

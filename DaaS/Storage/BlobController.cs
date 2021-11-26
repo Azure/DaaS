@@ -198,12 +198,9 @@ namespace DaaS.Storage
             }
         }
 
-        public static IEnumerable<CloudBlockBlob> GetBlobs(string prefix = "", string blobSasUri ="")
+        public static IEnumerable<CloudBlockBlob> GetBlobs(string prefix = "")
         {
-            if (string.IsNullOrWhiteSpace(blobSasUri))
-            {
-                blobSasUri = Settings.GetBlobSasUriFromEnvironment(out _);
-            }
+            string blobSasUri = Settings.GetBlobSasUriFromEnvironment(out _);
 
             if (!string.IsNullOrWhiteSpace(blobSasUri))
             {
