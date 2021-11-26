@@ -35,6 +35,8 @@ namespace DaaS
         protected readonly string _actionToExecute;
         protected readonly string _arguments;
         protected readonly bool _monitorScmProcess;
+        protected readonly SessionMode _sessionMode;
+        protected readonly DateTime _startDate;
 
         public bool MonitorScmProcesses => _monitorScmProcess;
         public int MonitorDuration => _monitorDuration;
@@ -46,6 +48,8 @@ namespace DaaS
 
         public CpuMonitoringRuleBase(MonitoringSession session)
         {
+            _sessionMode = session.Mode;
+            _startDate = session.StartDate;
             _monitorScmProcess = session.MonitorScmProcesses;
             _monitorDuration = session.MonitorDuration;
             _thresholdSeconds = session.ThresholdSeconds;

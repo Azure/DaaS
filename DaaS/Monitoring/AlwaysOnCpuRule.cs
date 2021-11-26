@@ -62,11 +62,11 @@ namespace DaaS
                 MoveToPermanentStorage(dumpFileInTempDirectory, fileName + ".dmp", appendToMonitoringLog);
 
                 //
-                // Since we copied the file to permanent storage, delete the temp file if
-                // the number of instances is more than 1
+                // Since we copied the file to permanent storage, delete the temp file if the mode 
+                // doesnt require analysis to be done or if the number of instances is more than 1
                 //
 
-                if (HeartBeats.HeartBeatController.GetNumberOfLiveInstances() > 1)
+                if (_sessionMode != SessionMode.CollectKillAndAnalyze || HeartBeats.HeartBeatController.GetNumberOfLiveInstances() > 1)
                 {
                     FileSystemHelpers.DeleteFileSafe(dumpFileInTempDirectory);
                 }
