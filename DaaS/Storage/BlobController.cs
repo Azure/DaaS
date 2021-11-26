@@ -198,9 +198,12 @@ namespace DaaS.Storage
             }
         }
 
-        private static IEnumerable<CloudBlockBlob> GetBlobs()
+        public static IEnumerable<CloudBlockBlob> GetBlobs(string prefix = "", string blobSasUri ="")
         {
-            string blobSasUri = Settings.GetBlobSasUriFromEnvironment(out _);
+            if (string.IsNullOrWhiteSpace(blobSasUri))
+            {
+                blobSasUri = Settings.GetBlobSasUriFromEnvironment(out _);
+            }
 
             if (!string.IsNullOrWhiteSpace(blobSasUri))
             {
@@ -209,7 +212,7 @@ namespace DaaS.Storage
 
                 do
                 {
-                    var response = container.ListBlobsSegmented(string.Empty, true, BlobListingDetails.None, new int?(), continuationToken, null, null);
+                    var response = container.ListBlobsSegmented(prefix, true, BlobListingDetails.None, new int?(), continuationToken, null, null);
                     continuationToken = response.ContinuationToken;
                     foreach (var blob in response.Results.OfType<CloudBlockBlob>())
                     {

@@ -10,7 +10,6 @@ using Newtonsoft.Json;
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Net.Http;
 using System.Reflection;
 using System.Text;
 using System.Threading;
@@ -19,6 +18,8 @@ namespace DiagnosticAnalysisLauncher
 {
     internal class DiagnosticAnalysisLauncher
     {
+        private const int MaxProcessorTime = 300;
+        private const int MaxPrivateBytes = 800 * 1024 * 1024;
         private readonly string _dumpFile;
 
         public DiagnosticAnalysisLauncher(string dumpFile)
@@ -140,6 +141,15 @@ namespace DiagnosticAnalysisLauncher
                     PrivilegedProcessorTime = diagnosticsAnalysis.PrivilegedProcessorTime.TotalSeconds;
                     TotalProcessorTime = diagnosticsAnalysis.TotalProcessorTime.TotalSeconds;
                     PrivateMemorySize64 = diagnosticsAnalysis.PrivateMemorySize64;
+
+                    if (TotalProcessorTime > MaxProcessorTime || PrivateMemorySize64 > MaxPrivateBytes)
+                    {
+                        Logger.LogDiagnoserWarningEvent(
+                            "Killing DiagnosticAnalysis.exe due to high resource consumption", 
+                            new InvalidOperationException($"{TotalProcessorTime} seconds of CPU time and {PrivateMemorySize64 / (1024 * 1024)} MB of memory"));
+                        diagnosticsAnalysis.SafeKillProcess();
+                        break;
+                    }
                 }
                 catch (Exception)
                 {

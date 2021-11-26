@@ -1,4 +1,4 @@
-// -----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="MonitoringSessionController.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
@@ -31,6 +31,14 @@ namespace DaaS
         readonly int MAX_SESSION_DURATION = (int)TimeSpan.FromDays(365).TotalHours;
 
         public readonly static string TempFilePath = Path.Combine(EnvironmentVariables.LocalTemp, "Monitoring", "Logs");
+
+        public static string GetLogsFolderForSession(string sessionId)
+        {
+            string logsFolderPath = GetCpuMonitoringPath(MonitoringSessionDirectories.Logs);
+            string folderName = Path.Combine(logsFolderPath, sessionId);
+            FileSystemHelpers.CreateDirectoryIfNotExists(folderName);
+            return folderName;
+        }
 
         public static string GetCpuMonitoringPath(string folderName = "", bool relativePath = false)
         {
@@ -232,7 +240,7 @@ namespace DaaS
             {
                 if (string.IsNullOrWhiteSpace(blobSasUri))
                 {
-                    string folderName = CpuMonitoring.GetLogsFolderForSession(sessionId);
+                    string folderName = GetLogsFolderForSession(sessionId);
                     if (FileSystemHelpers.DirectoryExists(folderName))
                     {
                         var logFiles = FileSystemHelpers.GetFilesInDirectory(folderName, "*.dmp", false, SearchOption.TopDirectoryOnly);
@@ -379,7 +387,7 @@ namespace DaaS
         {
             try
             {
-                string logsFolderPath = CpuMonitoring.GetLogsFolderForSession(sessionId);
+                string logsFolderPath = GetLogsFolderForSession(sessionId);
                 string monitoringFolderActive = GetCpuMonitoringPath(MonitoringSessionDirectories.Active);
                 var filesCollected = FileSystemHelpers.GetFilesInDirectory(monitoringFolderActive, "*.log", false, SearchOption.TopDirectoryOnly);
                 foreach (string monitoringLog in filesCollected)

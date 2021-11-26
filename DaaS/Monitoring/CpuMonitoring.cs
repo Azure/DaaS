@@ -1,4 +1,4 @@
-// -----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="CpuMonitoring.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
@@ -25,21 +25,16 @@ namespace DaaS
         
         const int MaxLinesInLogFile = 40 * 1000;
         private int _loggerCount = 0;
-        private readonly AlertingStorageQueue _alertingStorageQueue = new AlertingStorageQueue();
 
         static ConcurrentDictionary<int, MonitoredProcess> ProcessList;
-        static List<string> _processesToMonitor = new List<string>();
+        static readonly List<string> _processesToMonitor = new List<string>();
         static string _sessionId = string.Empty;
-        static readonly string[] _processesAlwaysExcluded = new string[] { "daasrunner", "daasconsole", "workerforwarder" ,
-                                                                            "msvsmon", "cmd", "powershell", "SnapshotHolder_x64",
-                                                                            "SnapshotHolder_x86", "ApplicationInsightsProfiler",
-                                                                            "VSDiagnostics", "clrprofilingcollector", "clrprofilinganalyzer",
-                                                                            "stacktracer32","stacktracer64", "jstackparser", "logparser",
-                                                                            "procdump", "procdump64", "cdb","loganalysisworker", "PhpReportGen",
-                                                                            "DumpAnalyzer", "MemoryDumpCollector", "SnapshotUploader64", 
-                                                                            "SnapshotUploader86", "crashmon", "dbghost", "SnapshotHolder", "SnapshotUploader"};
-
-        
+        static readonly string[] _processesAlwaysExcluded = new string[] { "daasrunner", "daasconsole", "workerforwarder",
+            "msvsmon", "cmd", "powershell", "SnapshotHolder_x64","SnapshotHolder_x86", "ApplicationInsightsProfiler",
+            "VSDiagnostics", "clrprofilingcollector", "clrprofilinganalyzer","stacktracer32","stacktracer64", "jstackparser",
+            "logparser","procdump", "procdump64", "cdb","loganalysisworker", "PhpReportGen","DumpAnalyzer", "dbghost",
+            "MemoryDumpCollector", "SnapshotUploader64","SnapshotUploader86", "crashmon", "SnapshotHolder",
+            "SnapshotUploader", "KuduHandles"};
 
         public double CpuUsageLastMinute
         {
@@ -47,17 +42,13 @@ namespace DaaS
             private set;
         }
 
-        public void InitializeMonitoring(MonitoringSession session)
+        public void InitializeMonitoring(ICpuMonitoringRule rule)
         {
-            if (session != null)
+            if (rule != null)
             {
-                if (session.ProcessesToMonitor != null)
-                {
-                    _processesToMonitor = session.ProcessesToMonitor.Split(',').ToList();
-                }
-                _sessionId = session.SessionId;
+                _sessionId = rule.SessionId;
 
-                AppendToMonitoringLog($"Monitoring started [CPU={session.CpuThreshold}%, Mode={session.Mode}, MaxActions={session.MaxActions}, Threshold={session.ThresholdSeconds}s, CheckEvery={session.MonitorDuration}s]", true);
+                rule.LogStartup(AppendToMonitoringLog);
             }
 
             ProcessList = new ConcurrentDictionary<int, MonitoredProcess>();
@@ -82,26 +73,8 @@ namespace DaaS
             return p.TotalProcessorTime;
         }
 
-        public bool MonitorCpu(MonitoringSession session)
+        public bool MonitorCpu(ICpuMonitoringRule rule)
         {
-            int cpuThreshold = session.CpuThreshold;
-            int seconds = session.ThresholdSeconds;
-            int monitorDuration = session.MonitorDuration;
-            string actionToExecute = session.ActionToExecute;
-            string argumentsToAction = session.ArgumentsToAction;
-            int maxActions = session.MaxActions == 0 ? int.MaxValue : session.MaxActions;
-            bool monitorScmProcesses = session.MonitorScmProcesses;
-            string blobSasUri = session.BlobSasUri;
-
-            if (string.IsNullOrWhiteSpace(actionToExecute))
-            {
-                actionToExecute = EnvironmentVariables.ProcdumpPath;
-            }
-            if (string.IsNullOrWhiteSpace(argumentsToAction))
-            {
-                argumentsToAction = " -accepteula -ma {PROCESSID} {OUTPUTPATH}";
-            }
-
             foreach (var process in Process.GetProcesses())
             {
                 if (_processesToMonitor.Count > 0)
@@ -112,7 +85,7 @@ namespace DaaS
                     }
                 }
 
-                if (!monitorScmProcesses)
+                if (!rule.MonitorScmProcesses)
                 {
                     var envVar = Utilities.GetEnvironmentVariablesCore(process.Handle);
                     if (Utilities.GetIsScmSite(envVar))
@@ -159,8 +132,11 @@ namespace DaaS
                     var cpuTimeSeconds = (newCPUTime - oldCPUTime).TotalSeconds;
                     var durationSeconds = DateTime.UtcNow.Subtract(ProcessList[id].LastMonitorTime).TotalSeconds;
 
-                    // for the first time CPU Time will be 
+                    //
+                    // For the first time CPU Time will be 
                     // negative as startTime is not subtracted
+                    //
+
                     if (cpuTimeSeconds < 0)
                     {
                         CpuUsageLastMinute = 0;
@@ -176,98 +152,30 @@ namespace DaaS
 
                     processesMonitored.Add($"{ProcessList[id].Name}({id}):{cpuPercent.ToString("0")} %");
 
-
-                    var actionsExecuted = GetTotalCustomActionsExecuted(session.SessionId);
-
-                    bool terminateMonitoring = false;
-                    if (actionsExecuted >= maxActions)
-                    {
-                        AppendToMonitoringLog("Maximum number of actions configured on all instances have executed so terminating shortly!", true);
-                        terminateMonitoring = true;
-                    }
-
-                    if (DateTime.UtcNow.Subtract(session.StartDate).TotalHours >= session.MaximumNumberOfHours)
-                    {
-                        AppendToMonitoringLog("Maximum time limit for this session has reached so terminating shortly!", true);
-                        terminateMonitoring = true;
-                    }
-                    
+                    bool terminateMonitoring = rule.ShouldTerminateRule(AppendToMonitoringLog);                    
                     if (terminateMonitoring)
                     {
-                        var dumpsCollected = GetTotalCustomActionsCompleted(session.SessionId);
-                        int sleepCount = 0;
-                        AppendToMonitoringLog("Waiting for all instances to collect and move the dumps", true);
-                        while (dumpsCollected < actionsExecuted && sleepCount < 20)
-                        {
-                            AppendToMonitoringLog($"Total actions executed = {actionsExecuted} and dumps moved = {dumpsCollected}, waiting for the rest to finish", true);
-                            Thread.Sleep(15000);
-                            ++sleepCount;
-                            actionsExecuted = GetTotalCustomActionsExecuted(session.SessionId);
-                            dumpsCollected = GetTotalCustomActionsCompleted(session.SessionId);
-                        }
-                        AppendToMonitoringLog("All instances finsihed collecting data so terminating", true);
                         return true;
                     }
 
-                    if (cpuPercent >= cpuThreshold)
+                    if (cpuPercent >= rule.CpuThreshold)
                     {
                         AppendToMonitoringLog($"{ProcessList[id].Name}({id}) CPU:{cpuPercent.ToString("0.00")} %");
                         int thresholdCount = ++ProcessList[id].ThresholdExeededCount;
-                        int currentCpuConsumptionWithTime = thresholdCount * monitorDuration;
-                        if (currentCpuConsumptionWithTime >= seconds)
+                        int currentCpuConsumptionWithTime = thresholdCount * rule.MonitorDuration;
+                        if (currentCpuConsumptionWithTime >= rule.ThresholdSeconds)
                         {
-                            actionsExecuted = GetTotalCustomActionsExecuted(session.SessionId);
-
-                            string fileName = Environment.MachineName + "_" + ProcessList[id].Name + "_" + id + "_" + DateTime.Now.Ticks.ToString();
-                            string customActionFile = fileName + ".customaction";
-                            
-                            string outputPath = MonitoringSessionController.TempFilePath;
-                            FileSystemHelpers.CreateDirectoryIfNotExists(outputPath);
-                            string dumpFileInTempDirectory = Path.Combine(outputPath, fileName + ".dmp");
-
-                            if (session.Mode != SessionMode.Kill)
-                            {
-                                AppendToMonitoringLog($"Actions Executed on all instances = {actionsExecuted} of {maxActions}", true);
-                            }
-
-                            if (ShouldCollectData(session.Mode))
-                            {
-                                CreateCustomActionFile(session.SessionId, customActionFile);                                
-                                ExecuteAction(dumpFileInTempDirectory, id, actionToExecute, argumentsToAction);
-                            }
-
-                            if (ShouldKillProcess(session.Mode))
-                            {
-                                KillProcessConsumingCpu(id, session.SessionId);
-                            }
-
-                            if (ShouldCollectData(session.Mode))
-                            {
-                                MoveToPermanentStorage(session.SessionId, dumpFileInTempDirectory, fileName + ".dmp", blobSasUri);
-                                customActionFile = fileName + ".customactioncompleted";
-                                CreateCustomActionFile(session.SessionId, customActionFile);
-
-
-                                // Since we copied the file to permanent storage, delete the time file if the mode 
-                                // doesnt require analysis to be done or if the number of instances is more than 1
-                                if (session.Mode != SessionMode.CollectKillAndAnalyze || HeartBeats.HeartBeatController.GetNumberOfLiveInstances() > 1)
-                                {
-                                    FileSystemHelpers.DeleteFileSafe(dumpFileInTempDirectory);
-                                }
-                            }
-                                
-                            actionsExecuted = GetTotalCustomActionsExecuted(session.SessionId);
+                            terminateMonitoring = rule.TakeActionOnHighCpu(id, ProcessList[id].Name, AppendToMonitoringLog);
                             ProcessList[id].ThresholdExeededCount = 0;
-                            if (actionsExecuted >= maxActions)
+                            if (terminateMonitoring)
                             {
-                                AppendToMonitoringLog("Max number of actions configured for this session have executed so terminating shortly!", true);
                                 Thread.Sleep(5000);
                                 return true;
                             }
                         }
                         else
                         {
-                            AppendToMonitoringLog($"CPU Percent {cpuPercent.ToString("0.00")} % > [{ cpuThreshold } %] for {currentCpuConsumptionWithTime} seconds for { ProcessList[id].Name} ({ id }), waiting to reach threshold of {seconds} seconds", true);
+                            AppendToMonitoringLog($"CPU Percent {cpuPercent:0.00} % > [{ rule.CpuThreshold } %] for {currentCpuConsumptionWithTime} seconds for { ProcessList[id].Name} ({ id }), waiting to reach threshold of {rule.ThresholdSeconds} seconds", true);
                         }
                     }
                     else
@@ -287,67 +195,7 @@ namespace DaaS
 
             AppendToMonitoringLog(string.Join(", ", processesMonitored));
             RemoveOldProcessesFromMonitoringList(ProcessList);
-
             return false;
-        }
-
-        private int GetTotalCustomActionsExecuted(string sessionId)
-        {
-            var sessionDirectory = GetLogsFolderForSession(sessionId);
-            var actionsExecuted = FileSystemHelpers.GetFilesInDirectory(sessionDirectory, "*.customaction", false, SearchOption.TopDirectoryOnly).Count;
-            return actionsExecuted;
-        }
-
-        private int GetTotalCustomActionsCompleted(string sessionId)
-        {
-            var sessionDirectory = GetLogsFolderForSession(sessionId);
-            var dumpCount = FileSystemHelpers.GetFilesInDirectory(sessionDirectory, "*.customactioncompleted", false, SearchOption.TopDirectoryOnly).Count;
-            return dumpCount;
-        }
-
-        private bool ShouldCollectData(SessionMode mode)
-        {
-            return mode == SessionMode.CollectAndKill || mode == SessionMode.Collect || mode == SessionMode.CollectKillAndAnalyze;
-        }
-
-        private bool ShouldKillProcess(SessionMode mode)
-        {
-            return mode == SessionMode.CollectAndKill || mode == SessionMode.CollectKillAndAnalyze || mode == SessionMode.Kill;
-        }
-
-        public static void CleanRemainingLogsIfAny()
-        {
-            string cpuMonitorPath = MonitoringSessionController.GetCpuMonitoringPath(MonitoringSessionDirectories.Active);
-            if (FileSystemHelpers.DirectoryExists(cpuMonitorPath))
-            {
-                foreach (var log in FileSystemHelpers.GetFilesInDirectory(cpuMonitorPath, "*.log", false, SearchOption.TopDirectoryOnly))
-                {
-                    FileSystemHelpers.DeleteFileSafe(log);
-                }
-            }
-        }
-
-        private void KillProcessConsumingCpu(int id, string sessionId)
-        {
-            try
-            {
-                var p = Process.GetProcessById(id);
-                if (p != null)
-                {
-                    var processName = p.ProcessName;
-                    RetryHelper.RetryOnException($"Killing process consuming High CPU {processName}:{id}", () =>
-                    {
-                        p.Kill();
-                        var eventMessage = $"CPU Monitoring - Process consuming High CPU killed  {processName}({id})";
-                        AppendToMonitoringLog(eventMessage, true);
-                        EventLog.WriteEntry("Application", eventMessage, EventLogEntryType.Information);
-                    }, TimeSpan.FromSeconds(1));
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.LogCpuMonitoringErrorEvent("Failed while killing process consuming High CPU", ex, sessionId);
-            }
         }
 
         private void AppendToMonitoringLog(string message, bool logInKusto = false)
@@ -360,7 +208,7 @@ namespace DaaS
 
             if (_loggerCount > MaxLinesInLogFile)
             {
-                var sessionDirectory = GetLogsFolderForSession(_sessionId);
+                var sessionDirectory = MonitoringSessionController.GetLogsFolderForSession(_sessionId);
                 var existingFileCount = FileSystemHelpers.GetFilesInDirectory(sessionDirectory, $"{Environment.MachineName}*.log", false, SearchOption.TopDirectoryOnly).Count;
                 var newFileName = $"{Environment.MachineName}_{existingFileCount}.log";
                 newFileName = Path.Combine(sessionDirectory, newFileName);
@@ -380,135 +228,6 @@ namespace DaaS
             {
                 Logger.LogCpuMonitoringEvent(message, _sessionId);
             }
-        }
-
-        private void ExecuteAction(string dumpFileInTempDirectory, int processId, string actionToExecute, string arguments)
-        {
-            arguments = arguments.Replace("{PROCESSID}", processId.ToString());
-            arguments = arguments.Replace("{OUTPUTPATH}", dumpFileInTempDirectory);
-            AppendToMonitoringLog($"Creating dump file with path {dumpFileInTempDirectory}", true);
-
-            var process = new Process()
-            {
-                StartInfo =
-                {
-                    FileName = actionToExecute,
-                    Arguments = arguments,
-                    UseShellExecute = false
-                }
-            };
-
-            process.Start();
-            process.WaitForExit();
-        }
-
-        private void CreateCustomActionFile(string sessionId, string customActionFile)
-        {
-            var sessionDirectory = GetLogsFolderForSession(sessionId);
-            var sessionFileName = Path.Combine(sessionDirectory, customActionFile);
-            FileSystemHelpers.AppendAllTextToFile(sessionFileName, $"Custom Action Executed on {Environment.MachineName} at {DateTime.UtcNow.ToString()} UTC");
-        }
-
-        private void MoveToPermanentStorage(string sessionId, string sourceFile, string fileName, string blobSasUri)
-        {
-            if (string.IsNullOrWhiteSpace(blobSasUri))
-            {
-                var sessionDirectory = GetLogsFolderForSession(sessionId);
-                var collectFileName = Path.Combine(sessionDirectory, fileName);
-                AppendToMonitoringLog($"Copying file from temp folders to [{collectFileName}]", true);
-                try
-                {
-                    FileSystemHelpers.CopyFile(sourceFile, collectFileName);
-                    AppendToMonitoringLog($"Copied file from temp folders to [{collectFileName}]", true);
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogCpuMonitoringErrorEvent("Failed while moving file to Permanent FileSystem storage", ex, sessionId);
-                }
-            }
-            else
-            {
-                try
-                {
-                    blobSasUri = BlobController.GetActualBlobSasUri(blobSasUri);
-
-                    if (string.IsNullOrWhiteSpace(blobSasUri))
-                    {
-                        Logger.LogCpuMonitoringVerboseEvent("Incorrect value for BlobSasUri in MoveToPermanentStorage method", sessionId);
-                        return;
-                    }
-
-                    string relativeFilePath = Path.Combine("Monitoring", "Logs", sessionId, fileName);
-                    Lease lease = Infrastructure.LeaseManager.TryGetLease(relativeFilePath, blobSasUri);
-                    if (lease == null)
-                    {
-                        // This instance is already running this collector
-                        Logger.LogCpuMonitoringVerboseEvent($"Could not get lease to upload the memory dump - {relativeFilePath}", sessionId);
-                    }
-
-                    AppendToMonitoringLog($"Copying {fileName} from temp folders to Blob Storage", true);
-                    var accessCondition = AccessCondition.GenerateLeaseCondition(lease.Id);
-                    var taskToUpload = Task.Run(() =>
-                    {
-                        var blockBlob = BlobController.GetBlobForFile(relativeFilePath, blobSasUri);
-                        blockBlob.UploadFromFile(sourceFile, accessCondition);
-                        if (EnqueueEventToAzureQueue(fileName, blockBlob.Uri.ToString()))
-                        {
-                            AppendToMonitoringLog("Message dropped successfully in Azure Queue for alerting");
-                        }
-                    });
-
-                    while(!taskToUpload.IsCompleted)
-                    {
-                        lease.Renew();
-                        Logger.LogCpuMonitoringVerboseEvent($"Renewing lease to the blob file", sessionId);
-                        Thread.Sleep(Infrastructure.Settings.LeaseRenewalTime);
-                    }
-                    lease.Release();
-                    AppendToMonitoringLog($"Copied {fileName} from temp folders to Blob Storage", true);
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogCpuMonitoringErrorEvent("Failed copying file to blob storage", ex, sessionId);
-                }
-            }
-        }
-
-        private bool EnqueueEventToAzureQueue(string fileName, string fileNameOnBlob)
-        {
-            if (_alertingStorageQueue == null)
-            {
-                return false;
-            }
-
-            var message = new
-            {
-                Category = "CpuMonitoring",
-                TimeStampUtc = DateTime.UtcNow,
-                SiteName = Configuration.Settings.GetDefaultHostName(fullHostName:true),
-                SessionId = _sessionId,
-                FileName = fileName,
-                BlobFileName = fileNameOnBlob
-            };
-
-            try
-            {
-                return _alertingStorageQueue.WriteMessageToAzureQueue(JsonConvert.SerializeObject(message));
-            }
-            catch (Exception ex)
-            {
-                Logger.LogCpuMonitoringErrorEvent("Unhandled exception while writing to AlertingStorageQueue", ex, _sessionId);
-            }
-
-            return false;
-        }
-
-        public static string GetLogsFolderForSession(string sessionId)
-        {
-            string logsFolderPath = MonitoringSessionController.GetCpuMonitoringPath(MonitoringSessionDirectories.Logs);
-            string folderName = Path.Combine(logsFolderPath, sessionId);
-            FileSystemHelpers.CreateDirectoryIfNotExists(folderName);
-            return folderName;
         }
 
         private void RemoveOldProcessesFromMonitoringList(ConcurrentDictionary<int, MonitoredProcess> processList)

@@ -1,4 +1,4 @@
-// -----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="MonitoringSession.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
@@ -14,6 +14,12 @@ using Newtonsoft.Json.Converters;
 
 namespace DaaS
 {
+    public enum RuleType
+    {
+        Diagnostics,
+        AlwaysOn
+    }
+
     public enum AnalysisStatus
     {
         NotStarted,
@@ -49,6 +55,8 @@ namespace DaaS
             AnalysisStatus = s.AnalysisStatus;
             FilesCollected = s.FilesCollected;
             BlobStorageHostName = s.BlobStorageHostName;
+            IntervalDays = s.IntervalDays;
+            ActionsInInterval = s.ActionsInInterval;
             _blobSasUri = s.BlobSasUri;
     }
         public new string BlobSasUri
@@ -112,6 +120,15 @@ namespace DaaS
         }
 
         public List<MonitoringFile> FilesCollected { get; set; }
+
+        //
+        // Added for RuleType.AlwaysOnRule
+        //
+
+        [JsonConverter(typeof(StringEnumConverter))]
+        public RuleType RuleType { get; set; } = RuleType.Diagnostics;
+        public int IntervalDays { get; set; }
+        public int ActionsInInterval { get; set; }
     }
     
 
