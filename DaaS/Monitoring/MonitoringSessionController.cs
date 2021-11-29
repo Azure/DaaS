@@ -24,11 +24,12 @@ namespace DaaS
     {
         const string MonitoringFolder = "Monitoring";
 
-        const int MIN_CPU_THRESHOLD = 50;
-        const int MAX_CUSTOM_ACTIONS = 20;
-        const int MIN_MONITOR_DURATION_IN_SECONDS = 5;
-        const int MIN_THRESHOLD_DURATION_IN_SECONDS = 15;
-        readonly int MAX_SESSION_DURATION = (int)TimeSpan.FromDays(365).TotalHours;
+        const int MinCpuThreshold = 50;
+        const int MaxCustomActions = 20;
+        const int MinMonitorDurationInSeconds = 5;
+        const int MinThresholdDurationInSeconds = 15;
+        const int MaxIntervalDays = 30;
+        readonly int MaxSessionDuration = (int)TimeSpan.FromDays(365).TotalHours;
 
         public readonly static string TempFilePath = Path.Combine(EnvironmentVariables.LocalTemp, "Monitoring", "Logs");
 
@@ -74,6 +75,13 @@ namespace DaaS
                 monitoringSession.SessionId = monitoringSession.StartDate.ToString(SessionConstants.SessionFileNameFormat);
                 monitoringSession.BlobStorageHostName = BlobController.GetBlobStorageHostName(monitoringSession.BlobSasUri);
                 cpuMonitoringActive = Path.Combine(cpuMonitoringActive, monitoringSession.SessionId + ".json");
+
+                if (monitoringSession.RuleType == RuleType.AlwaysOn 
+                    && monitoringSession.Mode == SessionMode.CollectKillAndAnalyze)
+                {
+                    monitoringSession.AnalysisStatus = AnalysisStatus.Continuous;
+                }
+
                 monitoringSession.SaveToDisk(cpuMonitoringActive);
                 Logger.LogNewCpuMonitoringSession(monitoringSession);
             }
@@ -83,28 +91,40 @@ namespace DaaS
 
         private void ValidateSessionParameters(MonitoringSession monitoringSession)
         {
-            if (monitoringSession.CpuThreshold < MIN_CPU_THRESHOLD)
+            if (monitoringSession.CpuThreshold < MinCpuThreshold)
             {
-                throw new InvalidOperationException($"CpuThreshold cannot be less than {MIN_CPU_THRESHOLD} percent");
+                throw new InvalidOperationException($"CpuThreshold cannot be less than {MinCpuThreshold} percent");
             }
 
-            if (monitoringSession.MaxActions > MAX_CUSTOM_ACTIONS)
+            if (monitoringSession.MaxActions > MaxCustomActions)
             {
-                throw new InvalidOperationException($"MaxActions cannot be more than {MAX_CUSTOM_ACTIONS} actions");
+                throw new InvalidOperationException($"MaxActions cannot be more than {MaxCustomActions} actions");
             }
 
-            if (monitoringSession.MaximumNumberOfHours > MAX_SESSION_DURATION)
+            if (monitoringSession.MaximumNumberOfHours > MaxSessionDuration)
             {
-                throw new InvalidOperationException($"MaximumNumberOfHours cannot be more than {MAX_SESSION_DURATION} hours");
+                throw new InvalidOperationException($"MaximumNumberOfHours cannot be more than {MaxSessionDuration} hours");
             }
 
-            if (monitoringSession.MonitorDuration < MIN_MONITOR_DURATION_IN_SECONDS)
+            if (monitoringSession.MonitorDuration < MinMonitorDurationInSeconds)
             {
-                throw new InvalidOperationException($"MonitorDuration cannot be less than {MIN_MONITOR_DURATION_IN_SECONDS} seconds");
+                throw new InvalidOperationException($"MonitorDuration cannot be less than {MinMonitorDurationInSeconds} seconds");
             }
-            if (monitoringSession.ThresholdSeconds < MIN_THRESHOLD_DURATION_IN_SECONDS)
+            if (monitoringSession.ThresholdSeconds < MinThresholdDurationInSeconds)
             {
-                throw new InvalidOperationException($"ThresholdSeconds cannot be less than {MIN_THRESHOLD_DURATION_IN_SECONDS} seconds");
+                throw new InvalidOperationException($"ThresholdSeconds cannot be less than {MinThresholdDurationInSeconds} seconds");
+            }
+            if (monitoringSession.RuleType == RuleType.AlwaysOn)
+            {
+                if (monitoringSession.ActionsInInterval > MaxCustomActions)
+                {
+                    throw new InvalidOperationException($"ActionsInInterval cannot be more than {MaxCustomActions} actions");
+                }
+
+                if (monitoringSession.IntervalDays > MaxIntervalDays)
+                {
+                    throw new InvalidOperationException($"IntervalDays cannot be more than {MaxIntervalDays} days");
+                }
             }
         }
 
@@ -235,12 +255,13 @@ namespace DaaS
         public List<MonitoringFile> GetCollectedLogsForSession(string sessionId, string blobSasUri)
         {
             var filesCollected = new List<MonitoringFile>();
+            string folderName = GetLogsFolderForSession(sessionId);
+            var reports = FileSystemHelpers.GetFilesInDirectory(folderName, "*.mht", false, SearchOption.TopDirectoryOnly);
 
             try
             {
                 if (string.IsNullOrWhiteSpace(blobSasUri))
                 {
-                    string folderName = GetLogsFolderForSession(sessionId);
                     if (FileSystemHelpers.DirectoryExists(folderName))
                     {
                         var logFiles = FileSystemHelpers.GetFilesInDirectory(folderName, "*.dmp", false, SearchOption.TopDirectoryOnly);
@@ -262,7 +283,9 @@ namespace DaaS
                     {
                         var relativePath = item.Uri.ToString().Replace(item.Container.Uri.ToString() + "/", "");
                         string fileName = item.Uri.Segments.Last();
-                        filesCollected.Add(new MonitoringFile(fileName, relativePath));
+                        var monitoringFile = new MonitoringFile(fileName, relativePath);
+                        AddReportsToMonitoringFine(sessionId, monitoringFile, reports);
+                        filesCollected.Add(monitoringFile);
                     }
                 }
             }
@@ -272,6 +295,25 @@ namespace DaaS
             }
             
             return filesCollected;
+        }
+
+        //
+        // Method is used specifically for updating the Active Session details
+        // for the AlwaysOnCpu rule type
+        //
+
+        private void AddReportsToMonitoringFine(string sessionId, MonitoringFile monitoringFile, List<string> reports)
+        {
+            string fileName = Path.GetFileNameWithoutExtension(monitoringFile.FileName);
+            if (reports.Any())
+            {
+                var reportFile = reports.FirstOrDefault(x => Path.GetFileNameWithoutExtension(x).StartsWith(fileName));
+                if (!string.IsNullOrWhiteSpace(reportFile))
+                {
+                    monitoringFile.ReportFile = Path.GetFileName(reportFile);
+                    monitoringFile.ReportFileRelativePath = MonitoringFile.GetRelativePath(sessionId, Path.GetFileName(reportFile));
+                }
+            }
         }
 
         internal void AddReportToLog(string sessionId, string logfileName, string reportFilePath, List<string> errors, bool shouldUpdateSessionStatus = true)

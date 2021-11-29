@@ -6,7 +6,9 @@
 // -----------------------------------------------------------------------
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.IO.Abstractions;
 using System.Linq;
 using DaaS.Storage;
 
@@ -15,6 +17,7 @@ namespace DaaS
     public class AlwaysOnCpuRule : CpuMonitoringRuleBase, ICpuMonitoringRule
     {
         const int MaxDumpsToKeepOnStorage = 10;
+        const int MaxReportsToKeep = 10;
 
         private readonly int _intervalDays;
         private readonly int _actionsInInterval;
@@ -28,7 +31,7 @@ namespace DaaS
 
         public void LogStartup(Action<string, bool> appendToMonitoringLog)
         {
-            appendToMonitoringLog($"Monitoring started [CPU={_cpuThreshold}%, " 
+            appendToMonitoringLog($"Monitoring started [CPU={_cpuThreshold}%, "
                 + $"RuleType=AlwaysOn, Threshold={_thresholdSeconds}s, ActionsInInterval={_actionsInInterval}, "
                 + $"IntervalDays={_intervalDays} CheckEvery={_monitorDuration}s]", true);
         }
@@ -55,7 +58,8 @@ namespace DaaS
             }
 
             KillProcessIfNeeded(processId, appendToMonitoringLog);
-            DeleteOlderFilesFromBlob();
+            DeleteOldDumps();
+            DeleteOldReports();
 
             if (dataCollected)
             {
@@ -70,12 +74,40 @@ namespace DaaS
                 {
                     FileSystemHelpers.DeleteFileSafe(dumpFileInTempDirectory);
                 }
+
+                if (_sessionMode == SessionMode.CollectKillAndAnalyze)
+                {
+                    MonitoringAnalysisController.QueueAnalysisRequest(_sessionId, fileName + ".dmp", _blobSasUri, isActiveSession: true);
+                }
             }
 
             return false;
         }
 
-        private void DeleteOlderFilesFromBlob()
+        private void DeleteOldReports()
+        {
+            var logsFolder = GetLogsFolderForSession();
+            if (string.IsNullOrWhiteSpace(logsFolder))
+            {
+                return;
+            }
+
+            var reports = FileSystemHelpers.GetFilesInDirectory(logsFolder, "*.mht", false, SearchOption.TopDirectoryOnly);
+            if (reports.Count < MaxReportsToKeep)
+            {
+                return;
+            }
+
+            var reportFileInfos = new List<FileInfoBase>();
+            reports.ForEach(report => reportFileInfos.Add(FileSystemHelpers.FileInfoFromFileName(report)));
+
+            foreach (var report in reportFileInfos.OrderByDescending(x => x.CreationTimeUtc).Skip(MaxReportsToKeep))
+            {
+                FileSystemHelpers.DeleteFileSafe(report.FullName);
+            }
+        }
+
+        private void DeleteOldDumps()
         {
             try
             {
@@ -101,6 +133,11 @@ namespace DaaS
 
         private bool ShouldCollectData()
         {
+            if (_sessionMode == SessionMode.Kill)
+            {
+                return false;
+            }
+
             try
             {
                 int currentActionsInInterval = 0;
@@ -114,7 +151,7 @@ namespace DaaS
                         //
                         // Delete custom action files that were generated before the current inerval
                         //
-                        
+
                         FileSystemHelpers.DeleteFileSafe(actionFile);
                     }
                     else
@@ -122,6 +159,8 @@ namespace DaaS
                         ++currentActionsInInterval;
                     }
                 }
+
+                Logger.LogCpuMonitoringVerboseEvent($"CurrentActionsInInterval={currentActionsInInterval} and MaxActionsInInterval={_actionsInInterval}", _sessionId);
 
                 return currentActionsInInterval < _actionsInInterval;
             }
@@ -140,7 +179,12 @@ namespace DaaS
 
         private void KillProcessIfNeeded(int processId, Action<string, bool> appendToMonitoringLog)
         {
-            KillProcess(processId, appendToMonitoringLog);
+            if (_sessionMode == SessionMode.CollectKillAndAnalyze
+                || _sessionMode == SessionMode.CollectAndKill
+                || _sessionMode == SessionMode.Kill)
+            {
+                KillProcess(processId, appendToMonitoringLog);
+            }
         }
     }
 }

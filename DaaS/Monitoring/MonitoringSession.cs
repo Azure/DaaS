@@ -24,7 +24,8 @@ namespace DaaS
     {
         NotStarted,
         InProgress,
-        Completed
+        Completed,
+        Continuous
     }
     public enum SessionMode
     {

@@ -1,4 +1,4 @@
-// -----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="MonitoringAnalysisController.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
@@ -74,7 +74,6 @@ namespace DaaS
         private static void AnalyzeKeepingExpirationAlive(string inprogressFile)
         {
             var maxTimeInMinutes = Infrastructure.Settings.MaxAnalyzerTimeInMinutes;
-            var analysisStartTime = DateTime.UtcNow;
             var analysisRequest = FileSystemHelpers.FromJsonFile<AnalysisRequest>(inprogressFile);
 
             try
@@ -84,7 +83,11 @@ namespace DaaS
 
                 if (!string.IsNullOrWhiteSpace(reportFilePath))
                 {
-                    UpdateSession(analysisRequest.SessionId, analysisRequest.LogFileName, reportFilePath);
+                    if (!analysisRequest.IsActiveSession)
+                    {
+                        UpdateSession(analysisRequest.SessionId, analysisRequest.LogFileName, reportFilePath);
+                    }
+
                     FileSystemHelpers.DeleteFileSafe(inprogressFile);
                 }
                 else
@@ -104,6 +107,11 @@ namespace DaaS
 
         private static void HandleErrorsDuringAnalysis(Exception ex, AnalysisRequest analysisRequest, string inprogressFile, bool cancelFurtherAnalysis = false)
         {
+            if (analysisRequest.IsActiveSession)
+            {
+                return;
+            }
+            
             List<string> errors = new List<string> { ex.Message };
 
             bool shouldUpdateAnalysisStatus = (analysisRequest.RetryCount >= MAX_ANALYSIS_RETRY_COUNT) || (cancelFurtherAnalysis);
@@ -212,7 +220,7 @@ namespace DaaS
             return dumpFileInTempDirectory;
         }
 
-        public static void QueueAnalysisRequest(string sessionId, string logFileName, string blobSasUri)
+        public static void QueueAnalysisRequest(string sessionId, string logFileName, string blobSasUri, bool isActiveSession = false)
         {
             try
             {
@@ -243,7 +251,8 @@ namespace DaaS
                         LogFileName = logFileName,
                         ExpirationTime = DateTime.MaxValue,
                         BlobSasUri = blobSasUri,
-                        RetryCount = 0
+                        RetryCount = 0,
+                        IsActiveSession = isActiveSession
                     };
 
                     var fileName = $"{ sessionId }_{ Path.GetFileNameWithoutExtension(logFileName)}";

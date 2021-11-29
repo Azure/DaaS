@@ -173,7 +173,7 @@ namespace DaaS
                     blockBlob.UploadFromFile(sourceFile, accessCondition);
                     if (EnqueueEventToAzureQueue(fileName, blockBlob.Uri.ToString()))
                     {
-                        appendToMonitoringLog("Message dropped successfully in Azure Queue for alerting", true);
+                        appendToMonitoringLog("Message dropped successfully in Azure Queue for alerting", false);
                     }
                 });
 
