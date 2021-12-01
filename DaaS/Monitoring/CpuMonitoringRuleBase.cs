@@ -30,6 +30,7 @@ namespace DaaS
         protected readonly int _monitorDuration;
         protected readonly int _cpuThreshold;
         protected readonly int _thresholdSeconds;
+        protected readonly int _maxActions;
         protected readonly string _sessionId;
         protected readonly string _blobSasUri;
         protected readonly string _actionToExecute;
@@ -54,6 +55,7 @@ namespace DaaS
             _monitorDuration = session.MonitorDuration;
             _thresholdSeconds = session.ThresholdSeconds;
             _cpuThreshold = session.CpuThreshold;
+            _maxActions = session.MaxActions;
             _sessionId = session.SessionId;
             _blobSasUri = session.BlobSasUri;
             _actionToExecute = string.IsNullOrWhiteSpace(session.ActionToExecute) ? EnvironmentVariables.ProcdumpPath : session.ActionToExecute;

@@ -13,13 +13,11 @@ namespace DaaS
 {
     public class DiagnosticCpuRule : CpuMonitoringRuleBase, ICpuMonitoringRule
     {
-        private readonly int _maxActions;
         private readonly int _maxHours;
 
         public DiagnosticCpuRule(MonitoringSession session)
             : base(session)
         {
-            _maxActions = session.MaxActions;
             _maxHours = session.MaximumNumberOfHours;
         }
 

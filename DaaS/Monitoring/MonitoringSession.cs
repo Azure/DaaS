@@ -74,6 +74,9 @@ namespace DaaS
         private string _blobSasUri = string.Empty;
 
         [JsonConverter(typeof(StringEnumConverter))]
+        public RuleType RuleType { get; set; } = RuleType.Diagnostics;
+
+        [JsonConverter(typeof(StringEnumConverter))]
         public SessionMode Mode { get; set; }
         public string SessionId { get; set; }
         public DateTime StartDate { get; set; }
@@ -87,6 +90,14 @@ namespace DaaS
         public string ArgumentsToAction { get; set; }
         public int MaxActions { get; set; }
         public int MaximumNumberOfHours { get; set; }
+
+        //
+        // Added for RuleType.AlwaysOnRule
+        //
+
+        public int IntervalDays { get; set; }
+        public int ActionsInInterval { get; set; }
+
         public string BlobStorageHostName { get; set; }
         public string BlobSasUri
         {
@@ -121,15 +132,6 @@ namespace DaaS
         }
 
         public List<MonitoringFile> FilesCollected { get; set; }
-
-        //
-        // Added for RuleType.AlwaysOnRule
-        //
-
-        [JsonConverter(typeof(StringEnumConverter))]
-        public RuleType RuleType { get; set; } = RuleType.Diagnostics;
-        public int IntervalDays { get; set; }
-        public int ActionsInInterval { get; set; }
     }
     
 

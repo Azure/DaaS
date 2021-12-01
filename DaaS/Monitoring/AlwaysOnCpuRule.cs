@@ -16,9 +16,6 @@ namespace DaaS
 {
     public class AlwaysOnCpuRule : CpuMonitoringRuleBase, ICpuMonitoringRule
     {
-        const int MaxDumpsToKeepOnStorage = 10;
-        const int MaxReportsToKeep = 10;
-
         private readonly int _intervalDays;
         private readonly int _actionsInInterval;
 
@@ -93,7 +90,7 @@ namespace DaaS
             }
 
             var reports = FileSystemHelpers.GetFilesInDirectory(logsFolder, "*.mht", false, SearchOption.TopDirectoryOnly);
-            if (reports.Count < MaxReportsToKeep)
+            if (reports.Count <= _maxActions)
             {
                 return;
             }
@@ -101,7 +98,7 @@ namespace DaaS
             var reportFileInfos = new List<FileInfoBase>();
             reports.ForEach(report => reportFileInfos.Add(FileSystemHelpers.FileInfoFromFileName(report)));
 
-            foreach (var report in reportFileInfos.OrderByDescending(x => x.CreationTimeUtc).Skip(MaxReportsToKeep))
+            foreach (var report in reportFileInfos.OrderByDescending(x => x.CreationTimeUtc).Skip(_maxActions - 1))
             {
                 FileSystemHelpers.DeleteFileSafe(report.FullName);
             }
@@ -112,17 +109,18 @@ namespace DaaS
             try
             {
                 string directoryPath = Path.Combine("Monitoring", "Logs", _sessionId);
-                var blobs = BlobController.GetBlobs(directoryPath);
-                if (blobs.Count() < MaxDumpsToKeepOnStorage)
+                var blobs = BlobController.GetBlobs(directoryPath).ToList();
+                Logger.LogCpuMonitoringVerboseEvent($"Inside DeleteOldDumps, existing blob count is {blobs.Count()}", _sessionId);
+                if (blobs.Count() <= _maxActions)
                 {
                     return;
                 }
 
-                foreach (var blob in blobs.OrderByDescending(x => x.Properties.LastModified).Skip(MaxDumpsToKeepOnStorage))
+                foreach (var blob in blobs.OrderByDescending(x => x.Properties.LastModified).Skip(_maxActions - 1))
                 {
                     string blobName = blob.Name;
                     blob.Delete();
-                    Logger.LogVerboseEvent($"Deleted blob {blobName}");
+                    Logger.LogCpuMonitoringVerboseEvent($"Deleted blob {blobName}", _sessionId);
                 }
             }
             catch (Exception ex)
@@ -149,7 +147,7 @@ namespace DaaS
                     if (DateTime.UtcNow.Subtract(customActionFile.Created).TotalDays > _intervalDays)
                     {
                         //
-                        // Delete custom action files that were generated before the current inerval
+                        // Delete custom action files that were generated before the current interval
                         //
 
                         FileSystemHelpers.DeleteFileSafe(actionFile);

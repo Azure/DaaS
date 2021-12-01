@@ -9,12 +9,10 @@ using DaaS.Configuration;
 using DaaS.Sessions;
 using DaaS.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Security;
 using System.Text;
 using System.Threading;
 
@@ -76,10 +74,12 @@ namespace DaaS
                 monitoringSession.BlobStorageHostName = BlobController.GetBlobStorageHostName(monitoringSession.BlobSasUri);
                 cpuMonitoringActive = Path.Combine(cpuMonitoringActive, monitoringSession.SessionId + ".json");
 
-                if (monitoringSession.RuleType == RuleType.AlwaysOn 
+                if (monitoringSession.RuleType == RuleType.AlwaysOn
                     && monitoringSession.Mode == SessionMode.CollectKillAndAnalyze)
                 {
-                    monitoringSession.AnalysisStatus = AnalysisStatus.Continuous;
+                    // TODO: Change the below to AnalysisStatus.Continuous post deployment
+                    //monitoringSession.AnalysisStatus = AnalysisStatus.Continuous;
+                    monitoringSession.AnalysisStatus = AnalysisStatus.Completed;
                 }
 
                 monitoringSession.SaveToDisk(cpuMonitoringActive);
@@ -116,6 +116,10 @@ namespace DaaS
             }
             if (monitoringSession.RuleType == RuleType.AlwaysOn)
             {
+                if (monitoringSession.ActionsInInterval > monitoringSession.MaxActions)
+                {
+                    throw new InvalidOperationException($"ActionsInInterval ({monitoringSession.ActionsInInterval}) cannot be more than MaxActions ({monitoringSession.MaxActions})");
+                }
                 if (monitoringSession.ActionsInInterval > MaxCustomActions)
                 {
                     throw new InvalidOperationException($"ActionsInInterval cannot be more than {MaxCustomActions} actions");
@@ -166,6 +170,8 @@ namespace DaaS
 
         public void DeleteSession(string sessionId)
         {
+            DeleteFilesFromBlob(sessionId);
+
             string cpuMonitoringCompleted = GetCpuMonitoringPath(MonitoringSessionDirectories.Completed);
             var sessionFilePath = Path.Combine(cpuMonitoringCompleted, sessionId + ".json");
             if (FileSystemHelpers.FileExists(sessionFilePath))
@@ -182,6 +188,24 @@ namespace DaaS
                 FileSystemHelpers.DeleteDirectorySafe(logsFolder);
             }
             Logger.LogCpuMonitoringVerboseEvent("Deleted session", sessionId);
+        }
+
+        private void DeleteFilesFromBlob(string sessionId)
+        {
+            try
+            {
+                var session = GetSession(sessionId);
+                if (!string.IsNullOrWhiteSpace(session.BlobSasUri))
+                {
+                    var blobSasUri = BlobController.GetActualBlobSasUri(session.BlobSasUri);
+                    var fileBlob = BlobController.GetBlobForFile(Path.Combine("Monitoring", "Logs", sessionId), blobSasUri);
+                    fileBlob.DeleteIfExists(DeleteSnapshotsOption.None);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogCpuMonitoringErrorEvent("Failed while deleting files from blob", ex, sessionId);
+            }
         }
 
         public void TerminateActiveMonitoringSession()
@@ -293,7 +317,7 @@ namespace DaaS
             {
                 Logger.LogCpuMonitoringErrorEvent("Failed while getting the list of logs collected for the session", ex, sessionId);
             }
-            
+
             return filesCollected;
         }
 
@@ -467,7 +491,7 @@ namespace DaaS
             {
                 Logger.LogCpuMonitoringErrorEvent("Failed to get completed monitoring sessions", ex, string.Empty);
             }
-            
+
             return sessions;
         }
 
