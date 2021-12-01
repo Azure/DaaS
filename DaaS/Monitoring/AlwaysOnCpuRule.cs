@@ -11,6 +11,7 @@ using System.IO;
 using System.IO.Abstractions;
 using System.Linq;
 using DaaS.Storage;
+using Microsoft.SqlServer.Server;
 
 namespace DaaS
 {
@@ -106,9 +107,13 @@ namespace DaaS
 
         private void DeleteOldDumps()
         {
+            DeleteDumpsAtPath(MonitoringSessionController.GetRelativePathForSession(_sessionId));
+        }
+
+        private void DeleteDumpsAtPath(string directoryPath)
+        {
             try
             {
-                string directoryPath = Path.Combine("Monitoring", "Logs", _sessionId);
                 var blobs = BlobController.GetBlobs(directoryPath).ToList();
                 Logger.LogCpuMonitoringVerboseEvent($"Inside DeleteOldDumps, existing blob count is {blobs.Count()}", _sessionId);
                 if (blobs.Count() <= _maxActions)

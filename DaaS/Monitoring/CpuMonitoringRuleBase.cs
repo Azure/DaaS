@@ -8,6 +8,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using DaaS.Leases;
@@ -38,6 +39,7 @@ namespace DaaS
         protected readonly bool _monitorScmProcess;
         protected readonly SessionMode _sessionMode;
         protected readonly DateTime _startDate;
+        protected readonly string _defaultHostName;
 
         public bool MonitorScmProcesses => _monitorScmProcess;
         public int MonitorDuration => _monitorDuration;
@@ -58,6 +60,7 @@ namespace DaaS
             _maxActions = session.MaxActions;
             _sessionId = session.SessionId;
             _blobSasUri = session.BlobSasUri;
+            _defaultHostName = session.DefaultHostName;
             _actionToExecute = string.IsNullOrWhiteSpace(session.ActionToExecute) ? EnvironmentVariables.ProcdumpPath : session.ActionToExecute;
             _arguments = string.IsNullOrWhiteSpace(session.ArgumentsToAction) ? " -accepteula -ma {PROCESSID} {OUTPUTPATH}" : session.ArgumentsToAction;
         }
@@ -159,7 +162,7 @@ namespace DaaS
                     return;
                 }
 
-                string relativeFilePath = Path.Combine("Monitoring", "Logs", _sessionId, fileName);
+                string relativeFilePath = Path.Combine(MonitoringSessionController.GetRelativePathForSession(_sessionId), fileName);
                 Lease lease = Infrastructure.LeaseManager.TryGetLease(relativeFilePath, blobSasUri);
                 if (lease == null)
                 {

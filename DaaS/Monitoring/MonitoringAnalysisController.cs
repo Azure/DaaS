@@ -199,17 +199,7 @@ namespace DaaS
                 Logger.LogCpuMonitoringVerboseEvent($"File {dumpFileInTempDirectory} does not exist. Copying it locally", request.SessionId);
                 if (!string.IsNullOrWhiteSpace(request.BlobSasUri))
                 {
-                    try
-                    {
-                        string filePath = Path.Combine("Monitoring", "Logs", request.SessionId, Path.GetFileName(request.LogFileName));
-                        var blob = BlobController.GetBlobForFile(filePath, request.BlobSasUri);
-                        blob.DownloadToFile(dumpFileInTempDirectory, FileMode.Append);
-                        Logger.LogCpuMonitoringVerboseEvent($"Copied file from {request.LogFileName} to {dumpFileInTempDirectory} ", request.SessionId);
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.LogCpuMonitoringErrorEvent("Failed while copying file from Blob", ex, request.SessionId);
-                    }
+                    CacheFileFromPath(request, dumpFileInTempDirectory, MonitoringSessionController.GetRelativePathForSession(request.SessionId));
                 }
                 else
                 {
@@ -218,6 +208,21 @@ namespace DaaS
                 }
             }
             return dumpFileInTempDirectory;
+        }
+
+        private static void CacheFileFromPath(AnalysisRequest request, string dumpFileInTempDirectory, string path)
+        {
+            try
+            {
+                string filePath = Path.Combine(path, Path.GetFileName(request.LogFileName));
+                var blob = BlobController.GetBlobForFile(filePath, request.BlobSasUri);
+                blob.DownloadToFile(dumpFileInTempDirectory, FileMode.Append);
+                Logger.LogCpuMonitoringVerboseEvent($"Copied file from {request.LogFileName} to {dumpFileInTempDirectory} ", request.SessionId);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogCpuMonitoringErrorEvent("Failed while copying file from Blob", ex, request.SessionId);
+            }
         }
 
         public static void QueueAnalysisRequest(string sessionId, string logFileName, string blobSasUri, bool isActiveSession = false)

@@ -59,6 +59,7 @@ namespace DaaS
             IntervalDays = s.IntervalDays;
             ActionsInInterval = s.ActionsInInterval;
             _blobSasUri = s.BlobSasUri;
+            DefaultHostName = s.DefaultHostName;
     }
         public new string BlobSasUri
         {
@@ -98,6 +99,7 @@ namespace DaaS
         public int IntervalDays { get; set; }
         public int ActionsInInterval { get; set; }
 
+        public string DefaultHostName { get; set; }
         public string BlobStorageHostName { get; set; }
         public string BlobSasUri
         {

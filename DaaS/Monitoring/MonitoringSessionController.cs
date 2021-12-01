@@ -55,6 +55,7 @@ namespace DaaS
 
             return path;
         }
+
         public MonitoringSession CreateSession(MonitoringSession monitoringSession)
         {
             string cpuMonitoringActive = GetCpuMonitoringPath(MonitoringSessionDirectories.Active);
@@ -72,6 +73,7 @@ namespace DaaS
                 monitoringSession.EndDate = DateTime.MinValue.ToUniversalTime();
                 monitoringSession.SessionId = monitoringSession.StartDate.ToString(SessionConstants.SessionFileNameFormat);
                 monitoringSession.BlobStorageHostName = BlobController.GetBlobStorageHostName(monitoringSession.BlobSasUri);
+                monitoringSession.DefaultHostName = Settings.DefaultHostName;
                 cpuMonitoringActive = Path.Combine(cpuMonitoringActive, monitoringSession.SessionId + ".json");
 
                 if (monitoringSession.RuleType == RuleType.AlwaysOn
@@ -198,7 +200,7 @@ namespace DaaS
                 if (!string.IsNullOrWhiteSpace(session.BlobSasUri))
                 {
                     var blobSasUri = BlobController.GetActualBlobSasUri(session.BlobSasUri);
-                    var fileBlob = BlobController.GetBlobForFile(Path.Combine("Monitoring", "Logs", sessionId), blobSasUri);
+                    var fileBlob = BlobController.GetBlobForFile(GetRelativePathForSession(sessionId), blobSasUri);
                     fileBlob.DeleteIfExists(DeleteSnapshotsOption.None);
                 }
             }
@@ -298,7 +300,7 @@ namespace DaaS
                 }
                 else
                 {
-                    string directoryPath = Path.Combine("Monitoring", "Logs", sessionId);
+                    string directoryPath = GetRelativePathForSession(sessionId);
                     List<string> files = new List<string>();
                     var dir = BlobController.GetBlobDirectory(directoryPath, blobSasUri);
                     foreach (
@@ -308,7 +310,7 @@ namespace DaaS
                         var relativePath = item.Uri.ToString().Replace(item.Container.Uri.ToString() + "/", "");
                         string fileName = item.Uri.Segments.Last();
                         var monitoringFile = new MonitoringFile(fileName, relativePath);
-                        AddReportsToMonitoringFine(sessionId, monitoringFile, reports);
+                        AddReportsToMonitoringFile(sessionId, monitoringFile, reports);
                         filesCollected.Add(monitoringFile);
                     }
                 }
@@ -321,12 +323,17 @@ namespace DaaS
             return filesCollected;
         }
 
+        internal static string GetRelativePathForSession(string sessionId)
+        {
+            return Path.Combine("Monitoring", "Logs", sessionId);
+        }
+
         //
         // Method is used specifically for updating the Active Session details
         // for the AlwaysOnCpu rule type
         //
 
-        private void AddReportsToMonitoringFine(string sessionId, MonitoringFile monitoringFile, List<string> reports)
+        private void AddReportsToMonitoringFile(string sessionId, MonitoringFile monitoringFile, List<string> reports)
         {
             string fileName = Path.GetFileNameWithoutExtension(monitoringFile.FileName);
             if (reports.Any())
