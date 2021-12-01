@@ -42,7 +42,7 @@ namespace DaaSRunner
         private static int InstanceCountCheckFrequency = 30;
         private static bool m_MonitoringEnabled = false;
         private static readonly CpuMonitoring m_CpuMonitoring = new CpuMonitoring();
-        private static MonitoringSession m_MonitoringSession = null;
+        private static ICpuMonitoringRule m_CpuMonitoringRule = null;
         private static bool m_FailedStoppingSession = false;
         private static bool m_SecretsCleared;
         private static Timer m_SasUriTimer;
@@ -286,14 +286,14 @@ namespace DaaSRunner
                         if (!m_MonitoringEnabled)
                         {
                             m_MonitoringEnabled = true;
-                            m_CpuMonitoring.InitializeMonitoring(m_MonitoringSession);
+                            m_CpuMonitoring.InitializeMonitoring(m_CpuMonitoringRule);
                         }
 
-                        if (m_MonitoringEnabled && m_MonitoringSession != null)
+                        if (m_MonitoringEnabled && m_CpuMonitoringRule != null)
                         {
                             if (!m_FailedStoppingSession)
                             {
-                                bool shouldExit = m_CpuMonitoring.MonitorCpu(m_MonitoringSession);
+                                bool shouldExit = m_CpuMonitoring.MonitorCpu(m_CpuMonitoringRule);
                                 if (shouldExit)
                                 {
                                     StopMonitoringSession();
@@ -315,10 +315,10 @@ namespace DaaSRunner
                     Logger.LogDiagnostic($"Exception in actual monitoring task : { ex.ToLogString() }");
                 }
 
-                if (m_MonitoringEnabled && m_MonitoringSession != null)
+                if (m_MonitoringEnabled && m_CpuMonitoringRule != null)
                 {
-                    Logger.LogDiagnostic($"Monitoring is enabled, sleeping for {m_MonitoringSession.MonitorDuration * 1000} milliseconds");
-                    Thread.Sleep(m_MonitoringSession.MonitorDuration * 1000);
+                    Logger.LogDiagnostic($"Monitoring is enabled, sleeping for {m_CpuMonitoringRule.MonitorDuration * 1000} milliseconds");
+                    Thread.Sleep(m_CpuMonitoringRule.MonitorDuration * 1000);
                 }
                 else
                 {
@@ -330,12 +330,10 @@ namespace DaaSRunner
 
         private static void StopMonitoringSession()
         {
-            SessionMode sessionMode = SessionMode.Collect;
             string sessionId = "";
-            if (m_MonitoringSession != null)
+            if (m_CpuMonitoringRule != null)
             {
-                sessionMode = m_MonitoringSession.Mode;
-                sessionId = m_MonitoringSession.SessionId;
+                sessionId = m_CpuMonitoringRule.SessionId;
             }
             Logger.LogCpuMonitoringVerboseEvent($"Stopping a monitoring session", sessionId);
 
@@ -348,11 +346,12 @@ namespace DaaSRunner
             }
             else
             {
-                var blobSasUri = m_MonitoringSession.BlobSasUri;
                 m_MonitoringEnabled = false;
-                m_MonitoringSession = null;
+                m_CpuMonitoringRule = null;
                 m_FailedStoppingSession = false;
-                if (sessionMode == SessionMode.CollectKillAndAnalyze && !string.IsNullOrWhiteSpace(sessionId))
+                
+                if (!string.IsNullOrWhiteSpace(sessionId) 
+                    && m_CpuMonitoringRule.ShouldAnalyze(out string blobSasUri))
                 {
                     MonitoringSessionController controller = new MonitoringSessionController();
                     controller.AnalyzeSession(sessionId, blobSasUri);
@@ -371,23 +370,31 @@ namespace DaaSRunner
             }
             else
             {
-                if (m_MonitoringSession == null)
+                if (m_CpuMonitoringRule == null)
                 {
-                    m_MonitoringSession = session;
+                    m_CpuMonitoringRule = InitializeMonitoringRuleForSession(session);
                 }
                 else
                 {
                     // Check if it is the same session or not
-                    if (m_MonitoringSession.SessionId != session.SessionId)
+                    if (m_CpuMonitoringRule.SessionId != session.SessionId)
                     {
-                        Logger.LogCpuMonitoringVerboseEvent($"Reloading monitoring session as session has changed, old={m_MonitoringSession.SessionId}, new={session.SessionId}", m_MonitoringSession.SessionId);
-                        m_MonitoringSession = session;
-                        m_CpuMonitoring.InitializeMonitoring(m_MonitoringSession);
+                        Logger.LogCpuMonitoringVerboseEvent($"Reloading monitoring session as session has changed, old={m_CpuMonitoringRule.SessionId}, new={session.SessionId}", m_CpuMonitoringRule.SessionId);
+                        m_CpuMonitoringRule = InitializeMonitoringRuleForSession(session);
+                        m_CpuMonitoring.InitializeMonitoring(m_CpuMonitoringRule);
                     }
                 }
 
                 return true;
             }
+        }
+
+        private static ICpuMonitoringRule InitializeMonitoringRuleForSession(MonitoringSession session)
+        {
+            if (session.RuleType == RuleType.Diagnostics)
+                return new DiagnosticCpuRule(session);
+
+            return new AlwaysOnCpuRule(session);
         }
 
         private static void DaasRunner_UnhandledException(object sender, UnhandledExceptionEventArgs e)

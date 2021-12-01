@@ -15,13 +15,13 @@ using Microsoft.WindowsAzure.Storage.Queue;
 
 namespace DaaS.Storage
 {
-    internal class AlertingStorageQueue
+    public class AlertingStorageQueue
     {
         private const string AlertQueueName = "diagnosticalerts";
         private const int MessageExpirationInMinutes = 30;
         private CloudQueueClient _cloudQueueClient;
 
-        internal AlertingStorageQueue()
+        public AlertingStorageQueue()
         {
             string blobSasUri = Configuration.Settings.GetBlobSasUriFromEnvironment(out bool _);
 

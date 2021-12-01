@@ -118,6 +118,7 @@ namespace DaaS
                 monitoringSession.MaxActions,
                 monitoringSession.MaximumNumberOfHours,
                 monitoringSession.BlobStorageHostName,
+                monitoringSession.RuleType,
                 SasUriEnvironmentVariableExists = Configuration.Settings.IsBlobSasUriConfiguredAsEnvironmentVariable()
             };
 
