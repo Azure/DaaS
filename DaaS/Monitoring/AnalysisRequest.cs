@@ -19,7 +19,7 @@ namespace DaaS
         public int RetryCount { get; set; }
         public string BlobSasUri { get; set; }
         public bool IsActiveSession { get; set; } = false;
-        public string DefaultHostName { get; set; } = Settings.DefaultHostName;
+        public string DefaultHostName { get; set; } = V2.Settings.Instance.DefaultHostName;
 
         internal void SaveToDisk(string inprogressFile)
         {

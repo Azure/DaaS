@@ -73,7 +73,7 @@ namespace DaaS
                 monitoringSession.EndDate = DateTime.MinValue.ToUniversalTime();
                 monitoringSession.SessionId = monitoringSession.StartDate.ToString(SessionConstants.SessionFileNameFormat);
                 monitoringSession.BlobStorageHostName = BlobController.GetBlobStorageHostName(monitoringSession.BlobSasUri);
-                monitoringSession.DefaultHostName = Settings.DefaultHostName;
+                monitoringSession.DefaultHostName = V2.Settings.Instance.DefaultHostName;
                 cpuMonitoringActive = Path.Combine(cpuMonitoringActive, monitoringSession.SessionId + ".json");
 
                 if (monitoringSession.RuleType == RuleType.AlwaysOn
