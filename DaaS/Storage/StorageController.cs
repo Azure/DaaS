@@ -1,4 +1,4 @@
-// -----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="StorageController.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
@@ -29,7 +29,7 @@ namespace DaaS.Storage
         Task<bool> FileExistsAsync(string filePath, StorageLocation location, string blobSasUri = "");
         bool FileExists(string filePath, StorageLocation location, string blobSasUri = "");
         Task DeleteFileAsync(File file, string blobSasUri = "", Lease lease = null);
-        Task DeleteFileAsync(string filePath, string blobSasUri = "",  Lease lease = null);
+        Task DeleteFileAsync(string filePath, string blobSasUri = "", Lease lease = null);
         Task MoveFileAsync(File file, string newPath, StorageLocation location, string blobSasUri = "");
         Task MoveFileAsync(string oldPath, string newPath, StorageLocation location, string blobSasUri = "");
         void MoveFile(File file, string newPath, StorageLocation location, string blobSasUri = "");
@@ -491,7 +491,13 @@ namespace DaaS.Storage
                 var rootPath = GetRootStoragePathForWhenBlobStorageIsNotConfigured(location);
                 var fullPath = Path.Combine(rootPath, relativePath);
                 var blob = BlobController.GetBlobForFile(relativePath, blobSasUri);
-                await blob.UploadFromFileAsync(fullPath);
+
+                BlobRequestOptions blobRequestOptions = new BlobRequestOptions
+                {
+                    ServerTimeout = TimeSpan.FromMinutes(15)
+                };
+
+                await blob.UploadFromFileAsync(fullPath, null, blobRequestOptions, null);
                 Logger.LogVerboseEvent($"Uploaded {relativePath} to blob storage");
             }
             catch (Exception ex)

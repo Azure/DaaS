@@ -12,7 +12,7 @@ namespace DaaS
     public interface ICpuMonitoringRule
     {
         void LogStartup(Action<string, bool> appendToMonitoringLog);
-        bool TakeActionOnHighCpu(int processId, string processName, Action<string, bool> appendToMonitoringLog);
+        bool TakeActionOnHighCpu(int processId, string processName, DateTime monitoringStartTime, Action<string, bool> appendToMonitoringLog);
         bool ShouldTerminateRule(Action<string, bool> appendToMonitoringLog);
         bool ShouldAnalyze(out string blobSasUri);
 

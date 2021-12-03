@@ -433,14 +433,6 @@
     <WCFMetadata Include="Service References\" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\DaaSConsole\DaaSConsole.csproj">
-      <Project>{7eb4aac5-6531-4acc-823b-0ac99e218974}</Project>
-      <Name>DaaSConsole</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\DaaSRunner\DaaSRunner.csproj">
-      <Project>{f95417e9-7427-4b71-b6fc-6014fb4bbc85}</Project>
-      <Name>DaaSRunner</Name>
-    </ProjectReference>
     <ProjectReference Include="..\DaaS\DaaS.csproj">
       <Project>{dabb639a-c90b-4fc7-8715-6aab66671c57}</Project>
       <Name>DaaS</Name>

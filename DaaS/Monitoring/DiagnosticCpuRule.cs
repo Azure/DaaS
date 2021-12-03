@@ -32,7 +32,7 @@ namespace DaaS
             return _sessionMode == SessionMode.CollectKillAndAnalyze;
         }
 
-        public bool TakeActionOnHighCpu(int processId, string processName, Action<string, bool> appendToMonitoringLog)
+        public bool TakeActionOnHighCpu(int processId, string processName, DateTime monitoringStartTime, Action<string, bool> appendToMonitoringLog)
         {
             var actionsExecuted = GetTotalCustomActionsExecuted();
             string fileName = Environment.MachineName + "_" + processName + "_" + processId + "_" + DateTime.Now.Ticks.ToString();

@@ -105,11 +105,12 @@ namespace DaaS
                     var cpuTime = GetProcessCpuTime(id);
                     MonitoredProcess p = new MonitoredProcess
                     {
-                        CPUTimeStart = cpuTime,
-                        Name = Process.GetProcessById(id).ProcessName,
-                        CPUTimeCurrent = cpuTime,
+                        CpuTimeStart = cpuTime,
+                        Name = process.ProcessName,
+                        CpuTimeCurrent = cpuTime,
                         LastMonitorTime = DateTime.UtcNow,
-                        ThresholdExeededCount = 0
+                        ThresholdExceededCount = 0,
+                        ProcessStartTime = process.StartTime
                     };
                     bool booProcessAdded = ProcessList.TryAdd(id, p);
                     if (booProcessAdded)
@@ -122,8 +123,8 @@ namespace DaaS
             var processesMonitored = new List<string>();
             foreach (var id in ProcessList.Keys)
             {
-                var start = ProcessList[id].CPUTimeStart;
-                var oldCPUTime = ProcessList[id].CPUTimeCurrent;
+                var start = ProcessList[id].CpuTimeStart;
+                var oldCPUTime = ProcessList[id].CpuTimeCurrent;
                 var processCpuTime = GetProcessCpuTime(id);
 
                 if (processCpuTime != TimeSpan.MinValue)
@@ -146,11 +147,11 @@ namespace DaaS
                         CpuUsageLastMinute = cpuTimeSeconds / (Environment.ProcessorCount * durationSeconds);
                     }
 
-                    ProcessList[id].CPUTimeCurrent = newCPUTime;
+                    ProcessList[id].CpuTimeCurrent = newCPUTime;
                     ProcessList[id].LastMonitorTime = DateTime.UtcNow; ;
                     var cpuPercent = CpuUsageLastMinute * 100;
 
-                    processesMonitored.Add($"{ProcessList[id].Name}({id}):{cpuPercent.ToString("0")} %");
+                    processesMonitored.Add($"{ProcessList[id].Name}({id}):{cpuPercent:0} %");
 
                     bool terminateMonitoring = rule.ShouldTerminateRule(AppendToMonitoringLog);                    
                     if (terminateMonitoring)
@@ -160,13 +161,13 @@ namespace DaaS
 
                     if (cpuPercent >= rule.CpuThreshold)
                     {
-                        AppendToMonitoringLog($"{ProcessList[id].Name}({id}) CPU:{cpuPercent.ToString("0.00")} %");
-                        int thresholdCount = ++ProcessList[id].ThresholdExeededCount;
+                        AppendToMonitoringLog($"{ProcessList[id].Name}({id}) CPU:{cpuPercent:0.00} %");
+                        int thresholdCount = ++ProcessList[id].ThresholdExceededCount;
                         int currentCpuConsumptionWithTime = thresholdCount * rule.MonitorDuration;
                         if (currentCpuConsumptionWithTime >= rule.ThresholdSeconds)
                         {
-                            terminateMonitoring = rule.TakeActionOnHighCpu(id, ProcessList[id].Name, AppendToMonitoringLog);
-                            ProcessList[id].ThresholdExeededCount = 0;
+                            terminateMonitoring = rule.TakeActionOnHighCpu(id, ProcessList[id].Name, ProcessList[id].ProcessStartTime,  AppendToMonitoringLog);
+                            ProcessList[id].ThresholdExceededCount = 0;
                             if (terminateMonitoring)
                             {
                                 Thread.Sleep(5000);
@@ -180,10 +181,10 @@ namespace DaaS
                     }
                     else
                     {
-                        if (ProcessList[id].ThresholdExeededCount > 0)
+                        if (ProcessList[id].ThresholdExceededCount > 0)
                         {
                             AppendToMonitoringLog("Resetting CPU threshold", true);
-                            ProcessList[id].ThresholdExeededCount = 0;
+                            ProcessList[id].ThresholdExceededCount = 0;
                         }
                     }
                 }
@@ -204,7 +205,7 @@ namespace DaaS
             string cpuMonitorPath = MonitoringSessionController.GetCpuMonitoringPath(MonitoringSessionDirectories.Active);
             string logFilePath = Path.Combine(cpuMonitorPath, Environment.MachineName + ".log");
 
-            string logMessage = $"[{DateTime.UtcNow.ToShortDateString()} {DateTime.UtcNow.ToString("hh:mm:ss")}] {message}{Environment.NewLine}";
+            string logMessage = $"[{DateTime.UtcNow.ToShortDateString()} {DateTime.UtcNow:hh:mm:ss}] {message}{Environment.NewLine}";
 
             if (_loggerCount > MaxLinesInLogFile)
             {

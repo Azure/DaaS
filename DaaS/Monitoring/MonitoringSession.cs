@@ -98,6 +98,7 @@ namespace DaaS
 
         public int IntervalDays { get; set; }
         public int ActionsInInterval { get; set; }
+        public TimeSpan ProcessWarmupTime { get; set; } = TimeSpan.FromHours(1);
 
         public string DefaultHostName { get; set; }
         public string BlobStorageHostName { get; set; }

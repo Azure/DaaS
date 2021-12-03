@@ -120,7 +120,7 @@ namespace DaaSConsole
                         }
                     case (Options.Setup):
                         {
-                            SessionController.StartSessionRunner(sourceDir: ".", extraFilesToCopy: new List<string>() { @"Configuration\DiagnosticSettings.xml" });
+                            SessionController.StartSessionRunner();
                             break;
                         }
                     case (Options.Help):

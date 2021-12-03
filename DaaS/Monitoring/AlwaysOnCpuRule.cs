@@ -11,13 +11,13 @@ using System.IO;
 using System.IO.Abstractions;
 using System.Linq;
 using DaaS.Storage;
-using Microsoft.SqlServer.Server;
 
 namespace DaaS
 {
     public class AlwaysOnCpuRule : CpuMonitoringRuleBase, ICpuMonitoringRule
     {
         private readonly int _intervalDays;
+        private readonly TimeSpan _processWarmupTime;
         private readonly int _actionsInInterval;
 
         public AlwaysOnCpuRule(MonitoringSession session)
@@ -25,6 +25,7 @@ namespace DaaS
         {
             _actionsInInterval = session.ActionsInInterval;
             _intervalDays = session.IntervalDays;
+            _processWarmupTime = session.ProcessWarmupTime;
         }
 
         public void LogStartup(Action<string, bool> appendToMonitoringLog)
@@ -40,7 +41,7 @@ namespace DaaS
             return false;
         }
 
-        public bool TakeActionOnHighCpu(int processId, string processName, Action<string, bool> appendToMonitoringLog)
+        public bool TakeActionOnHighCpu(int processId, string processName, DateTime monitoringStartTime, Action<string, bool> appendToMonitoringLog)
         {
             string fileName = Environment.MachineName + "_" + processName + "_" + processId + "_" + DateTime.Now.Ticks.ToString();
             string outputPath = MonitoringSessionController.TempFilePath;
@@ -48,14 +49,25 @@ namespace DaaS
             string dumpFileInTempDirectory = Path.Combine(outputPath, fileName + ".dmp");
 
             bool dataCollected = false;
-            if (ShouldCollectData())
+            var processMonitoredTime = DateTime.UtcNow.Subtract(monitoringStartTime);
+            bool hasCrossedWarmupTime = processMonitoredTime > _processWarmupTime;
+
+            if (hasCrossedWarmupTime)
             {
-                CreateCustomActionFile(fileName, completed: false);
-                ExecuteAction(dumpFileInTempDirectory, processId, appendToMonitoringLog);
-                dataCollected = true;
+                if (ShouldCollectData())
+                {
+                    CreateCustomActionFile(fileName, completed: false);
+                    ExecuteAction(dumpFileInTempDirectory, processId, appendToMonitoringLog);
+                    dataCollected = true;
+                }
+
+                KillProcessIfNeeded(processId, appendToMonitoringLog);
+            }
+            else
+            {
+                appendToMonitoringLog($"Ignoring process {processId} as it started {processMonitoredTime.TotalMinutes:0}  back and minimum warmup time is {_processWarmupTime.TotalMinutes} minutes", true);
             }
 
-            KillProcessIfNeeded(processId, appendToMonitoringLog);
             DeleteOldDumps();
             DeleteOldReports();
 

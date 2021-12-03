@@ -12,6 +12,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.WindowsAzure.Storage.Blob;
 
 namespace DaaS.V2
 {
@@ -242,7 +243,13 @@ namespace DaaS.V2
                 try
                 {
                     var blob = Storage.BlobController.GetBlobForFile(logPath, _blobSasUri);
-                    await blob.UploadFromFileAsync(log.TempPath);
+
+                    BlobRequestOptions blobRequestOptions = new BlobRequestOptions()
+                    {
+                        ServerTimeout = TimeSpan.FromMinutes(15)
+                    };
+
+                    await blob.UploadFromFileAsync(log.TempPath, null, blobRequestOptions, null);
                     log.PartialPath = ConvertBackSlashesToForwardSlashes(logPath);
                     Logger.LogVerboseEvent($"Uploaded {logPath} to blob storage");
                 }

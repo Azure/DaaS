@@ -46,7 +46,7 @@ namespace DiagnosticsExtension.Controllers
             var disabledFileExists = false;
             try
             {
-                var destinationDir = EnvironmentVariables.DaasWebJob;
+                var destinationDir = EnvironmentVariables.DaasWebJobDirectory;
                 disabledFileExists = File.Exists(Path.Combine(destinationDir, "disable.job"));
             }
             catch (Exception ex)

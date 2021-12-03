@@ -68,11 +68,35 @@ namespace DaaS
             }
         }
 
-        public static string DaasWebJob
+        public static string DaasWebJobDirectory
         {
             get
             {
                 return Environment.ExpandEnvironmentVariables(@"%HOME%\site\Jobs\Continuous\DaaS");
+            }
+        }
+
+        public static string DaasConsoleDirectory
+        {
+            get
+            {
+                return Environment.ExpandEnvironmentVariables(@"%HOME%\data\DaaS\bin");
+            }
+        }
+
+        public static string DaasRunner
+        {
+            get
+            {
+                return Environment.ExpandEnvironmentVariables(@"%HOME%\site\Jobs\Continuous\DaaS\DaasRunner.exe");
+            }
+        }
+
+        public static string DaasConsole
+        {
+            get
+            {
+                return Environment.ExpandEnvironmentVariables(@"%HOME%\data\DaaS\bin\DaasConsole.exe");
             }
         }
 
