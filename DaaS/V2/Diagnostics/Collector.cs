@@ -246,7 +246,7 @@ namespace DaaS.V2
 
                     BlobRequestOptions blobRequestOptions = new BlobRequestOptions()
                     {
-                        ServerTimeout = TimeSpan.FromMinutes(15)
+                        ServerTimeout = TimeSpan.FromMinutes(10)
                     };
 
                     await blob.UploadFromFileAsync(log.TempPath, null, blobRequestOptions, null);
