@@ -1,4 +1,4 @@
-// -----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="Utilities.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security;
 using System.Text;
@@ -142,6 +143,7 @@ namespace DaaS
             public int Buffer;
         }
     }
+
     public static class Utilities
     {
         public static bool GetIsScmSite(Dictionary<string, string> environment)
@@ -293,6 +295,23 @@ namespace DaaS
 
                 return penv;
             }
+        }
+
+        public static bool GetAppSettingAsBoolOrDefault(string settingName, bool defaultValue)
+        {
+            string envVarValue = Environment.GetEnvironmentVariable(settingName);
+            if (!string.IsNullOrWhiteSpace(envVarValue))
+            {
+                if (string.Equals("true", envVarValue.Trim(), StringComparison.OrdinalIgnoreCase)
+                        || string.Equals("1", envVarValue.Trim(), StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+
+                return false;
+            }
+
+            return defaultValue;
         }
 
         private static bool HasReadAccess(IntPtr hProcess, IntPtr address, out int size)

@@ -1,4 +1,4 @@
-// -----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="Program.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
@@ -43,22 +43,25 @@ namespace MemoryDumpCollector
             {
                 ParseInputs(args);
 
-                // Determine which processes this process is a child of (since we don't want to call a memory dump on ourselves)
-                Process parentProcess = Process.GetCurrentProcess();
-                while (parentProcess != null)
+                if (!IsScmSeparationDisabled())
                 {
-                    if (parentProcess.ProcessName.Equals(_processName, StringComparison.OrdinalIgnoreCase))
+                    // Determine which processes this process is a child of (since we don't want to call a memory dump on ourselves)
+                    Process parentProcess = Process.GetCurrentProcess();
+                    while (parentProcess != null)
                     {
-                        Console.WriteLine("Ignoring parent " + parentProcess.GetPrintableInfo());
-                        // Don't collect memory dumps of our parent process. Taking the dump can sometimes freeze cdb and the process it's take a dump of
-                        _processesToIgnore.Add(parentProcess.Id);
+                        if (parentProcess.ProcessName.Equals(_processName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            Console.WriteLine("Ignoring parent " + parentProcess.GetPrintableInfo());
+                            // Don't collect memory dumps of our parent process. Taking the dump can sometimes freeze cdb and the process it's take a dump of
+                            _processesToIgnore.Add(parentProcess.Id);
+                        }
+                        parentProcess = parentProcess.GetParentProcess();
                     }
-                    parentProcess = parentProcess.GetParentProcess();
-                }
 
-                // We don't want to collect memory dumps of ourself
-                _processesToIgnore.AddRange(Process.GetCurrentProcess().GetAllChildProcesses().Select(p => p.Id).ToList());
-                _processesToIgnore.Add(Process.GetCurrentProcess().Id);
+                    // We don't want to collect memory dumps of ourself
+                    _processesToIgnore.AddRange(Process.GetCurrentProcess().GetAllChildProcesses().Select(p => p.Id).ToList());
+                    _processesToIgnore.Add(Process.GetCurrentProcess().Id);
+                }
 
                 // We don't want to collect processes spawned by the runner either
                 Process runnerProcesses = Process.GetProcessesByName("DaaSRunner").FirstOrDefault();
@@ -187,7 +190,13 @@ namespace MemoryDumpCollector
             catch (Exception ex)
             {
                 Logger.LogDiagnoserErrorEvent($"Un-handled exception in MemoryDumpCollector", ex);
+                Console.WriteLine($"Un-handled exception in MemoryDumpCollector {ex}");
             }
+        }
+
+        private static bool IsScmSeparationDisabled()
+        {
+            return Utilities.GetAppSettingAsBoolOrDefault("WEBSITE_DISABLE_SCM_SEPARATION", false);
         }
 
         private static void LaunchStackTracer(int mainSiteWorkerProcessId)

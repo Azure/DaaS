@@ -79,9 +79,7 @@ namespace DaaS
                 if (monitoringSession.RuleType == RuleType.AlwaysOn
                     && monitoringSession.Mode == SessionMode.CollectKillAndAnalyze)
                 {
-                    // TODO: Change the below to AnalysisStatus.Continuous post deployment
-                    //monitoringSession.AnalysisStatus = AnalysisStatus.Continuous;
-                    monitoringSession.AnalysisStatus = AnalysisStatus.Completed;
+                    monitoringSession.AnalysisStatus = AnalysisStatus.Continuous;
                 }
 
                 monitoringSession.SaveToDisk(cpuMonitoringActive);
@@ -200,8 +198,17 @@ namespace DaaS
                 if (!string.IsNullOrWhiteSpace(session.BlobSasUri))
                 {
                     var blobSasUri = BlobController.GetActualBlobSasUri(session.BlobSasUri);
-                    var fileBlob = BlobController.GetBlobForFile(GetRelativePathForSession(sessionId), blobSasUri);
-                    fileBlob.DeleteIfExists(DeleteSnapshotsOption.None);
+                    var fileBlobLegacy = BlobController.GetBlobForFile(GetRelativePathForSession(sessionId), blobSasUri);
+                    if (fileBlobLegacy != null)
+                    {
+                        fileBlobLegacy.DeleteIfExists(DeleteSnapshotsOption.None);
+                    }
+
+                    var fileBlob = BlobController.GetBlobForFile(GetRelativePathForSession(session.DefaultHostName, sessionId), blobSasUri);
+                    if (fileBlob != null)
+                    {
+                        fileBlob.DeleteIfExists(DeleteSnapshotsOption.None);
+                    }
                 }
             }
             catch (Exception ex)
@@ -244,7 +251,7 @@ namespace DaaS
 
                     if (!FileSystemHelpers.FileExists(cpuMonitorCompletedPath))
                     {
-                        monitoringSession.FilesCollected = GetCollectedLogsForSession(monitoringSession.SessionId, monitoringSession.BlobSasUri);
+                        monitoringSession.FilesCollected = GetCollectedLogsForSession(monitoringSession);
                         Logger.LogCpuMonitoringVerboseEvent($"Found {monitoringSession.FilesCollected.Count} files collected by CPU monitoring", monitoringSession.SessionId);
                         SaveSession(monitoringSession);
                         MoveMonitoringLogsToSession(monitoringSession.SessionId);
@@ -278,11 +285,13 @@ namespace DaaS
             return true;
         }
 
-        public List<MonitoringFile> GetCollectedLogsForSession(string sessionId, string blobSasUri)
+        public List<MonitoringFile> GetCollectedLogsForSession(MonitoringSession session)
         {
             var filesCollected = new List<MonitoringFile>();
-            string folderName = GetLogsFolderForSession(sessionId);
+            string folderName = GetLogsFolderForSession(session.SessionId);
             var reports = FileSystemHelpers.GetFilesInDirectory(folderName, "*.mht", false, SearchOption.TopDirectoryOnly);
+            string blobSasUri = session.BlobSasUri;
+            string sessionId = session.SessionId;
 
             try
             {
@@ -300,19 +309,11 @@ namespace DaaS
                 }
                 else
                 {
-                    string directoryPath = GetRelativePathForSession(sessionId);
-                    List<string> files = new List<string>();
-                    var dir = BlobController.GetBlobDirectory(directoryPath, blobSasUri);
-                    foreach (
-                        IListBlobItem item in
-                            dir.ListBlobs(useFlatBlobListing: true))
-                    {
-                        var relativePath = item.Uri.ToString().Replace(item.Container.Uri.ToString() + "/", "");
-                        string fileName = item.Uri.Segments.Last();
-                        var monitoringFile = new MonitoringFile(fileName, relativePath);
-                        AddReportsToMonitoringFile(sessionId, monitoringFile, reports);
-                        filesCollected.Add(monitoringFile);
-                    }
+                    string directoryPath = GetRelativePathForSession(session.DefaultHostName, sessionId);
+                    UpdateFilesCollected(sessionId, blobSasUri, filesCollected, reports, directoryPath);
+
+                    string directoryPathLegacy = GetRelativePathForSession(sessionId);
+                    UpdateFilesCollected(sessionId, blobSasUri, filesCollected, reports, directoryPathLegacy);
                 }
             }
             catch (Exception ex)
@@ -321,6 +322,42 @@ namespace DaaS
             }
 
             return filesCollected;
+        }
+
+        private void UpdateFilesCollected(string sessionId, string blobSasUri, List<MonitoringFile> filesCollected, List<string> reports, string directoryPath)
+        {
+            try
+            {
+                var dir = BlobController.GetBlobDirectory(directoryPath, blobSasUri);
+                if (dir == null)
+                {
+                    //
+                    // The directoryPath does not exist on Blob
+                    //
+
+                    return;
+                }
+
+                foreach (
+                    IListBlobItem item in
+                        dir.ListBlobs(useFlatBlobListing: true))
+                {
+                    var relativePath = item.Uri.ToString().Replace(item.Container.Uri.ToString() + "/", "");
+                    string fileName = item.Uri.Segments.Last();
+                    var monitoringFile = new MonitoringFile(fileName, relativePath);
+                    AddReportsToMonitoringFile(sessionId, monitoringFile, reports);
+                    filesCollected.Add(monitoringFile);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogCpuMonitoringErrorEvent($"Failed while getting the list of logs collected for the session from {directoryPath}", ex, sessionId);
+            }
+        }
+
+        internal static string GetRelativePathForSession(string defaultHostName, string sessionId)
+        {
+            return Path.Combine(defaultHostName, "Monitoring", "Logs", sessionId);
         }
 
         internal static string GetRelativePathForSession(string sessionId)

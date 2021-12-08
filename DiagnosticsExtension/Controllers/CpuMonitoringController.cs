@@ -94,7 +94,7 @@ namespace DiagnosticsExtension.Controllers
                     activeSession.Session = new MonitoringSessionResponse(session);
                     var sessionLogs = monitoringController.GetActiveSessionMonitoringLogs();
                     activeSession.MonitoringLogs = sessionLogs.ToList();
-                    activeSession.Session.FilesCollected = monitoringController.GetCollectedLogsForSession(activeSession.Session.SessionId, activeSession.Session.BlobSasUri);
+                    activeSession.Session.FilesCollected = monitoringController.GetCollectedLogsForSession(activeSession.Session);
                 }
 
                 return Request.CreateResponse(HttpStatusCode.OK, activeSession);

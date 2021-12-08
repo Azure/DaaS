@@ -1,5 +1,5 @@
 ﻿// -----------------------------------------------------------------------
-// <copyright file="IMonitoringRule.cs" company="Microsoft Corporation">
+// <copyright file="AlwaysOnCpuRule.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 // </copyright>
@@ -65,7 +65,7 @@ namespace DaaS
             }
             else
             {
-                appendToMonitoringLog($"Ignoring process {processId} as it started {processMonitoredTime.TotalMinutes:0}  back and minimum warmup time is {_processWarmupTime.TotalMinutes} minutes", true);
+                appendToMonitoringLog($"Ignoring process {processId} as it started {processMonitoredTime.TotalMinutes:0} mins back and minimum warmup time is {_processWarmupTime.TotalMinutes} minutes", true);
             }
 
             DeleteOldDumps();
@@ -119,6 +119,7 @@ namespace DaaS
 
         private void DeleteOldDumps()
         {
+            DeleteDumpsAtPath(MonitoringSessionController.GetRelativePathForSession(_defaultHostName, _sessionId));
             DeleteDumpsAtPath(MonitoringSessionController.GetRelativePathForSession(_sessionId));
         }
 

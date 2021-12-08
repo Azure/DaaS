@@ -199,7 +199,7 @@ namespace DaaS
                 Logger.LogCpuMonitoringVerboseEvent($"File {dumpFileInTempDirectory} does not exist. Copying it locally", request.SessionId);
                 if (!string.IsNullOrWhiteSpace(request.BlobSasUri))
                 {
-                    CacheFileFromPath(request, dumpFileInTempDirectory, MonitoringSessionController.GetRelativePathForSession(request.SessionId));
+                    CacheFileFromPath(request, dumpFileInTempDirectory, MonitoringSessionController.GetRelativePathForSession(request.DefaultHostName, request.SessionId));
                 }
                 else
                 {
