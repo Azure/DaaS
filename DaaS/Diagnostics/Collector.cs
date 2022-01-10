@@ -1,4 +1,4 @@
-// -----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="Collector.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
@@ -133,7 +133,7 @@ namespace DaaS.Diagnostics
                 Task saveTask = null;
                 if(!string.IsNullOrWhiteSpace(blobSasUri))
                 {
-                    saveTask = Infrastructure.Storage.UploadFileToBlobAsync(log.RelativePath, StorageLocation.TempStorage, blobSasUri); 
+                    saveTask = Infrastructure.Storage.UploadFileToBlobAsync(log.RelativePath, StorageLocation.TempStorage, blobSasUri, sessionId);
                 }
                 else
                 {

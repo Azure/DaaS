@@ -33,7 +33,6 @@ namespace DaaSRunner
             Diagnostic
         }
 
-        private static Verbosity VerbosityLevel = Verbosity.Information;
         private static SessionController _DaaS = new SessionController();
         private static int cleanOutHeartBeats = 0;
         private static double sleepIntervalForHeartbeatCheck = 0;
@@ -74,13 +73,6 @@ namespace DaaSRunner
                 AppDomain.CurrentDomain.UnhandledException += DaasRunner_UnhandledException;
             }
 
-            if (args.Length > 0)
-            {
-                if (args[0].Equals("-v", StringComparison.OrdinalIgnoreCase))
-                {
-                    VerbosityLevel = Verbosity.Diagnostic;
-                }
-            }
             // Try to stagger the start times of all the instances. It'll help avoid file contention
             Thread.Sleep(new Random().Next(10));
 

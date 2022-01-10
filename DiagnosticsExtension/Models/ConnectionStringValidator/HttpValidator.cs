@@ -27,16 +27,16 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
 
         public ConnectionStringType Type => ConnectionStringType.Http;
 
-        public async Task<bool> IsValidAsync(string connStr)
+        public Task<bool> IsValidAsync(string connStr)
         {
             try
             {
                 var uri = new Uri(connStr);
-                return true;
+                return Task.FromResult(true);
             }
             catch (Exception)
             {
-                return false;
+                return Task.FromResult(false);
             }
         }
 

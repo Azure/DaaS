@@ -22,7 +22,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
 
         public ConnectionStringType Type => ConnectionStringType.StorageAccount;
 
-        public async Task<bool> IsValidAsync(string connStr)
+        public Task<bool> IsValidAsync(string connStr)
         {
             try
             {
@@ -30,9 +30,9 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             }
             catch (Exception)
             {
-                return false;
+                return Task.FromResult(false);
             }
-            return true;
+            return Task.FromResult(true);
         }
 
         public async Task<ConnectionStringValidationResult> ValidateAsync(string connStr, string clientId = null)
@@ -87,7 +87,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             return response;
         }
 
-        public async Task<TestConnectionData> TestConnectionString(string connectionString, string name, string clientId)
+        public Task<TestConnectionData> TestConnectionString(string connectionString, string name, string clientId)
         {
             TestConnectionData data = new TestConnectionData
             {
@@ -113,7 +113,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             client.GetServiceProperties();
             client.ListContainers();
 
-            return data;
+            return Task.FromResult(data);
         }
     }
 }

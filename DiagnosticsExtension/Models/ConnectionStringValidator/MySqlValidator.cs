@@ -22,7 +22,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
 
         public ConnectionStringType Type => ConnectionStringType.MySql;
 
-        public async Task<bool> IsValidAsync(string connStr)
+        public Task<bool> IsValidAsync(string connStr)
         {
             try
             {
@@ -30,9 +30,9 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             }
             catch (Exception)
             {
-                return false;
+                return Task.FromResult(false);
             }
-            return true;
+            return Task.FromResult(true);
         }
 
         async public Task<ConnectionStringValidationResult> ValidateAsync(string connStr, string clientId = null)
