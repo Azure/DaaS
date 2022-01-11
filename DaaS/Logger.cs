@@ -261,7 +261,8 @@ namespace DaaS
 
         public static void LogSessionErrorEvent(string message, Exception ex, string sessionId)
         {
-            DaasEventSource.Instance.LogSessionErrorEvent(SiteName, _assemblyVersion, sessionId, message, ex.GetType().ToString(), ex.Message, ex.StackTrace);
+            var details = GetExceptionDetails(ex);
+            DaasEventSource.Instance.LogSessionErrorEvent(SiteName, _assemblyVersion, sessionId, message, ex.GetType().ToString(), ex.Message, ex.StackTrace, details);
             LogDiagnostic("Session [ERR] - {0} {1} {2} {3} {4}", sessionId, message, ex.GetType().ToString(), ex.Message, ex.StackTrace);
         }
 

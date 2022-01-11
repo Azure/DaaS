@@ -1,4 +1,4 @@
-// -----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="DaasEventSource.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
@@ -35,10 +35,10 @@ namespace DaaS
             WriteEvent(1001, SiteName, Version, SessionId, ActivityId, Message);
         }
 
-        [Event(1002, Level = EventLevel.Error)]
-        public void LogSessionErrorEvent(string SiteName, string Version, string SessionId, string Message, string ExceptionType, string ExceptionMessage, string ExceptionStackTrace)
+        [Event(1002, Level = EventLevel.Error, Version = 2)]
+        public void LogSessionErrorEvent(string SiteName, string Version, string SessionId, string Message, string ExceptionType, string ExceptionMessage, string ExceptionStackTrace, string Details)
         {
-            WriteEvent(1002, SiteName, Version, SessionId, Message, ExceptionType, ExceptionMessage, ExceptionStackTrace);
+            WriteEvent(1002, SiteName, Version, SessionId, Message, ExceptionType, ExceptionMessage, ExceptionStackTrace, Details);
         }
 
         [Event(1003, Level = EventLevel.Error, Version = 2)]

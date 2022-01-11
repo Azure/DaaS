@@ -22,6 +22,7 @@ using Session = DaaS.Sessions.Session;
 using SessionV2 = DaaS.V2.Session;
 using SettingsV2 = DaaS.V2.Settings;
 using System.Collections.Concurrent;
+using System.Net;
 
 namespace DaaSRunner
 {
@@ -57,8 +58,11 @@ namespace DaaSRunner
 
         static void Main(string[] args)
         {
-            Logger.LogVerboseEvent($"DaasRunner.exe with version {Assembly.GetExecutingAssembly().GetName().Version.ToString() } and ProcessId={ Process.GetCurrentProcess().Id } started");
-            System.Net.ServicePointManager.SecurityProtocol = System.Net.SecurityProtocolType.Tls12;
+            Logger.LogVerboseEvent($"DaasRunner.exe with version {Assembly.GetExecutingAssembly().GetName().Version } and ProcessId={ Process.GetCurrentProcess().Id } started");
+
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+            ServicePointManager.ServerCertificateValidationCallback = delegate { return true; };
+
             SessionController sessionController = new SessionController();
             sessionController.StartSessionRunner();
 

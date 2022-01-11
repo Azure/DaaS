@@ -20,6 +20,7 @@ using Newtonsoft.Json;
 using SessionManagerV2 = DaaS.V2.SessionManager;
 using SessionV2 = DaaS.V2.Session;
 using System.IO;
+using System.Net;
 
 namespace DaaSConsole
 {
@@ -62,7 +63,8 @@ namespace DaaSConsole
 
         static void Main(string[] args)
         {
-            System.Net.ServicePointManager.SecurityProtocol = System.Net.SecurityProtocolType.Tls12;
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
+            ServicePointManager.ServerCertificateValidationCallback = delegate { return true; };
 
             if (args.Length == 0)
             {

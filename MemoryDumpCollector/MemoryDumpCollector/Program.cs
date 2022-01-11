@@ -303,12 +303,11 @@ namespace MemoryDumpCollector
         private static void GetMemoryDumpProcDump(Process process, string outputDir)
         {
             string command = Path.Combine(_cdbFolder, "procdump.exe");
-            string arguments = " -accepteula -r -ma {0} {1}\\{2}_{3}_{0}.dmp";
             try
             {
                 var cancellationTokenSource = new CancellationTokenSource();
                 Console.WriteLine(process.ProcessName + " is " + (process.IsWin64() ? "64" : "32") + "-bit");
-                arguments = string.Format(arguments, process.Id, outputDir, Environment.MachineName, process.ProcessName);
+                string arguments = $" -accepteula -r -ma {process.Id} {outputDir}\\{Environment.MachineName}_{process.ProcessName}_{process.Id}_{DateTime.UtcNow:yyyyMMdd-HHmmss}.dmp";
                 Console.WriteLine("Comand:");
                 Console.WriteLine(command + " " + arguments);
 
@@ -397,7 +396,7 @@ namespace MemoryDumpCollector
             }
             catch (Exception ex)
             {
-                Logger.LogDiagnoserErrorEvent($"Failed in GetMemoryDumpProcDump for arguments:{arguments}", ex);
+                Logger.LogDiagnoserErrorEvent($"Failed in GetMemoryDumpProcDump", ex);
             }
         }
 
