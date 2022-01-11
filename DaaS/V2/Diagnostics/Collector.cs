@@ -51,9 +51,12 @@ namespace DaaS.V2
             string tempOutputDir = session.LogsTempDirectory;
             FileSystemHelpers.EnsureDirectory(tempOutputDir);
 
-            // Check to see if logs exists (another collector session could have run)
-            var logs = GetLogsForSession(tempOutputDir);
+            //
+            // Check to see if logs exists (another collector session could have run). This
+            // will happen if DaasRunner restarts in the middle of a session collection
+            //
 
+            var logs = GetLogsForSession(tempOutputDir);
             if (!logs.Any())
             {
                 var additionalError = string.Empty;
@@ -243,7 +246,6 @@ namespace DaaS.V2
                 try
                 {
                     var blob = Storage.BlobController.GetBlobForFile(logPath, _blobSasUri);
-
                     BlobRequestOptions blobRequestOptions = new BlobRequestOptions()
                     {
                         ServerTimeout = TimeSpan.FromMinutes(10)
@@ -251,7 +253,7 @@ namespace DaaS.V2
 
                     await blob.UploadFromFileAsync(log.TempPath, null, blobRequestOptions, null);
                     log.PartialPath = ConvertBackSlashesToForwardSlashes(logPath);
-                    Logger.LogVerboseEvent($"Uploaded {logPath} to blob storage");
+                    Logger.LogSessionVerboseEvent($"Uploaded {logPath} to blob storage", activeSession.SessionId);
                 }
                 catch (Exception ex)
                 {

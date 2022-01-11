@@ -146,27 +146,38 @@ namespace DaaS.V2
         {
             try
             {
-                DiagnosticToolResponse resp = null;
-                Collector collector = GetCollectorForSession(activeSession.Tool);
-                await SetCurrentInstanceAsStartedAsync(activeSession);
-
-                try
-                {
-                    resp = await collector.CollectLogsAsync(
-                        activeSession,
-                        token);
-                }
-                catch (Exception ex)
-                {
-                    resp = new DiagnosticToolResponse();
-                    resp.Errors.Add($"Invoking diagnostic tool failed with error - {ex.Message}");
-                    LogSessionError("Tool invocation failed", activeSession.SessionId, ex);
-                }
-
+                var activeInstance = activeSession.GetCurrentInstance();
+                
                 //
-                // Add the tool output to the active session
+                // It's possible that DaasRunner restarts after the data is already collected. In that
+                // situation, the current Instance status would be set to Analyzing, TimedOut or Complete
+                // Just make sure that we are not past that stage for the current session.
                 //
-                await AppendCollectorResponseToSessionAsync(activeSession, resp);
+                
+                if (activeInstance== null || activeInstance.Status == Status.Active || activeInstance.Status == Status.Started)
+                {
+                    DiagnosticToolResponse resp = null;
+                    Collector collector = GetCollectorForSession(activeSession.Tool);
+                    await SetCurrentInstanceAsStartedAsync(activeSession);
+
+                    try
+                    {
+                        resp = await collector.CollectLogsAsync(
+                            activeSession,
+                            token);
+                    }
+                    catch (Exception ex)
+                    {
+                        resp = new DiagnosticToolResponse();
+                        resp.Errors.Add($"Invoking diagnostic tool failed with error - {ex.Message}");
+                        Logger.LogSessionErrorEvent("Tool invocation failed", ex, activeSession.SessionId);
+                    }
+
+                    //
+                    // Add the tool output to the active session
+                    //
+                    await AppendCollectorResponseToSessionAsync(activeSession, resp);
+                }
 
                 await AnalyzeAndUpdateSessionAsync(token);
 
@@ -183,7 +194,7 @@ namespace DaaS.V2
             }
             catch (Exception ex)
             {
-                LogSessionError("Exception while running tool", activeSession.SessionId, ex);
+                Logger.LogSessionErrorEvent("Exception while running tool", ex, activeSession.SessionId);
             }
         }
 
@@ -302,7 +313,6 @@ namespace DaaS.V2
             // If none of the instances picked up the session
 
             var orphanedInstanceNames = new List<string>();
-
             if (activeSession.ActiveInstances == null || activeSession.ActiveInstances.Count == 0)
             {
                 orphanedInstanceNames = activeSession.Instances;
@@ -313,11 +323,16 @@ namespace DaaS.V2
                 orphanedInstanceNames = activeSession.Instances.Where(x => !activeInstances.Contains(x)).ToList();
             }
 
-            LogSessionError("Identified orphaned instances for session",
-                activeSession.SessionId,
-                new OperationCanceledException($"Orphaning instance(s) {string.Join(",", orphanedInstanceNames)} as they haven't picked up the session"));
+            if (orphanedInstanceNames == null || !orphanedInstanceNames.Any())
+            {
+                return;
+            }
 
-            var orphandedInstances = new List<ActiveInstance>();
+            Logger.LogSessionErrorEvent("Identified orphaned instances for session",
+                new OperationCanceledException($"Orphaning instance(s) {string.Join(",", orphanedInstanceNames)} as they haven't picked up the session"),
+                activeSession.SessionId);
+
+            var orphanedInstances = new List<ActiveInstance>();
             foreach (var instance in orphanedInstanceNames)
             {
                 var activeInstance = new ActiveInstance(instance)
@@ -326,7 +341,7 @@ namespace DaaS.V2
                 };
 
                 activeInstance.CollectorErrors.Add("The instance did not pick up the session within the required time");
-                orphandedInstances.Add(activeInstance);
+                orphanedInstances.Add(activeInstance);
             }
 
             await UpdateActiveSessionAsync((latestSessionFromDisk) =>
@@ -335,11 +350,11 @@ namespace DaaS.V2
                 {
                     if (latestSessionFromDisk.ActiveInstances == null)
                     {
-                        latestSessionFromDisk.ActiveInstances = orphandedInstances;
+                        latestSessionFromDisk.ActiveInstances = orphanedInstances;
                     }
                     else
                     {
-                        foreach (var orphanedInstance in orphandedInstances)
+                        foreach (var orphanedInstance in orphanedInstances)
                         {
                             if (!latestSessionFromDisk.ActiveInstances.Any(x => x.Name == orphanedInstance.Name))
                             {
@@ -350,7 +365,7 @@ namespace DaaS.V2
                 }
                 catch (Exception ex)
                 {
-                    LogSessionError("Failed while updating orphaned instances for the session", latestSessionFromDisk.SessionId, ex);
+                    Logger.LogSessionErrorEvent("Failed while updating orphaned instances for the session", ex, latestSessionFromDisk.SessionId);
                 }
 
                 return latestSessionFromDisk;
@@ -416,7 +431,7 @@ namespace DaaS.V2
                 }
                 catch (Exception ex)
                 {
-                    LogSessionError("Failed while updating reports for the session", latestSessionFromDisk.SessionId, ex);
+                    Logger.LogSessionErrorEvent("Failed while updating reports for the session", ex, latestSessionFromDisk.SessionId);
                 }
 
                 return latestSessionFromDisk;
@@ -590,7 +605,15 @@ namespace DaaS.V2
                             Logger.LogSessionVerboseEvent($"Added ActiveInstance to session", latestSessionFromDisk.SessionId);
                         }
 
-                        activeInstance.Logs.AddRange(response.Logs);
+                        foreach(var log in response.Logs)
+                        {
+                            if (activeInstance.Logs.Any(x=>x.Name == log.Name && x.Size == log.Size))
+                            {
+                                continue;
+                            }
+
+                            activeInstance.Logs.Add(log);
+                        }
 
                         if (response.Errors.Any())
                         {
@@ -598,10 +621,11 @@ namespace DaaS.V2
                         }
 
                         activeInstance.Status = Status.Analyzing;
+                        Logger.LogSessionVerboseEvent($"Set ActiveInstance status to Analyzing", latestSessionFromDisk.SessionId);
                     }
                     catch (Exception ex)
                     {
-                        LogSessionError("Failed while adding active instance", latestSessionFromDisk.SessionId, ex);
+                        Logger.LogSessionErrorEvent("Failed while adding active instance", ex, latestSessionFromDisk.SessionId);
                     }
 
                     return latestSessionFromDisk;
@@ -609,13 +633,8 @@ namespace DaaS.V2
             }
             catch (Exception ex)
             {
-                LogSessionError("Failed in AddLogsToActiveSession", activeSession.SessionId, ex);
+                Logger.LogSessionErrorEvent("Failed in AddLogsToActiveSession", ex, activeSession.SessionId);
             }
-        }
-
-        private void LogSessionError(string message, string sessionId, Exception ex)
-        {
-            Logger.LogSessionErrorEvent(message, ex, sessionId);
         }
 
         private async Task UpdateActiveSessionAsync(Func<Session, Session> updateSession, string sessionId, [CallerMemberName] string callerMethodName = "")
@@ -814,7 +833,7 @@ namespace DaaS.V2
             }
             catch (Exception ex)
             {
-                LogSessionError("Failed while saving the session", session.SessionId, ex);
+                Logger.LogSessionErrorEvent("Failed while saving the session", ex, session.SessionId);
             }
         }
 
@@ -936,7 +955,7 @@ namespace DaaS.V2
             }
             catch (Exception ex)
             {
-                LogSessionError($"Failed while updating current instance status to {sessionStatus}", activeSession.SessionId, ex);
+                Logger.LogSessionErrorEvent($"Failed while updating current instance status to {sessionStatus}", ex, activeSession.SessionId);
             }
         }
 
