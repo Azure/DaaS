@@ -605,17 +605,20 @@ namespace DaaS.V2
                             Logger.LogSessionVerboseEvent($"Added ActiveInstance to session", latestSessionFromDisk.SessionId);
                         }
 
-                        foreach(var log in response.Logs)
+                        if (response.Logs != null)
                         {
-                            if (activeInstance.Logs.Any(x=>x.Name == log.Name && x.Size == log.Size))
+                            foreach (var log in response.Logs)
                             {
-                                continue;
-                            }
+                                if (activeInstance.Logs.Any(x => x.Name == log.Name && x.Size == log.Size))
+                                {
+                                    continue;
+                                }
 
-                            activeInstance.Logs.Add(log);
+                                activeInstance.Logs.Add(log);
+                            }
                         }
 
-                        if (response.Errors.Any())
+                        if (response.Errors != null && response.Errors.Any())
                         {
                             activeInstance.CollectorErrors = activeInstance.CollectorErrors.Union(response.Errors).Distinct().ToList();
                         }
@@ -784,6 +787,11 @@ namespace DaaS.V2
 
         private static string GetPathWithSasUri(string relativePath)
         {
+            if (string.IsNullOrWhiteSpace(relativePath))
+            {
+                return string.Empty;
+            }
+
             string path;
             var blobUriSections = Settings.Instance.BlobSasUri.Split('?');
             if (blobUriSections.Length >= 2)

@@ -241,12 +241,7 @@ namespace DaaS
                     message = $"{CallerComponent}: {message}";
                 }
                 Trace.TraceWarning($"{DateTime.UtcNow } {message} {exceptionType}:{exceptionMessage} {details} {exceptionStackTrace}");
-
-                // 
-                // TODO :: Change to LogWarningEvent post ANT96
-                // 
-
-                DaasEventSource.Instance.LogErrorEvent(SiteName, _assemblyVersion, "[WARNING:]" + message, exceptionType, exceptionMessage, exceptionStackTrace, details);
+                DaasEventSource.Instance.LogWarningEvent(SiteName, _assemblyVersion, message, exceptionType, exceptionMessage, exceptionStackTrace, details);
             }
             catch (Exception)
             {

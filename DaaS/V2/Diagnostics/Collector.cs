@@ -96,7 +96,7 @@ namespace DaaS.V2
                 log.Name = Path.GetFileName(log.TempPath);
             }
 
-            await CopyLogsToPermanentLocationAsync(resp.Logs, session);
+            await CopyLogsToPermanentLocationAsync(resp, session);
 
             Logger.LogSessionVerboseEvent($"Copied {resp.Logs.Count()} logs to permanent storage", session.SessionId);
 
@@ -216,26 +216,31 @@ namespace DaaS.V2
             return args;
         }
 
-        private async Task CopyLogsToPermanentLocationAsync(IEnumerable<LogFile> logFiles, Session activeSession)
+        private async Task CopyLogsToPermanentLocationAsync(DiagnosticToolResponse resp, Session activeSession)
         {
             if (string.IsNullOrWhiteSpace(_blobSasUri))
             {
-                await CopyLogsToFileSystem(logFiles, activeSession);
+                await CopyLogsToFileSystem(resp, activeSession);
             }
             else
             {
-                await CopyLogsToBlobStorage(logFiles, activeSession);
+                await CopyLogsToBlobStorage(resp, activeSession);
             }
         }
 
-        private async Task CopyLogsToBlobStorage(IEnumerable<LogFile> logFiles, Session activeSession)
+        private async Task CopyLogsToBlobStorage(DiagnosticToolResponse resp, Session activeSession)
         {
             if (string.IsNullOrWhiteSpace(_blobSasUri))
             {
                 throw new InvalidOperationException("BlobSasUri cannot be empty");
             }
 
-            foreach (var log in logFiles)
+            if (resp.Logs == null || !resp.Logs.Any())
+            {
+                return;
+            }
+
+            foreach (var log in resp.Logs)
             {
                 string logPath = Path.Combine(
                     Settings.Instance.DefaultHostName,
@@ -257,14 +262,20 @@ namespace DaaS.V2
                 }
                 catch (Exception ex)
                 {
+                    resp.Errors.Add($"Error '{ex.GetType()}:{ex.Message}' while copying {log.Name} to blob storage");
                     Logger.LogSessionErrorEvent($"Failed while copying {logPath} to Blob storage", ex, activeSession.SessionId);
                 }
             }
         }
 
-        private async Task CopyLogsToFileSystem(IEnumerable<LogFile> logFiles, Session activeSession)
+        private async Task CopyLogsToFileSystem(DiagnosticToolResponse resp, Session activeSession)
         {
-            foreach (var log in logFiles)
+            if (resp.Logs == null || !resp.Logs.Any())
+            {
+                return;
+            }
+            
+            foreach (var log in resp.Logs)
             {
                 string logPath = Path.Combine(
                     activeSession.SessionId,
@@ -280,6 +291,7 @@ namespace DaaS.V2
                 }
                 catch (Exception ex)
                 {
+                    resp.Errors.Add($"Error '{ex.GetType()}:{ex.Message}' while copying {log.Name} to file system");
                     Logger.LogSessionErrorEvent($"Failed while copying {logPath} to file system", ex, activeSession.SessionId);
                 }
             }
