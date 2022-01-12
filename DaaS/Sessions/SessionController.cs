@@ -1242,12 +1242,14 @@ retryLabel:
 
                 if (IsDaasRunnerVersionHigher(newDaasRunner, oldDaasRunner))
                 {
-                    CopyFileWithRetry(newDaasRunner, oldDaasRunner);
+                    CopyFileWithRetry(newDaasRunner, targetFile: oldDaasRunner);
+                    CopyFileWithRetry($"{newDaasRunner}.config", targetFile: $"{oldDaasRunner}.config");
                 }
 
                 if (IsFileVersionHigher(newDaasConsole, oldDaasConsole))
                 {
-                    CopyFileWithRetry(newDaasConsole, oldDaasConsole);
+                    CopyFileWithRetry(newDaasConsole, targetFile: oldDaasConsole);
+                    CopyFileWithRetry($"{newDaasConsole}.config", targetFile: $"{oldDaasConsole}.config");
                 }
 
                 CleanUpObsoleteFiles();
@@ -1373,7 +1375,7 @@ retryLabel:
             }
 
             Version newVersion = GetFileVersion(newDaasRunner);
-            
+
             if (oldVersion.CompareTo(newVersion) < 0)
             {
                 Logger.LogVerboseEvent($"[DaasRunner] Current version : {oldVersion} is lower than version in Daas installation path : {newVersion}, new bits will be copied");
@@ -1418,11 +1420,14 @@ retryLabel:
             string file = Path.GetFileName(sourceFile);
             RetryHelper.RetryOnException($"Copying file {file} from {sourceFile} to {targetFile}...", () =>
             {
-                Logger.LogVerboseEvent($"Copying file {file} from {sourceFile} to {targetFile}");
-                System.IO.File.Copy(sourceFile, targetFile, true);
-                Logger.LogVerboseEvent($"File {file} copied successfuly");
+                if (System.IO.File.Exists(sourceFile))
+                {
+                    Logger.LogVerboseEvent($"Copying file {file} from {sourceFile} to {targetFile}");
+                    System.IO.File.Copy(sourceFile, targetFile, true);
+                    Logger.LogVerboseEvent($"File {file} copied successfully");
+                }
 
-            }, TimeSpan.FromSeconds(1));
+            }, TimeSpan.FromSeconds(1), 3, true, false);
         }
 
         private static Version GetFileVersion(string filePath)

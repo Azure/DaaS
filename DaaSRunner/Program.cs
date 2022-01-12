@@ -622,11 +622,42 @@ namespace DaaSRunner
                     };
 
                     _runningSessions[activeSession.SessionId] = t;
+                    RemoveOldSessionsFromRunningSessionsList();
                 }
             }
             catch (Exception ex)
             {
                 Logger.LogErrorEvent("Failed in RunActiveSessionV2", ex);
+            }
+        }
+
+        private static void RemoveOldSessionsFromRunningSessionsList()
+        {
+            Logger.LogVerboseEvent($"_runningSessions.Count = {_runningSessions.Count}");
+
+            foreach (var entry in _runningSessions)
+            {
+                string sessionId = string.Empty;
+                if (entry.Value != null && entry.Value.UnderlyingTask != null)
+                {
+                    var status = entry.Value.UnderlyingTask.Status;
+                    if (status == TaskStatus.Canceled || status == TaskStatus.Faulted || status == TaskStatus.RanToCompletion)
+                    {
+                        sessionId = entry.Key;
+                    }
+                }
+                else
+                {
+                    sessionId = entry.Key;
+                }
+
+                if (!string.IsNullOrWhiteSpace(sessionId))
+                {
+                    if (_runningSessions.TryRemove(sessionId, out _))
+                    {
+                        Logger.LogVerboseEvent($"Task for Session '{sessionId}' removed from _runningSessions list");
+                    }
+                }
             }
         }
 
