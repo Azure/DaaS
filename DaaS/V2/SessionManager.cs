@@ -998,6 +998,11 @@ namespace DaaS.V2
 
         private async Task MarkSessionAsCompleteAsync(Session activeSession, bool forceCompletion = false)
         {
+            if (activeSession == null)
+            {
+                return;
+            }
+            
             await UpdateActiveSessionAsync((latestSessionFromDisk) =>
             {
                 latestSessionFromDisk.Status = forceCompletion ? Status.TimedOut : Status.Complete;
@@ -1006,21 +1011,42 @@ namespace DaaS.V2
 
             }, activeSession.SessionId);
 
-            string activeSessionFile = Path.Combine(SessionDirectories.ActiveSessionsDir, activeSession.SessionId + ".json");
-            string completedSessionFile = Path.Combine(SessionDirectories.CompletedSessionsDir, activeSession.SessionId + ".json");
+            string sessionId = activeSession.SessionId;
+            if (string.IsNullOrWhiteSpace(sessionId))
+            {
+                return;
+            }
 
-            //
-            // Move the session file from Active to Complete folder
-            //
+            string activeSessionFile = Path.Combine(SessionDirectories.ActiveSessionsDir, sessionId + ".json");
+            string completedSessionFile = Path.Combine(SessionDirectories.CompletedSessionsDir, sessionId + ".json");
 
-            FileSystemHelpers.MoveFile(activeSessionFile, completedSessionFile);
+            try
+            {
+                //
+                // Move the session file from Active to Complete folder
+                //
 
-            //
-            // Clean-up the lock file from the Active session folder
-            //
+                Logger.LogSessionVerboseEvent($"Moving session file to completed folder", sessionId);
+                FileSystemHelpers.MoveFile(activeSessionFile, completedSessionFile);
 
-            FileSystemHelpers.DeleteFileSafe(GetActiveSessionLockPath(activeSession.SessionId));
-            Logger.LogSessionVerboseEvent($"Session is complete after {DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes} minutes", activeSession.SessionId);
+                //
+                // Clean-up the lock file from the Active session folder
+                //
+                
+                Logger.LogSessionVerboseEvent($"Cleaning up the lock file from Active session folder", sessionId);
+                FileSystemHelpers.DeleteFileSafe(GetActiveSessionLockPath(sessionId));
+                Logger.LogSessionVerboseEvent($"Session is complete after {DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes} minutes", sessionId);
+            }
+            catch (Exception ex)
+            {
+                //
+                // It is possible that multiple instances are trying to mark the session as complete, so
+                // ignore any exceptions that come in this code path as some instance will eventually 
+                // succeed to update the instance status
+                //
+
+                Logger.LogSessionWarningEvent($"Unhandled exception in MarkSessionAsCompleteAsync", ex, sessionId);
+            }
         }
     }
 }

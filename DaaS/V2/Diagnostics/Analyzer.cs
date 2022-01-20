@@ -40,6 +40,17 @@ namespace DaaS.V2
                 foreach (var log in logs)
                 {
                     string tempOutputDir = log.GetReportTempPath(activeSession.SessionId);
+
+                    //
+                    // If DaasRunner restarts, there may be left over files from the previous runs
+                    // Clean any existing files to keep the analysis output clean
+                    //
+
+                    if (FileSystemHelpers.DirectoryExists(tempOutputDir))
+                    {
+                        FileSystemHelpers.DeleteDirectoryContentsSafe(tempOutputDir);
+                    }
+
                     var args = ExpandVariablesInArgument(log, tempOutputDir);
 
                     CancellationTokenSource analyzerTimeoutCts = new CancellationTokenSource();

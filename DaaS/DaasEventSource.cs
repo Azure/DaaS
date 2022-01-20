@@ -65,6 +65,12 @@ namespace DaaS
             WriteEvent(1006, SiteName, Version, Message, ExceptionType, ExceptionMessage, ExceptionStackTrace, Details);
         }
 
+        [Event(1007, Level = EventLevel.Warning)]
+        public void LogSessionWarningEvent(string SiteName, string Version, string SessionId, string Message, string ExceptionType, string ExceptionMessage, string ExceptionStackTrace, string Details)
+        {
+            WriteEvent(1007, SiteName, Version, SessionId, Message, ExceptionType, ExceptionMessage, ExceptionStackTrace, Details);
+        }
+
         [Event(2000, Level = EventLevel.Informational)]
         public void LogNewCpuMonitoringSession(string SiteName, string Version, string SessionId, string Mode, string Details)
         {
