@@ -22,7 +22,12 @@ if ($dumpFileExists)
 		$rules = $rules + ",DotNetMemoryAnalysis"
 	}
 	[DaaS.Logger]::LogDiagnoserVerboseEvent("Going to analyze $dumpFile of size $dumpfileSize with rules $rules") } else {
-	[DaaS.Logger]::LogDiagnoserVerboseEvent("$dumpFile does not exist") }
+	[DaaS.Logger]::LogDiagnoserVerboseEvent("$dumpFile does not exist") 
+}
+
+$diagnosticsAnalysisLauncher = [IO.Path]::Combine($PSScriptRoot, 'DiagnosticAnalysisLauncher.exe')
+[DaaS.Logger]::LogDiagnoserVerboseEvent("Executing " + $diagnosticsAnalysisLauncher)
+&$diagnosticsAnalysisLauncher "$dumpFile" "$outputPath"
 
 $pathExists = Test-Path "$Env:TEMP\DumpAnalyzer\DumpAnalyzer.exe" 
 if ($pathExists -eq $false)
@@ -30,7 +35,8 @@ if ($pathExists -eq $false)
     $dumpAnalyzerTempPath = [System.Io.Path]::Combine($tempDir, "DumpAnalyzer")
     Remove-Item -path $dumpAnalyzerTempPath -recurse 
     "Copying $dumpAnalyzerpath to $tempDir"
-    Copy-Item -Path $dumpAnalyzerpath  -Recurse -Destination $tempDir -Container }
+    Copy-Item -Path $dumpAnalyzerpath  -Recurse -Destination $tempDir -Container 
+}
 
 $dumpAnalyzerTempPath = "$Env:TEMP\DumpAnalyzer\DumpAnalyzer.exe"
 $cmdToExecute = "Executing: " + $dumpAnalyzerTempPath + " -dumpFile $dumpFile -symbols $symbolpath -Rules $rules -out $outputPath"
@@ -38,8 +44,3 @@ $cmdToExecute = "Executing: " + $dumpAnalyzerTempPath + " -dumpFile $dumpFile -s
 
 &$dumpAnalyzerTempPath -dumpFile "$dumpFile" -symbols "$symbolpath" -Rules $rules -out "$outputPath"
 [DaaS.Logger]::LogDiagnoserVerboseEvent("DumpAnalyzer completed")
-
-$diagnosticsAnalysisLauncher = [IO.Path]::Combine($PSScriptRoot, 'DiagnosticAnalysisLauncher.exe')
-[DaaS.Logger]::LogDiagnoserVerboseEvent("DiagnosticAnalysisLauncher path = " + $diagnosticsAnalysisLauncher)
-&$diagnosticsAnalysisLauncher "$dumpFile"
-

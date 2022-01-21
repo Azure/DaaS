@@ -5,19 +5,19 @@
 // </copyright>
 // -----------------------------------------------------------------------
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
 namespace DiagnosticAnalysisLauncher
 {
     class Program
     {
         static void Main(string[] args)
         {
-            var launcher = new DiagnosticAnalysisLauncher(args[0]);
+            string outputFolder = "";
+            if (args.Length > 1)
+            {
+                outputFolder = args[1];
+            }
+
+            var launcher = new DiagnosticAnalysisLauncher(args[0], outputFolder);
             launcher.AnalyzeDump();
         }
     }

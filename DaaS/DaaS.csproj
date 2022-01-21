@@ -137,9 +137,6 @@
     <Compile Include="ZipStreamContent.cs" />
     <None Include="app.config" />
     <EmbeddedResource Include="Configuration\PrivateSettings.json" />
-    <None Include="DiagnosticTools\DumpAnalyzer.pl">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
     <None Include="DiagnosticTools\DumpAnalyzer.ps1">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
@@ -150,9 +147,6 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Include="DiagnosticTools\mockCollector.ps1">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="DiagnosticTools\PHPErrorLogCollector.pl">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Include="DiagnosticTools\TestAnalyzer.pl">

@@ -377,6 +377,9 @@
     <Content Include="Content\themes\base\jquery-ui.css" />
     <Content Include="favicon.ico" />
     <Content Include="Global.asax" />
+    <Content Include="DiagnosticAnalysis\ResultViewer.html" />
+    <Content Include="DiagnosticAnalysis\script.js" />
+    <Content Include="DiagnosticAnalysis\style.css" />
     <Content Include="scmApplicationHost.xdt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
@@ -427,6 +430,7 @@
     <Folder Include="Views\ActiveSessionV2\" />
     <Folder Include="Views\DaasV2\" />
     <Folder Include="Views\DiagnosersV2\" />
+    <Folder Include="Views\ResultsViewer\" />
     <Folder Include="Views\SettingsV2\" />
   </ItemGroup>
   <ItemGroup>

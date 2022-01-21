@@ -21,10 +21,12 @@ namespace DiagnosticAnalysisLauncher
         private const int MaxProcessorTime = 300;
         private const int MaxPrivateBytes = 800 * 1024 * 1024;
         private readonly string _dumpFile;
+        private readonly string _outputFolder;
 
-        public DiagnosticAnalysisLauncher(string dumpFile)
+        public DiagnosticAnalysisLauncher(string dumpFile, string outputFolder)
         {
             _dumpFile = dumpFile;
+            _outputFolder = outputFolder;
         }
 
         internal void AnalyzeDump()
@@ -93,16 +95,16 @@ namespace DiagnosticAnalysisLauncher
             return true;
         }
 
-        private void AnalyzeMemoryDump(string diagnosticAnalysisExePath, string fullName)
+        private void AnalyzeMemoryDump(string diagnosticAnalysisExePath, string dumpFileName)
         {
-            string dumpName = Path.GetFileName(fullName);
+            string dumpName = Path.GetFileName(dumpFileName);
             var outputBuilder = new StringBuilder();
             var diagnosticsAnalysis = new Process()
             {
                 StartInfo = new ProcessStartInfo()
                 {
                     FileName = diagnosticAnalysisExePath,
-                    Arguments = fullName,
+                    Arguments = dumpFileName,
                     UseShellExecute = false,
                     CreateNoWindow = true,
                     RedirectStandardOutput = true,
@@ -145,7 +147,7 @@ namespace DiagnosticAnalysisLauncher
                     if (TotalProcessorTime > MaxProcessorTime || PrivateMemorySize64 > MaxPrivateBytes)
                     {
                         Logger.LogDiagnoserWarningEvent(
-                            "Killing DiagnosticAnalysis.exe due to high resource consumption", 
+                            "Killing DiagnosticAnalysis.exe due to high resource consumption",
                             new InvalidOperationException($"{TotalProcessorTime} seconds of CPU time and {PrivateMemorySize64 / (1024 * 1024)} MB of memory"));
                         diagnosticsAnalysis.SafeKillProcess();
                         break;
@@ -160,10 +162,17 @@ namespace DiagnosticAnalysisLauncher
             diagnosticsAnalysis.CancelOutputRead();
             watch.Stop();
 
-            var output = outputBuilder.ToString();
+            var diagCliJsonOutput = outputBuilder.ToString();
+
             try
             {
-                var analysis = JsonConvert.DeserializeObject<DiagnosticAnalysis>(output);
+                if (!string.IsNullOrWhiteSpace(diagCliJsonOutput))
+                {
+                    var diagCliOutputFileName = CreateDiagCliJson(dumpFileName, diagCliJsonOutput);
+                    CreatePlaceHolderHtml(diagCliOutputFileName, $"{Path.GetFileNameWithoutExtension(dumpFileName)}.html");
+                }
+
+                var analysis = JsonConvert.DeserializeObject<DiagnosticAnalysis>(diagCliJsonOutput);
                 Logger.LogDiagnoserEvent(JsonConvert.SerializeObject(new { Dump = dumpName, Analysis = analysis }));
             }
             catch (Exception ex)
@@ -182,6 +191,83 @@ namespace DiagnosticAnalysisLauncher
             };
 
             Logger.LogDiagnoserEvent(JsonConvert.SerializeObject(stats));
+        }
+
+        private string CreateDiagCliJson(string dumpFileName, string diagCliOutput)
+        {
+            //
+            // Make sure that the Diag CLI.json file is in a child path of the
+            // reports folder. This ensures that the link to this file is not
+            // created in the session.
+            //
+
+            string machineName = GetMachineNameFromDumpFileName(dumpFileName);
+            string directoryName = Path.Combine(_outputFolder, machineName);
+            FileSystemHelpers.EnsureDirectory(directoryName);
+            
+            var diagCliOutputFileName = Path.Combine(directoryName, "DiagCli.json");
+            FileSystemHelpers.WriteAllText(diagCliOutputFileName, diagCliOutput);
+            return diagCliOutputFileName;
+        }
+
+        private string GetMachineNameFromDumpFileName(string dumpFileName)
+        {
+            string fileName = Path.GetFileNameWithoutExtension(dumpFileName);
+            if (fileName.Contains("_"))
+            {
+                return fileName.Split('_')[0];
+            }
+
+            return fileName;
+        }
+
+        private void CreatePlaceHolderHtml(string jsonFilePath, string outputFileName)
+        {
+            string redirectUrl = GetRedirectUrlFromFileName(jsonFilePath);
+            string placeHolderhtml = $@"<!DOCTYPE HTML>
+            <html lang='en - US'>
+                <head>
+                    <meta charset = 'UTF-8'>
+                    <meta http - equiv = 'refresh' content = '1; url={redirectUrl}' >
+                    <script type = 'text/javascript' >
+                        window.location.href = '{redirectUrl}'
+                    </script >
+                    <title > Page Redirection </title >
+                </head>
+                <body>                          
+                    If you are not redirected automatically, follow this < a href = '{redirectUrl}' > link to example</a>.
+               </body>
+            </html>";
+
+            string outputFile = Path.Combine(_outputFolder, $"DiagnosticAnalysis-{outputFileName}");
+            File.WriteAllText(outputFile, placeHolderhtml);
+        }
+
+        private string GetRedirectUrlFromFileName(string jsonFilePath)
+        {
+            var fileNameArray = jsonFilePath.Split(':');
+            if (fileNameArray.Length > 0)
+            {
+                string path = fileNameArray[1];
+                path = Helper.ConvertBackSlashesToForwardSlashes(path);
+
+                //
+                // Convert '/local/Temp/Reports/220121_1030313072/220121_1030526864/diagclioutput.json'
+                // to '/api/vfs/data/DaaS/Reports/220121_1030313072/220121_1030526864/diagclioutput.json'
+                //
+
+                path = path.ToLower().Replace("/local/temp", "/api/vfs/data/DaaS");
+
+                //
+                // Append the path as querystring parameter to ResultViewer.html
+                //
+                
+                path = $"/daas/diagnosticanalysis/resultviewer.html?input={path}";
+
+                return path;
+            }
+
+            return string.Empty;
         }
     }
 }
