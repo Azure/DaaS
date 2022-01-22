@@ -259,10 +259,10 @@ namespace DiagnosticAnalysisLauncher
                 path = path.ToLower().Replace("/local/temp", "/api/vfs/data/DaaS");
 
                 //
-                // Append the path as querystring parameter to ResultViewer.html
+                // Append the path as querystring parameter to ResultsViewer.html
                 //
                 
-                path = $"/daas/diagnosticanalysis/resultviewer.html?input={path}";
+                path = $"/daas/diagnosticanalysis/resultsviewer.html?input={path}";
 
                 return path;
             }
