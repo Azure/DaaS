@@ -33,6 +33,7 @@
     <NuGetPackageImportStamp>
     </NuGetPackageImportStamp>
     <TargetFrameworkProfile />
+    <RestoreAdditionalProjectSources>https://pkgs.dev.azure.com/devdiv/DevDiv/_packaging/Microsoft.ProductionDiagnostics.DiagnosticAnalysis/nuget/v3/index.json</RestoreAdditionalProjectSources>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -377,9 +378,10 @@
     <Content Include="Content\themes\base\jquery-ui.css" />
     <Content Include="favicon.ico" />
     <Content Include="Global.asax" />
-    <Content Include="DiagnosticAnalysis\ResultViewer.html" />
-    <Content Include="DiagnosticAnalysis\script.js" />
-    <Content Include="DiagnosticAnalysis\style.css" />
+    <Content Include="..\packages\Microsoft.VisualStudio.DiagnosticAnalysis.ResultsViewer.1.0.1847.37\content\**\*" >
+      <Link>DiagnosticAnalysis\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="scmApplicationHost.xdt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
