@@ -21,6 +21,9 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
         RedisCache,
         StorageAccount,
         ServiceBus,
-        EventHubs
-    }
+        EventHubs,
+        BlobStorageAccount,
+        QueueStorageAccount,
+        FileShareStorageAccount,
+    }    
 }

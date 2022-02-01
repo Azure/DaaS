@@ -155,5 +155,9 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
 
             return response;
         }
+        public async Task<ConnectionStringValidationResult> ValidateViaAppsettingAsync(string appsettingName, string entityName)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
