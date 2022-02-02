@@ -50,26 +50,26 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                 }
                 else if (e.Message.Contains("managedidentitymissed"))
                 {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.managedidentitymissed;
+                    response.Status = ConnectionStringValidationResult.ResultStatus.Managedidentitymissed;
                 }
                 else if (e.Message.Contains("Unauthorized") || e.Message.Contains("AuthorizationPermissionMismatch"))
                 {
                     if (identityType == ConnectionStringValidationResult.ManagedIdentityType.User)
                     {
-                        response.Status = ConnectionStringValidationResult.ResultStatus.userAssignedmanagedidentity;
+                        response.Status = ConnectionStringValidationResult.ResultStatus.UserAssignedmanagedidentity;
                     }
                     else
                     {
-                        response.Status = ConnectionStringValidationResult.ResultStatus.systemAssignedmanagedidentity;
+                        response.Status = ConnectionStringValidationResult.ResultStatus.SystemAssignedmanagedidentity;
                     }
                 }
                 else if (e.Message.Contains("ManagedIdentityCredential"))
                 {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.managedIdentityCredential;
+                    response.Status = ConnectionStringValidationResult.ResultStatus.ManagedIdentityCredential;
                 }
                 else if (e.Message.Contains("fullyQualifiedNamespacemissed"))
                 {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.fullyQualifiedNamespacemissed;
+                    response.Status = ConnectionStringValidationResult.ResultStatus.FullyQualifiedNamespacemissed;
                 }
                 else if (e is EmptyConnectionStringException)
                 {

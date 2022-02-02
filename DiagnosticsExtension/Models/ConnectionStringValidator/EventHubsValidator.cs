@@ -22,17 +22,17 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
         public ConnectionStringType Type => ConnectionStringType.EventHubs;
         ConnectionStringValidationResult.ManagedIdentityType identityType;
 
-        public async Task<bool> IsValidAsync(string connectionString)
+        public Task<bool> IsValidAsync(string connectionString)
         {
             try
             {
-                new EventHubProducerClient(connectionString);
+                new EventHubsConnectionStringBuilder(connectionString);
             }
             catch (Exception)
             {
-                return false;
+                return Task.FromResult(false);
             }
-            return true;
+            return Task.FromResult(true);
         }
 
         async public Task<ConnectionStringValidationResult> ValidateAsync(string connectionString, string clientId = null)
@@ -97,9 +97,8 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                 Name = name,
                 Succeeded = true
             };
-
-            var client = new EventHubProducerClient(connectionString);
-            await client.GetPartitionIdsAsync();
+            var client = EventHubClient.CreateFromConnectionString(connectionString);
+            await client.GetRuntimeInformationAsync();
             await client.CloseAsync();
 
             return data;
@@ -129,26 +128,26 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                 }
                 else if (e.Message.Contains("managedidentitymissed"))
                 {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.managedidentitymissed;
+                    response.Status = ConnectionStringValidationResult.ResultStatus.Managedidentitymissed;
                 }
                 else if (e.Message.Contains("Unauthorized") || e.Message.Contains("unauthorized"))
                 {
                     if (identityType == ConnectionStringValidationResult.ManagedIdentityType.User)
                     {
-                        response.Status = ConnectionStringValidationResult.ResultStatus.userAssignedmanagedidentity;
+                        response.Status = ConnectionStringValidationResult.ResultStatus.UserAssignedmanagedidentity;
                     }
                     else
                     {
-                        response.Status = ConnectionStringValidationResult.ResultStatus.systemAssignedmanagedidentity;
+                        response.Status = ConnectionStringValidationResult.ResultStatus.SystemAssignedmanagedidentity;
                     }
                 }
                 else if (e.Message.Contains("ManagedIdentityCredential"))
                 {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.managedIdentityCredential;
+                    response.Status = ConnectionStringValidationResult.ResultStatus.ManagedIdentityCredential;
                 }
                 else if (e.Message.Contains("fullyQualifiedNamespacemissed"))
                 {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.fullyQualifiedNamespacemissed;
+                    response.Status = ConnectionStringValidationResult.ResultStatus.FullyQualifiedNamespacemissed;
                 }
                 else if (e is EmptyConnectionStringException)
                 {

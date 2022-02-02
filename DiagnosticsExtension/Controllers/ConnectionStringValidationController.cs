@@ -36,6 +36,7 @@ namespace DiagnosticsExtension.Controllers
                 new SqlServerValidator(),
                 new MySqlValidator(),
                 new KeyVaultValidator(),
+                new StorageValidator(),
                 new BlobStorageValidator(),
                 new QueueStorageValidator(),
                 new FileShareStorageValidator(),
@@ -74,7 +75,6 @@ namespace DiagnosticsExtension.Controllers
             {
                 return Request.CreateErrorResponse(HttpStatusCode.BadRequest, "Type is not specified in the request body");
             }
-
             var result = await Validate(requestBody.ConnectionString, requestBody.Type);
             return result;
         }
@@ -83,7 +83,6 @@ namespace DiagnosticsExtension.Controllers
         [Route("validateappsetting")]
         public async Task<HttpResponseMessage> ValidateAppSetting(string appSettingName, string type, string entityName = null)
         {
-
             bool success = Enum.TryParse(type, out ConnectionStringType csType);
             if (success && typeValidatorMap.ContainsKey(csType))
             {
@@ -94,8 +93,6 @@ namespace DiagnosticsExtension.Controllers
             {
                 return Request.CreateErrorResponse(HttpStatusCode.BadRequest, $"Type '{type}' is not supported");
             }
-
         }
-
     }
 }

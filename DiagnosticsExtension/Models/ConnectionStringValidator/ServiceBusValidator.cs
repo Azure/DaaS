@@ -22,19 +22,19 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
         public string ProviderName => "Microsoft.Azure.ServiceBus";
 
         public ConnectionStringType Type => ConnectionStringType.ServiceBus;
-        public Azure.Messaging.ServiceBus.ServiceBusReceiveMode ReceiveMode { get; set; }
+        
         ConnectionStringValidationResult.ManagedIdentityType identityType;
-        public async Task<bool> IsValidAsync(string connectionString)
+        public Task<bool> IsValidAsync(string connectionString)
         {
             try
             {
-                new ServiceBusClient(connectionString);
+                new ServiceBusConnectionStringBuilder(connectionString);
             }
             catch (Exception)
             {
-                return false;
+                return Task.FromResult(false);
             }
-            return true;
+            return Task.FromResult(true);
         }
 
         async public Task<ConnectionStringValidationResult> ValidateAsync(string connectionString, string clientId = null)
@@ -101,12 +101,10 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             {
                 throw new EmptyConnectionStringException();
             }
-
-            ServiceBusClient client = null;
+            ServiceBusConnectionStringBuilder connectionStringBuilder = null;
             try
             {
-                client = new ServiceBusClient(connectionString);
-
+                connectionStringBuilder = new ServiceBusConnectionStringBuilder(connectionString);
             }
             catch (Exception e)
             {
@@ -119,11 +117,8 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                 Succeeded = true
             };
 
-            ServiceBusSessionProcessorOptions opt = new ServiceBusSessionProcessorOptions();
-            opt.ReceiveMode = ServiceBusReceiveMode.PeekLock;
-            string entityPath = ServiceBusConnectionStringProperties.Parse(connectionString).EntityPath;
-            ServiceBusReceiver receiver = client.CreateReceiver(entityPath);
-            ServiceBusReceivedMessage receivedMessage = await receiver.PeekMessageAsync();
+            MessageReceiver msgReceiver = new MessageReceiver(connectionStringBuilder, ReceiveMode.PeekLock, prefetchCount: 1);
+            Message msg = await msgReceiver.PeekAsync();
 
             return data;
         }
@@ -151,26 +146,26 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                 }
                 else if (e.Message.Contains("managedidentitymissed"))
                 {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.managedidentitymissed;
+                    response.Status = ConnectionStringValidationResult.ResultStatus.Managedidentitymissed;
                 }
                 else if (e.Message.Contains("Unauthorized"))
                 {
                     if (identityType == ConnectionStringValidationResult.ManagedIdentityType.User)
                     {
-                        response.Status = ConnectionStringValidationResult.ResultStatus.userAssignedmanagedidentity;
+                        response.Status = ConnectionStringValidationResult.ResultStatus.UserAssignedmanagedidentity;
                     }
                     else
                     {
-                        response.Status = ConnectionStringValidationResult.ResultStatus.systemAssignedmanagedidentity;
+                        response.Status = ConnectionStringValidationResult.ResultStatus.SystemAssignedmanagedidentity;
                     }
                 }
                 else if (e.Message.Contains("ManagedIdentityCredential"))
                 {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.managedIdentityCredential;
+                    response.Status = ConnectionStringValidationResult.ResultStatus.ManagedIdentityCredential;
                 }
                 else if (e.Message.Contains("fullyQualifiedNamespacemissed"))
                 {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.fullyQualifiedNamespacemissed;
+                    response.Status = ConnectionStringValidationResult.ResultStatus.FullyQualifiedNamespacemissed;
                 }
                 else if (e is EmptyConnectionStringException)
                 {
