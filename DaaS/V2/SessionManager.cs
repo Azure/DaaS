@@ -201,6 +201,11 @@ namespace DaaS.V2
         public async Task<bool> CheckandCompleteSessionIfNeededAsync(bool forceCompletion = false)
         {
             var activeSession = await GetActiveSessionAsync();
+            if (activeSession == null)
+            {
+                return true;
+            }
+
             if (AllInstancesFinished(activeSession) || forceCompletion)
             {
                 Logger.LogSessionVerboseEvent("All instances have status as Complete", activeSession.SessionId);
@@ -662,8 +667,17 @@ namespace DaaS.V2
                 //
 
                 Session latestSessionFromDisk = await GetActiveSessionAsync();
+                if (latestSessionFromDisk == null)
+                {
+                    return;
+                }
 
                 Session sessionAfterMergingLatestUpdates = updateSession(latestSessionFromDisk);
+                if (sessionAfterMergingLatestUpdates == null)
+                {
+                    return;
+                }
+
                 await UpdateActiveSessionFileAsync(sessionAfterMergingLatestUpdates);
             }
             catch (Exception ex)
@@ -984,6 +998,17 @@ namespace DaaS.V2
 
         private bool AllInstancesFinished(Session activeSession)
         {
+            //
+            // Just make sure that the activeSession is not NULL before moving forward. It is possible
+            // that another instance ended up completing the session and in that case, we should just
+            // assume that the session is complete
+            //
+
+            if (activeSession == null)
+            {
+                return true;
+            }
+
             if (activeSession.ActiveInstances == null)
             {
                 return false;
@@ -998,24 +1023,24 @@ namespace DaaS.V2
 
         private async Task MarkSessionAsCompleteAsync(Session activeSession, bool forceCompletion = false)
         {
-            if (activeSession == null)
+            if (activeSession == null || string.IsNullOrWhiteSpace(activeSession.SessionId))
             {
                 return;
             }
             
+            string sessionId = activeSession.SessionId;
             await UpdateActiveSessionAsync((latestSessionFromDisk) =>
             {
+                if (latestSessionFromDisk == null)
+                {
+                    return null;
+                }
+
                 latestSessionFromDisk.Status = forceCompletion ? Status.TimedOut : Status.Complete;
                 latestSessionFromDisk.EndTime = DateTime.UtcNow;
                 return latestSessionFromDisk;
 
-            }, activeSession.SessionId);
-
-            string sessionId = activeSession.SessionId;
-            if (string.IsNullOrWhiteSpace(sessionId))
-            {
-                return;
-            }
+            }, sessionId);
 
             string activeSessionFile = Path.Combine(SessionDirectories.ActiveSessionsDir, sessionId + ".json");
             string completedSessionFile = Path.Combine(SessionDirectories.CompletedSessionsDir, sessionId + ".json");
