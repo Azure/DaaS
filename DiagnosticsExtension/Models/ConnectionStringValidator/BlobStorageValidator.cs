@@ -26,6 +26,8 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
 
         ConnectionStringValidationResult.ManagedIdentityType identityType;
 
+        private const string ManagedIdentity = "managedIdentityCredentialMissing";
+
         public async Task<ConnectionStringValidationResult> ValidateViaAppsettingAsync(string appsettingname, string entityName)
         {
             var response = new ConnectionStringValidationResult(Type);
@@ -44,58 +46,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             }
             catch (Exception e)
             {
-                if (e is MalformedConnectionStringException)
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.MalformedConnectionString;
-                }
-                else if (e.Message.Contains("managedidentitymissed"))
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.Managedidentitymissed;
-                }
-                else if (e.Message.Contains("Unauthorized") || e.Message.Contains("AuthorizationPermissionMismatch"))
-                {
-                    if (identityType == ConnectionStringValidationResult.ManagedIdentityType.User)
-                    {
-                        response.Status = ConnectionStringValidationResult.ResultStatus.UserAssignedmanagedidentity;
-                    }
-                    else
-                    {
-                        response.Status = ConnectionStringValidationResult.ResultStatus.SystemAssignedmanagedidentity;
-                    }
-                }
-                else if (e.Message.Contains("ManagedIdentityCredential"))
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.ManagedIdentityCredential;
-                }
-                else if (e.Message.Contains("fullyQualifiedNamespacemissed"))
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.FullyQualifiedNamespacemissed;
-                }
-                else if (e is EmptyConnectionStringException)
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.EmptyConnectionString;
-                }
-                else if (e.InnerException != null &&
-                         e.InnerException.Message.Contains("The remote name could not be resolved"))
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.DnsLookupFailed;
-                }
-                else if (e is StorageException)
-                {
-                    if (((StorageException)e).RequestInformation.HttpStatusCode == 401)
-                    {
-                        response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
-                    }
-                    else if (((StorageException)e).RequestInformation.HttpStatusCode == 403)
-                    {
-                        response.Status = ConnectionStringValidationResult.ResultStatus.Forbidden;
-                    }
-                }
-                else
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.UnknownError;
-                }
-                response.Exception = e;
+                response = ConnectionStringResponseUtility.EvaluateResponseStatus(e, Type, identityType);
             }
 
             return response;
@@ -104,16 +55,15 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
         public async Task<TestConnectionData> TestConnectionStringViaAppSetting(string appSettingName, string entityName)
         {
             var envDict = Environment.GetEnvironmentVariables();
-            string appSettingClientIdValue, appSettingClientCredValue = null;
-            string value = null;
+            string appSettingClientIdValue, appSettingClientCredValue = null;            
             BlobServiceClient client = null;
 
             if (envDict.Contains(appSettingName))
             {
                 try
                 {
-                    value = Environment.GetEnvironmentVariable(appSettingName);
-                    client = new BlobServiceClient(value);
+                    string connectionString = Environment.GetEnvironmentVariable(appSettingName);
+                    client = new BlobServiceClient(connectionString);
                 }
                 catch (ArgumentNullException e)
                 {
@@ -128,40 +78,33 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             {
                 try
                 {
-
-
-                    value = Environment.GetEnvironmentVariable(appSettingName + "__blobServiceUri");
-                    if (string.IsNullOrEmpty(value))
+                    string serviceUriString = Environment.GetEnvironmentVariable(appSettingName + "__blobServiceUri");
+                    if (string.IsNullOrEmpty(serviceUriString))
                     {
-                        value = Environment.GetEnvironmentVariable(appSettingName + "__serviceUri");
+                        serviceUriString = Environment.GetEnvironmentVariable(appSettingName + "__serviceUri");
                     }
-                    if (!string.IsNullOrEmpty(value))
+                    appSettingClientIdValue = Environment.GetEnvironmentVariable(appSettingName + "__clientId");
+                    appSettingClientCredValue = Environment.GetEnvironmentVariable(appSettingName + "__credential");
+                    Uri serviceUri = new Uri(serviceUriString);
+                    // User assigned managed identity detected
+                    if (!string.IsNullOrEmpty(appSettingClientIdValue))
                     {
-                        appSettingClientIdValue = Environment.GetEnvironmentVariable(appSettingName + "__clientId");
-                        appSettingClientCredValue = Environment.GetEnvironmentVariable(appSettingName + "__credential");
-                        Uri objuri = new Uri(value);
-                        if (!string.IsNullOrEmpty(appSettingClientIdValue))
+                        if (appSettingClientCredValue != "managedidentity")
                         {
-                            if (appSettingClientCredValue != "managedidentity")
-                            {
-                                throw new ManagedIdentityException("managedidentitymissed");
-                            }
-                            else
-                            {
-                                identityType = ConnectionStringValidationResult.ManagedIdentityType.User;
-                                client = new BlobServiceClient(objuri, new Azure.Identity.ManagedIdentityCredential(appSettingClientIdValue));
-                            }
+                            throw new ManagedIdentityException(ManagedIdentity);
                         }
                         else
                         {
-                            identityType = ConnectionStringValidationResult.ManagedIdentityType.System;
-                            client = new BlobServiceClient(objuri, new Azure.Identity.ManagedIdentityCredential());
+                            identityType = ConnectionStringValidationResult.ManagedIdentityType.User;
+                            client = new BlobServiceClient(serviceUri, new Azure.Identity.ManagedIdentityCredential(appSettingClientIdValue));
                         }
                     }
+                    // System assigned managed identity detected
                     else
                     {
-                        throw new ManagedIdentityException("fullyQualifiedNamespacemissed");
-                    }
+                        identityType = ConnectionStringValidationResult.ManagedIdentityType.System;
+                        client = new BlobServiceClient(serviceUri, new Azure.Identity.ManagedIdentityCredential());
+                    }                    
                 }
                 catch (Exception e)
                 {

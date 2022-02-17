@@ -41,10 +41,10 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             EmptyConnectionString,
             MalformedConnectionString,
             UnknownError,
-            Managedidentitymissed,
-            FullyQualifiedNamespacemissed,
-            SystemAssignedmanagedidentity,
-            UserAssignedmanagedidentity,
+            ManagedIdentityCredentialMissing,
+            FullyQualifiedNamespaceMissed,
+            SystemAssignedManagedIdentity,
+            UserAssignedManagedIdentity,
             ManagedIdentityCredential
         }
         public enum ManagedIdentityType

@@ -50,26 +50,26 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                 }
                 else if (e.Message.Contains("managedidentitymissed"))
                 {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.Managedidentitymissed;
+                    response.Status = ConnectionStringValidationResult.ResultStatus.ManagedIdentityCredentialMissing;
                 }
                 else if (e.Message.Contains("Unauthorized") || e.Message.Contains("AuthorizationPermissionMismatch"))
                 {
                     if (identityType == ConnectionStringValidationResult.ManagedIdentityType.User)
                     {
-                        response.Status = ConnectionStringValidationResult.ResultStatus.UserAssignedmanagedidentity;
+                        response.Status = ConnectionStringValidationResult.ResultStatus.UserAssignedManagedIdentity;
                     }
                     else
                     {
-                        response.Status = ConnectionStringValidationResult.ResultStatus.SystemAssignedmanagedidentity;
+                        response.Status = ConnectionStringValidationResult.ResultStatus.SystemAssignedManagedIdentity;
                     }
                 }
                 else if (e.Message.Contains("ManagedIdentityCredential"))
                 {
                     response.Status = ConnectionStringValidationResult.ResultStatus.ManagedIdentityCredential;
                 }
-                else if (e.Message.Contains("fullyQualifiedNamespacemissed"))
+                else if (e.Message.Contains("fullyQualifiedNamespace"))
                 {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.FullyQualifiedNamespacemissed;
+                    response.Status = ConnectionStringValidationResult.ResultStatus.FullyQualifiedNamespaceMissed;
                 }
                 else if (e is EmptyConnectionStringException)
                 {
@@ -123,42 +123,31 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                 {
                     throw new MalformedConnectionStringException(e.Message, e);
                 }
-
             }
             else
             {
                 try
                 {
-
-
-                    value = Environment.GetEnvironmentVariable(appSettingName + "__queueServiceUri");
-                    if (!string.IsNullOrEmpty(value))
+                    value = Environment.GetEnvironmentVariable(appSettingName + "__queueServiceUri");                    
+                    appSettingClientIdValue = Environment.GetEnvironmentVariable(appSettingName + "__clientId");
+                    appSettingClientCredValue = Environment.GetEnvironmentVariable(appSettingName + "__credential");
+                    Uri objuri = new Uri(value);
+                    if (!string.IsNullOrEmpty(appSettingClientIdValue))
                     {
-                        appSettingClientIdValue = Environment.GetEnvironmentVariable(appSettingName + "__clientId");
-                        appSettingClientCredValue = Environment.GetEnvironmentVariable(appSettingName + "__credential");
-                        Uri objuri = new Uri(value);
-                        if (!string.IsNullOrEmpty(appSettingClientIdValue))
+                        if (appSettingClientCredValue != "managedidentity")
                         {
-                            if (appSettingClientCredValue != "managedidentity")
-                            {
-                                throw new ManagedIdentityException("managedidentitymissed");
-                            }
-                            else
-                            {
-                                identityType = ConnectionStringValidationResult.ManagedIdentityType.User;
-                                client = new QueueServiceClient(objuri, new Azure.Identity.ManagedIdentityCredential(appSettingClientIdValue));
-                            }
-
+                            throw new ManagedIdentityException("managedidentitymissed");
                         }
                         else
                         {
-                            identityType = ConnectionStringValidationResult.ManagedIdentityType.System;
-                            client = new QueueServiceClient(objuri, new Azure.Identity.ManagedIdentityCredential());
+                            identityType = ConnectionStringValidationResult.ManagedIdentityType.User;
+                            client = new QueueServiceClient(objuri, new Azure.Identity.ManagedIdentityCredential(appSettingClientIdValue));
                         }
                     }
                     else
                     {
-                        throw new ManagedIdentityException("fullyQualifiedNamespacemissed");
+                        identityType = ConnectionStringValidationResult.ManagedIdentityType.System;
+                        client = new QueueServiceClient(objuri, new Azure.Identity.ManagedIdentityCredential());
                     }
                 }
                 catch (Exception e)
@@ -178,8 +167,6 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                 }
 
             }
-
-
             TestConnectionData data = new TestConnectionData
             {
                 ConnectionString = client.ToString(),
