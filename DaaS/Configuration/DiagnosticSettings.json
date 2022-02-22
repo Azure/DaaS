@@ -137,20 +137,19 @@
         "Command": "%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
         "Arguments": "-File \"%diagnosticToolsPath%\\javatools\\analyzeJavaTool.ps1\" \"%logFile%\" \"%outputDir%\" \"jmapAnalysis.html\""
       }
+    },
+    {
+      "Name": "Mock",
+      "Description": "Mock Collector and Analyzer",
+      "RequiresStorageAccount": false,
+      "Collector": {
+        "Command": "%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+        "Arguments": "-File \"%diagnosticToolsPath%\\mockCollector.ps1\" \"%outputDir%\""
+      },
+      "Analyzer": {
+        "Command": "%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+        "Arguments": "-File \"%diagnosticToolsPath%\\mockAnalyzer.ps1\" \"%logFile%\" \"%outputDir%\""
+      }
     }
-    //,
-    //{
-    //  "Name": "Mock",
-    //  "Description": "Mock Collector and Analyzer",
-    //  "RequiresStorageAccount": false,
-    //  "Collector": {
-    //    "Command": "%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
-    //    "Arguments": "-File \"%diagnosticToolsPath%\\mockCollector.ps1\" \"%outputDir%\""
-    //  },
-    //  "Analyzer": {
-    //    "Command": "%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
-    //    "Arguments": "-File \"%diagnosticToolsPath%\\mockAnalyzer.ps1\" \"%logFile%\" \"%outputDir%\""
-    //  }
-    //}
   ]
 }
