@@ -378,7 +378,7 @@
     <Content Include="Content\themes\base\jquery-ui.css" />
     <Content Include="favicon.ico" />
     <Content Include="Global.asax" />
-    <Content Include="..\packages\Microsoft.VisualStudio.DiagnosticAnalysis.ResultsViewer.1.0.1873.55\content\**\*" >
+    <Content Include="..\packages\Microsoft.VisualStudio.DiagnosticAnalysis.ResultsViewer.1.0.1879.56\content\**\*" >
       <Link>DiagnosticAnalysis\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
