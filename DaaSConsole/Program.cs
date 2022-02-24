@@ -397,13 +397,13 @@ namespace DaaSConsole
                 var scmHostingConfigPath = Environment.ExpandEnvironmentVariables("%ProgramFiles(x86)%\\SiteExtensions\\kudu\\ScmHostingConfigurations.txt");
                 if (!File.Exists(scmHostingConfigPath))
                 {
-                    return false;
+                    return true;
                 }
 
                 string fileContents = File.ReadAllText(scmHostingConfigPath);
-                if (!string.IsNullOrWhiteSpace(fileContents) && fileContents.Contains("UseV2ForDaaS=1"))
+                if (!string.IsNullOrWhiteSpace(fileContents) && fileContents.Contains("UseV2ForDaaS=0"))
                 {
-                    return true;
+                    return false;
                 }
             }
             catch (Exception ex)
@@ -411,7 +411,7 @@ namespace DaaSConsole
                 Logger.LogWarningEvent("Exception while checking ShouldSubmitV2Session", ex);
             }
 
-            return false;
+            return true;
         }
 
         private static bool IsSessionOption(Options options)

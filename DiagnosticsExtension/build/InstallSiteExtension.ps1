@@ -3,6 +3,52 @@
 # The script reads json from sites.json file and install DaaS site extension on all of 
 # them at once
 
+Class Credentials
+{
+    [string] $kuduEndpoint
+    [string] $resourceGroupName
+    [string] $authorizationHeader
+
+}
+
+Function GetResourceGroupForWebApp ([string] $webappNameParam)
+{
+    $script:ResourceGroupName = ""
+    Get-AzureRmResource | where { ($_.ResourceType -match "Microsoft.Web/sites") -and ($_.ResourceId.ToLower().EndsWith($webappNameParam.ToLower()))} | foreach {        
+       $script:ResourceGroupName= $_.ResourceGroupName
+       return
+    }
+    return $script:ResourceGroupName
+}
+
+Function GetPublishingCredsForWebApp([string] $subscriptionId, [string] $webAppName)
+{
+    $script:creds = New-Object Credentials
+    
+    Select-AzureRmSubscription -SubscriptionId $subscriptionId  | Out-Null
+    $rgName = GetResourceGroupForWebApp $webAppName
+
+    $publishProfileString = Invoke-AzureRmResourceAction -ResourceGroupName $rgName `
+     -ResourceType Microsoft.Web/sites `
+     -ResourceName $webAppName `
+     -Action publishxml `
+     -ApiVersion 2015-08-01 -Force
+
+    $publishProfileXml =[xml]$publishProfileString
+
+    $userName = $publishProfileXml.publishData.publishProfile[0].userName
+    $password = $publishProfileXml.publishData.publishProfile[0].userPWD
+
+    $script:creds.kuduEndpoint = $publishProfileXml.publishData.publishProfile[0].publishUrl
+    $script:creds.authorizationHeader = "Basic {0}" -f [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f  $userName, $password)))
+    $script:creds.resourceGroupName = $rgName
+
+    $script:creds.kuduEndpoint
+
+    return $script:creds
+}
+
+
 $ProgressPreference = 'SilentlyContinue'
 $sitesFile = $args[0]
 "Using file $sitesFile"
@@ -28,16 +74,14 @@ if ([string]::IsNullOrEmpty($(Get-AzureRmContext).Account)) {Login-AzureRmAccoun
 foreach($webapp in $allWebSites)
 {
     $webAppName = $webapp.SiteName
-    $userName = '$' + $webapp.SiteName
-    $userPassword = $webapp.PublishingPassword
     $subscriptionId  = $webapp.SubscriptionId
-    $rgName = $webapp.ResourceGroup
-    $kuduEndpoint = $webapp.KuduEndpoint
-    $authorizationHeader = "Basic {0}" -f [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f $userName , $userPassword)))
+
+    $creds = GetPublishingCredsForWebApp $subscriptionId $webAppName 
+    $kuduEndpoint = $creds.kuduEndpoint
+    $authorizationHeader = $creds.authorizationHeader
+    $rgName = $creds.resourceGroupName
 
     "[$webAppName]"
-    Select-AzureRmSubscription -SubscriptionId $subscriptionId  | Out-Null
-    
     $kuduApiUrl = "https://$kuduEndpoint/api/zip/SiteExtensions/DaaS/"
 
     "    Deleting exsiting site extension if any"
@@ -67,16 +111,17 @@ foreach($webapp in $allWebSites)
 {
 
     $webAppName = $webapp.SiteName
-    $userName = '$' + $webapp.SiteName
-    $userPassword = $webapp.PublishingPassword
     $subscriptionId  = $webapp.SubscriptionId
-    $rgName = $webapp.ResourceGroup
-    $kuduEndpoint = $webapp.KuduEndpoint
+    
+    $script:creds = GetPublishingCredsForWebApp $subscriptionId $webAppName 
+    $kuduEndpoint = $script:creds.kuduEndpoint
+    $authorizationHeader = $script:creds.authorizationHeader
+    $rgName = $script:creds.resourceGroupName
+    
     $kuduApiUrl = "https://$kuduEndpoint/api/zip/SiteExtensions/DaaS/"
-    $authorizationHeader = "Basic {0}" -f [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f $userName , $userPassword)))
     
     "[$webAppName]"
-    $DaaSVersion = Invoke-RestMethod -Uri "https://$webAppName.scm.azurewebsites.net/daas/api/v2/daasversion" `
+    $DaaSVersion = Invoke-RestMethod -Uri "https://$kuduEndpoint/daas/api/v2/daasversion" `
                         -Headers @{"Authorization"=$authorizationHeader;"If-Match"="*"}
 
     "    Existing DaaS version is " + $DaaSVersion.Version
@@ -118,12 +163,13 @@ if ($mode -ne "uninstall") {
     foreach($webapp in $allWebSites)
     {
         $webAppName = $webapp.SiteName
-        $userName = '$' + $webapp.SiteName
-        $userPassword = $webapp.PublishingPassword
-        $kuduEndpoint = $webapp.KuduEndpoint
-        $kuduApiUrl = "https://$kuduEndpoint/api/zip/SiteExtensions/DaaS/"
-        $authorizationHeader = "Basic {0}" -f [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f $userName , $userPassword)))
-    
+        $subscriptionId  = $webapp.SubscriptionId
+        
+        $script:creds = GetPublishingCredsForWebApp $subscriptionId $webAppName 
+        $kuduEndpoint = $script:creds.kuduEndpoint
+        $authorizationHeader = $script:creds.authorizationHeader
+        $rgName = $script:creds.resourceGroupName
+        
         "[$webAppName]"
         "    DaaS Warming up"
     
