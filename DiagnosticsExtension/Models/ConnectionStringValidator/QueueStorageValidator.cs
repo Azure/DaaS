@@ -82,6 +82,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                         appSettingClientIdValue = Environment.GetEnvironmentVariable(appSettingName + ConnectionStringResponseUtility.ClientId);
                         appSettingClientCredValue = Environment.GetEnvironmentVariable(appSettingName + ConnectionStringResponseUtility.Credential);
                         Uri serviceUri = new Uri(serviceUriString);
+                        // Creating client using User assigned managed identity
                         if (!string.IsNullOrEmpty(appSettingClientIdValue))
                         {
                             if (appSettingClientCredValue != ConnectionStringResponseUtility.ValidCredentialValue)
@@ -94,6 +95,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                                 client = new QueueServiceClient(serviceUri, new Azure.Identity.ManagedIdentityCredential(appSettingClientIdValue));
                             }
                         }
+                        // Creating client using System assigned managed identity
                         else
                         {
                             identityType = ConnectionStringValidationResult.ManagedIdentityType.System;

@@ -123,6 +123,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                     string serviceUriString = Environment.GetEnvironmentVariable(appSettingName + ConnectionStringResponseUtility.FullyQualifiedNamespace);
                     appSettingClientIdValue = Environment.GetEnvironmentVariable(appSettingName + ConnectionStringResponseUtility.ClientId);
                     appSettingClientCredValue = Environment.GetEnvironmentVariable(appSettingName + ConnectionStringResponseUtility.Credential);
+                    // Creating client using User assigned managed identity
                     if (!string.IsNullOrEmpty(appSettingClientIdValue))
                     {
                         if (appSettingClientCredValue != ConnectionStringResponseUtility.ValidCredentialValue)
@@ -135,6 +136,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                             client = new EventHubProducerClient(serviceUriString, eventHubName, new ManagedIdentityCredential(appSettingClientIdValue));
                         }
                     }
+                    // Creating client using System assigned managed identity
                     else
                     {
                         identityType = ConnectionStringValidationResult.ManagedIdentityType.System;
