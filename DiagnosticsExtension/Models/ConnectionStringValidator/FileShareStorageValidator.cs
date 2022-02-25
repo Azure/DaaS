@@ -24,6 +24,8 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
         public string ProviderName => "Microsoft.WindowsAzure.Storage";
 
         public ConnectionStringType Type => ConnectionStringType.FileShareStorageAccount;
+
+        ConnectionStringValidationResult.ManagedIdentityType identityType;
         public async Task<ConnectionStringValidationResult> ValidateViaAppsettingAsync(string appsettingname, string entityName)
         {
             var response = new ConnectionStringValidationResult(Type);
@@ -42,35 +44,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             }
             catch (Exception e)
             {
-                if (e is MalformedConnectionStringException)
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.MalformedConnectionString;
-                }
-                else if (e is EmptyConnectionStringException)
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.EmptyConnectionString;
-                }
-                else if (e.InnerException != null &&
-                         e.InnerException.Message.Contains("The remote name could not be resolved"))
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.DnsLookupFailed;
-                }
-                else if (e is StorageException)
-                {
-                    if (((StorageException)e).RequestInformation.HttpStatusCode == 401)
-                    {
-                        response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
-                    }
-                    else if (((StorageException)e).RequestInformation.HttpStatusCode == 403)
-                    {
-                        response.Status = ConnectionStringValidationResult.ResultStatus.Forbidden;
-                    }
-                }
-                else
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.UnknownError;
-                }
-                response.Exception = e;
+                response = ConnectionStringResponseUtility.EvaluateResponseStatus(e, Type, identityType);
             }
 
             return response;

@@ -20,8 +20,8 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
         public string ProviderName => "Microsoft.Azure.EventHubs";
 
         public ConnectionStringType Type => ConnectionStringType.EventHubs;
-        ConnectionStringValidationResult.ManagedIdentityType identityType;
 
+        ConnectionStringValidationResult.ManagedIdentityType identityType;
         public Task<bool> IsValidAsync(string connectionString)
         {
             try
@@ -53,37 +53,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             }
             catch (Exception e)
             {
-                if (e is MalformedConnectionStringException)
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.MalformedConnectionString;
-                }
-                else if (e is EmptyConnectionStringException)
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.EmptyConnectionString;
-                }
-                else if (e is ArgumentNullException ||
-                         e.Message.Contains("could not be found") ||
-                         e.Message.Contains("was not found"))
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.MalformedConnectionString;
-                }
-                else if (e.Message.Contains("No such host is known"))
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.DnsLookupFailed;
-                }
-                else if (e.Message.Contains("InvalidSignature"))
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
-                }
-                else if (e.Message.Contains("Ip has been prevented to connect to the endpoint"))
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.Forbidden;
-                }
-                else
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.UnknownError;
-                }
-                response.Exception = e;
+                response = ConnectionStringResponseUtility.EvaluateResponseStatus(e, Type, identityType);
             }
 
             return response;
@@ -122,68 +92,14 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             }
             catch (Exception e)
             {
-                if (e is MalformedConnectionStringException)
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.MalformedConnectionString;
-                }
-                else if (e.Message.Contains("managedidentitymissed"))
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.ManagedIdentityCredentialMissing;
-                }
-                else if (e.Message.Contains("Unauthorized") || e.Message.Contains("unauthorized"))
-                {
-                    if (identityType == ConnectionStringValidationResult.ManagedIdentityType.User)
-                    {
-                        response.Status = ConnectionStringValidationResult.ResultStatus.UserAssignedManagedIdentity;
-                    }
-                    else
-                    {
-                        response.Status = ConnectionStringValidationResult.ResultStatus.SystemAssignedManagedIdentity;
-                    }
-                }
-                else if (e.Message.Contains("ManagedIdentityCredential"))
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.ManagedIdentityCredential;
-                }
-                else if (e.Message.Contains("fullyQualifiedNamespace"))
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.FullyQualifiedNamespaceMissed;
-                }
-                else if (e is EmptyConnectionStringException)
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.EmptyConnectionString;
-                }
-                else if (e is ArgumentNullException ||
-                         e.Message.Contains("could not be found") ||
-                         e.Message.Contains("was not found"))
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.MalformedConnectionString;
-                }
-                else if (e.Message.Contains("No such host is known"))
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.DnsLookupFailed;
-                }
-                else if (e.Message.Contains("InvalidSignature") ||
-                         e.Message.Contains("Unauthorized"))
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
-                }
-                else if (e.Message.Contains("Ip has been prevented to connect to the endpoint"))
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.Forbidden;
-                }
-                else
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.UnknownError;
-                }
-                response.Exception = e;
+                response = ConnectionStringResponseUtility.EvaluateResponseStatus(e, Type, identityType);
             }
 
             return response;
         }
         protected async Task<TestConnectionData> TestConnectionStringViaAppSettingAsync(string appSettingName, string entityName)
         {
-            string value, appSettingClientIdValue, appSettingClientCredValue = "";
+            string appSettingClientIdValue, appSettingClientCredValue = "";
             EventHubProducerClient client = null;
             var envDict = Environment.GetEnvironmentVariables();
             string eventHubName = entityName;
@@ -192,8 +108,8 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             {
                 try
                 {
-                    value = Environment.GetEnvironmentVariable(appSettingName);
-                    client = new EventHubProducerClient(value);
+                    string connectionString = Environment.GetEnvironmentVariable(appSettingName);
+                    client = new EventHubProducerClient(connectionString);
                 }
                 catch (Exception e)
                 {
@@ -204,26 +120,26 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             {
                 try
                 {
-                    value = Environment.GetEnvironmentVariable(appSettingName + "__fullyQualifiedNamespace");                    
-                    appSettingClientIdValue = Environment.GetEnvironmentVariable(appSettingName + "__clientId");
-                    appSettingClientCredValue = Environment.GetEnvironmentVariable(appSettingName + "__credential");
+                    string serviceUriString = Environment.GetEnvironmentVariable(appSettingName + ConnectionStringResponseUtility.FullyQualifiedNamespace);
+                    appSettingClientIdValue = Environment.GetEnvironmentVariable(appSettingName + ConnectionStringResponseUtility.ClientId);
+                    appSettingClientCredValue = Environment.GetEnvironmentVariable(appSettingName + ConnectionStringResponseUtility.Credential);
                     if (!string.IsNullOrEmpty(appSettingClientIdValue))
                     {
-                        if (appSettingClientCredValue != "managedidentity")
+                        if (appSettingClientCredValue != ConnectionStringResponseUtility.ValidCredentialValue)
                         {
-                            throw new ManagedIdentityException("managedidentitymissed");
+                            throw new ManagedIdentityException(ConnectionStringResponseUtility.ManagedIdentityCredentialMissing);
                         }
                         else
                         {
                             identityType = ConnectionStringValidationResult.ManagedIdentityType.User;
-                            client = new EventHubProducerClient(value, eventHubName, new ManagedIdentityCredential(appSettingClientIdValue));
+                            client = new EventHubProducerClient(serviceUriString, eventHubName, new ManagedIdentityCredential(appSettingClientIdValue));
                         }
                     }
                     else
                     {
                         identityType = ConnectionStringValidationResult.ManagedIdentityType.System;
-                        client = new EventHubProducerClient(value, eventHubName, new ManagedIdentityCredential());
-                    }                    
+                        client = new EventHubProducerClient(serviceUriString, eventHubName, new ManagedIdentityCredential());
+                    }
                 }
                 catch (Exception e)
                 {

@@ -45,7 +45,8 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             FullyQualifiedNamespaceMissed,
             SystemAssignedManagedIdentity,
             UserAssignedManagedIdentity,
-            ManagedIdentityCredential
+            ManagedIdentityCredential,
+            ServiceUriMissed
         }
         public enum ManagedIdentityType
         {

@@ -15,11 +15,18 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
 {
     public static class ConnectionStringResponseUtility
     {
+        #region string constants for network validator
+        public const string ClientId = "__clientId";
+        public const string Credential = "__credential";
+        public const string ServiceUriMissed = "ServiceUriMissed";
+        public const string ValidCredentialValue = "managedidentity";
+        public const string FullyQualifiedNamespace = "__fullyQualifiedNamespace";
+        public const string ManagedIdentityCredentialMissing = "ManagedIdentityCredentialMissing";
+        #endregion
+
         public static ConnectionStringValidationResult EvaluateResponseStatus(Exception e, ConnectionStringType type, ConnectionStringValidationResult.ManagedIdentityType identityType)
         {
-            
             var response = new ConnectionStringValidationResult(type);
-
             if (e is MalformedConnectionStringException)
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.MalformedConnectionString;
@@ -47,6 +54,10 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.FullyQualifiedNamespaceMissed;
             }
+            else if (e.Message.Contains("ServiceUriMissed"))
+            {
+                response.Status = ConnectionStringValidationResult.ResultStatus.ServiceUriMissed;
+            }
             else if (e is EmptyConnectionStringException)
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.EmptyConnectionString;
@@ -55,6 +66,44 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
                      e.InnerException.Message.Contains("The remote name could not be resolved"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.DnsLookupFailed;
+            }
+            else if (e.InnerException != null && e.InnerException.InnerException != null &&
+                        e.InnerException.InnerException.Message.Contains("The remote name could not be resolved"))
+            {
+                response.Status = ConnectionStringValidationResult.ResultStatus.DnsLookupFailed;
+            }
+            else if (e.Message.Contains("No such host is known"))
+            {
+                response.Status = ConnectionStringValidationResult.ResultStatus.DnsLookupFailed;
+            }
+            else if (e is ArgumentNullException ||
+                         e.Message.Contains("could not be found") ||
+                         e.Message.Contains("was not found"))
+            {
+                response.Status = ConnectionStringValidationResult.ResultStatus.MalformedConnectionString;
+            }
+            else if (e is ArgumentException && e.Message.Contains("entityPath is null") ||
+                         e.Message.Contains("HostNotFound") ||
+                         e.Message.Contains("could not be found") ||
+                         e.Message.Contains("The argument  is null or white space"))
+            {
+                response.Status = ConnectionStringValidationResult.ResultStatus.MalformedConnectionString;
+            }
+            else if (e.Message.Contains("InvalidSignature") ||
+                         e.Message.Contains("Unauthorized"))
+            {
+                response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
+            }
+            else if ((e is ArgumentException && e.Message.Contains("Authentication ")) ||
+                         e.Message.Contains("claim is empty or token is invalid") ||
+                         e.Message.Contains("InvalidSignature") ||
+                         e.Message.Contains("Unauthorized"))
+            {
+                response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
+            }
+            else if (e.Message.Contains("Ip has been prevented to connect to the endpoint"))
+            {
+                response.Status = ConnectionStringValidationResult.ResultStatus.Forbidden;
             }
             else if (e is StorageException)
             {

@@ -22,7 +22,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
         public string ProviderName => "Microsoft.Azure.ServiceBus";
 
         public ConnectionStringType Type => ConnectionStringType.ServiceBus;
-        
+
         ConnectionStringValidationResult.ManagedIdentityType identityType;
         public Task<bool> IsValidAsync(string connectionString)
         {
@@ -55,41 +55,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             }
             catch (Exception e)
             {
-                if (e is MalformedConnectionStringException || e is ArgumentNullException)
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.MalformedConnectionString;
-                }
-                else if (e is EmptyConnectionStringException)
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.EmptyConnectionString;
-                }
-                else if ((e is ArgumentException && e.Message.Contains("Authentication ")) ||
-                         e.Message.Contains("claim is empty or token is invalid") ||
-                         e.Message.Contains("InvalidSignature"))
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
-                }
-                else if (e is ArgumentException && e.Message.Contains("entityPath is null") ||
-                         e.Message.Contains("HostNotFound") ||
-                         e.Message.Contains("could not be found") ||
-                         e.Message.Contains("The argument  is null or white space"))
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.MalformedConnectionString;
-                }
-                else if (e.InnerException != null && e.InnerException.InnerException != null &&
-                         e.InnerException.InnerException.Message.Contains("The remote name could not be resolved"))
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.DnsLookupFailed;
-                }
-                else if (e.Message.Contains("Ip has been prevented to connect to the endpoint"))
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.Forbidden;
-                }
-                else
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.UnknownError;
-                }
-                response.Exception = e;
+                response = ConnectionStringResponseUtility.EvaluateResponseStatus(e, Type, identityType);
             }
 
             return response;
@@ -140,72 +106,14 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             }
             catch (Exception e)
             {
-                if (e is MalformedConnectionStringException || e is ArgumentNullException)
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.MalformedConnectionString;
-                }
-                else if (e.Message.Contains("managedidentitymissed"))
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.ManagedIdentityCredentialMissing;
-                }
-                else if (e.Message.Contains("Unauthorized"))
-                {
-                    if (identityType == ConnectionStringValidationResult.ManagedIdentityType.User)
-                    {
-                        response.Status = ConnectionStringValidationResult.ResultStatus.UserAssignedManagedIdentity;
-                    }
-                    else
-                    {
-                        response.Status = ConnectionStringValidationResult.ResultStatus.SystemAssignedManagedIdentity;
-                    }
-                }
-                else if (e.Message.Contains("ManagedIdentityCredential"))
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.ManagedIdentityCredential;
-                }
-                else if (e.Message.Contains("fullyQualifiedNamespace"))
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.FullyQualifiedNamespaceMissed;
-                }
-                else if (e is EmptyConnectionStringException)
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.EmptyConnectionString;
-                }
-                else if ((e is ArgumentException && e.Message.Contains("Authentication ")) ||
-                         e.Message.Contains("claim is empty or token is invalid") ||
-                         e.Message.Contains("InvalidSignature") ||
-                         e.Message.Contains("Unauthorized"))
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
-                }
-                else if (e is ArgumentException && e.Message.Contains("entityPath is null") ||
-                         e.Message.Contains("HostNotFound") ||
-                         e.Message.Contains("could not be found") ||
-                         e.Message.Contains("The argument  is null or white space"))
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.MalformedConnectionString;
-                }
-                else if (e.InnerException != null && e.InnerException.InnerException != null &&
-                         e.InnerException.InnerException.Message.Contains("The remote name could not be resolved"))
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.DnsLookupFailed;
-                }
-                else if (e.Message.Contains("Ip has been prevented to connect to the endpoint"))
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.Forbidden;
-                }
-                else
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.UnknownError;
-                }
-                response.Exception = e;
+                response = ConnectionStringResponseUtility.EvaluateResponseStatus(e, Type, identityType);
             }
 
             return response;
         }
         protected async Task<TestConnectionData> TestConnectionStringViaAppSettingAsync(string appSettingName, string entityName)
         {
-            string value, appSettingClientIdValue, appSettingClientCredValue = "";
+            string appSettingClientIdValue, appSettingClientCredValue = "";
             ServiceBusClient client = null;
             var envDict = Environment.GetEnvironmentVariables();
 
@@ -213,8 +121,8 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             {
                 try
                 {
-                    value = Environment.GetEnvironmentVariable(appSettingName);
-                    client = new ServiceBusClient(value);
+                    string connectionString = Environment.GetEnvironmentVariable(appSettingName);
+                    client = new ServiceBusClient(connectionString);
                 }
                 catch (Exception e)
                 {
@@ -226,27 +134,27 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             {
                 try
                 {
-                    value = Environment.GetEnvironmentVariable(appSettingName + "__fullyQualifiedNamespace");                    
-                    appSettingClientIdValue = Environment.GetEnvironmentVariable(appSettingName + "__clientId");
-                    appSettingClientCredValue = Environment.GetEnvironmentVariable(appSettingName + "__credential");
+                    string serviceUriString = Environment.GetEnvironmentVariable(appSettingName + ConnectionStringResponseUtility.FullyQualifiedNamespace);
+                    appSettingClientIdValue = Environment.GetEnvironmentVariable(appSettingName + ConnectionStringResponseUtility.ClientId);
+                    appSettingClientCredValue = Environment.GetEnvironmentVariable(appSettingName + ConnectionStringResponseUtility.Credential);
                     if (!string.IsNullOrEmpty(appSettingClientIdValue))
                     {
-                        if (appSettingClientCredValue != "managedidentity")
+                        if (appSettingClientCredValue != ConnectionStringResponseUtility.ValidCredentialValue)
                         {
 
-                            throw new ManagedIdentityException("managedidentitymissed");
+                            throw new ManagedIdentityException(ConnectionStringResponseUtility.ManagedIdentityCredentialMissing);
                         }
                         else
                         {
                             identityType = ConnectionStringValidationResult.ManagedIdentityType.User;
-                            client = new ServiceBusClient(value, new Azure.Identity.ManagedIdentityCredential(appSettingClientIdValue));
+                            client = new ServiceBusClient(serviceUriString, new Azure.Identity.ManagedIdentityCredential(appSettingClientIdValue));
                         }
                     }
                     else
                     {
                         identityType = ConnectionStringValidationResult.ManagedIdentityType.System;
-                        client = new ServiceBusClient(value, new Azure.Identity.ManagedIdentityCredential());
-                    }                    
+                        client = new ServiceBusClient(serviceUriString, new Azure.Identity.ManagedIdentityCredential());
+                    }
                 }
                 catch (Exception e)
                 {
