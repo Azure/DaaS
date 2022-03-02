@@ -21,17 +21,15 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
     public class BlobStorageValidator : IConnectionStringValidator
     {
         public string ProviderName => "Microsoft.WindowsAzure.Storage";
-
         public ConnectionStringType Type => ConnectionStringType.BlobStorageAccount;
-
-        ConnectionStringValidationResult.ManagedIdentityType identityType;
+        public ConnectionStringValidationResult response = null;
         public async Task<ConnectionStringValidationResult> ValidateViaAppsettingAsync(string appsettingname, string entityName)
         {
-            var response = new ConnectionStringValidationResult(Type);
+            response = new ConnectionStringValidationResult(Type);
 
             try
             {
-                var result = await TestConnectionStringViaAppSetting(appsettingname, entityName);
+                var result = await TestConnectionStringViaAppSettingAsync(appsettingname, entityName);
                 if (result.Succeeded)
                 {
                     response.Status = ConnectionStringValidationResult.ResultStatus.Success;
@@ -43,13 +41,13 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             }
             catch (Exception e)
             {
-                response = ConnectionStringResponseUtility.EvaluateResponseStatus(e, Type, identityType);
+                ConnectionStringResponseUtility.EvaluateResponseStatus(e, Type, ref response);
             }
 
             return response;
         }
 
-        public async Task<TestConnectionData> TestConnectionStringViaAppSetting(string appSettingName, string entityName)
+        public async Task<TestConnectionData> TestConnectionStringViaAppSettingAsync(string appSettingName, string entityName)
         {
             var envDict = Environment.GetEnvironmentVariables();
             string appSettingClientIdValue, appSettingClientCredValue = null;
@@ -73,46 +71,39 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             }
             else
             {
-                try
+                string serviceUriString = Environment.GetEnvironmentVariable(appSettingName + ConnectionStringResponseUtility.BlobServiceUri);
+                if (string.IsNullOrEmpty(serviceUriString))
                 {
-                    string serviceUriString = Environment.GetEnvironmentVariable(appSettingName + "__blobServiceUri");
-                    if (string.IsNullOrEmpty(serviceUriString))
+                    serviceUriString = Environment.GetEnvironmentVariable(appSettingName + ConnectionStringResponseUtility.ServiceUri);
+                }
+                if (!string.IsNullOrEmpty(serviceUriString))
+                {
+                    appSettingClientIdValue = Environment.GetEnvironmentVariable(appSettingName + ConnectionStringResponseUtility.ClientId);
+                    appSettingClientCredValue = Environment.GetEnvironmentVariable(appSettingName + ConnectionStringResponseUtility.Credential);
+                    Uri serviceUri = new Uri(serviceUriString);
+                    // Creating client using User assigned managed identity
+                    if (!string.IsNullOrEmpty(appSettingClientIdValue))
                     {
-                        serviceUriString = Environment.GetEnvironmentVariable(appSettingName + "__serviceUri");
-                    }
-                    if (!string.IsNullOrEmpty(serviceUriString))
-                    {
-                        appSettingClientIdValue = Environment.GetEnvironmentVariable(appSettingName + ConnectionStringResponseUtility.ClientId);
-                        appSettingClientCredValue = Environment.GetEnvironmentVariable(appSettingName + ConnectionStringResponseUtility.Credential);
-                        Uri serviceUri = new Uri(serviceUriString);
-                        // Creating client using User assigned managed identity
-                        if (!string.IsNullOrEmpty(appSettingClientIdValue))
+                        if (appSettingClientCredValue != ConnectionStringResponseUtility.ValidCredentialValue)
                         {
-                            if (appSettingClientCredValue != ConnectionStringResponseUtility.ValidCredentialValue)
-                            {
-                                throw new ManagedIdentityException(ConnectionStringResponseUtility.ManagedIdentityCredentialMissing);
-                            }
-                            else
-                            {
-                                identityType = ConnectionStringValidationResult.ManagedIdentityType.User;
-                                client = new BlobServiceClient(serviceUri, new Azure.Identity.ManagedIdentityCredential(appSettingClientIdValue));
-                            }
+                            throw new ManagedIdentityException(ConnectionStringResponseUtility.ManagedIdentityCredentialMissing);
                         }
-                        // Creating client using System assigned managed identity
                         else
                         {
-                            identityType = ConnectionStringValidationResult.ManagedIdentityType.System;
-                            client = new BlobServiceClient(serviceUri, new Azure.Identity.ManagedIdentityCredential());
+                            response.IdentityType = ConnectionStringResponseUtility.User;
+                            client = new BlobServiceClient(serviceUri, new Azure.Identity.ManagedIdentityCredential(appSettingClientIdValue));
                         }
                     }
+                    // Creating client using System assigned managed identity
                     else
                     {
-                        throw new ManagedIdentityException(ConnectionStringResponseUtility.ServiceUriMissed);
+                        response.IdentityType = ConnectionStringResponseUtility.System;
+                        client = new BlobServiceClient(serviceUri, new Azure.Identity.ManagedIdentityCredential());
                     }
                 }
-                catch (Exception e)
+                else
                 {
-                    throw new ManagedIdentityException(e.Message, e);
+                    throw new ManagedIdentityException(ConnectionStringResponseUtility.ServiceUriMissing);
                 }
             }
             client.GetBlobContainersAsync();

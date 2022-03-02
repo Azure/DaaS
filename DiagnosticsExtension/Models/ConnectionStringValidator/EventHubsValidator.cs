@@ -18,10 +18,8 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
     public class EventHubsValidator : IConnectionStringValidator
     {
         public string ProviderName => "Microsoft.Azure.EventHubs";
-
         public ConnectionStringType Type => ConnectionStringType.EventHubs;
-
-        ConnectionStringValidationResult.ManagedIdentityType identityType;
+        public ConnectionStringValidationResult response = null;
         public Task<bool> IsValidAsync(string connectionString)
         {
             try
@@ -37,7 +35,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
 
         async public Task<ConnectionStringValidationResult> ValidateAsync(string connectionString, string clientId = null)
         {
-            var response = new ConnectionStringValidationResult(Type);
+            response = new ConnectionStringValidationResult(Type);
 
             try
             {
@@ -53,7 +51,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             }
             catch (Exception e)
             {
-                response = ConnectionStringResponseUtility.EvaluateResponseStatus(e, Type, identityType);
+                ConnectionStringResponseUtility.EvaluateResponseStatus(e, Type, ref response);
             }
 
             return response;
@@ -76,7 +74,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
 
         async public Task<ConnectionStringValidationResult> ValidateViaAppsettingAsync(string appsettingName, string entityName)
         {
-            var response = new ConnectionStringValidationResult(Type);
+            response = new ConnectionStringValidationResult(Type);
 
             try
             {
@@ -92,7 +90,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             }
             catch (Exception e)
             {
-                response = ConnectionStringResponseUtility.EvaluateResponseStatus(e, Type, identityType);
+                ConnectionStringResponseUtility.EvaluateResponseStatus(e, Type, ref response);
             }
 
             return response;
@@ -132,14 +130,14 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                         }
                         else
                         {
-                            identityType = ConnectionStringValidationResult.ManagedIdentityType.User;
+                            response.IdentityType = ConnectionStringResponseUtility.User;
                             client = new EventHubProducerClient(serviceUriString, eventHubName, new ManagedIdentityCredential(appSettingClientIdValue));
                         }
                     }
                     // Creating client using System assigned managed identity
                     else
                     {
-                        identityType = ConnectionStringValidationResult.ManagedIdentityType.System;
+                        response.IdentityType = ConnectionStringResponseUtility.System;
                         client = new EventHubProducerClient(serviceUriString, eventHubName, new ManagedIdentityCredential());
                     }
                 }
@@ -147,7 +145,6 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                 {
                     throw new ManagedIdentityException(e.Message, e);
                 }
-
             }
             await client.GetPartitionIdsAsync();
             await client.CloseAsync();

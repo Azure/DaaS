@@ -16,6 +16,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
     public class ConnectionStringValidationResult
     {
         public ResultStatus? Status;
+        public string IdentityType;
         public string StatusText => Status?.ToString();
         public Exception Exception;
         public object Payload;
@@ -40,13 +41,14 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             MsiFailure,
             EmptyConnectionString,
             MalformedConnectionString,
-            UnknownError,
             ManagedIdentityCredentialMissing,
-            FullyQualifiedNamespaceMissed,
-            SystemAssignedManagedIdentity,
-            UserAssignedManagedIdentity,
-            ManagedIdentityCredential,
-            ServiceUriMissed
+            FullyQualifiedNamespaceMissing,
+            SystemAssignedIdentityFailure,
+            UserAssignedIdentityFailure,
+            ManagedIdentityNotConfigured,
+            ManagedIdentityAuthFailure,
+            ServiceUriMissing,
+            UnknownError,
         }
         public enum ManagedIdentityType
         {

@@ -9,6 +9,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
+using Azure;
+using Azure.Identity;
 using Microsoft.WindowsAzure.Storage;
 
 namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
@@ -16,51 +18,48 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
     public static class ConnectionStringResponseUtility
     {
         #region string constants for network validator
+        public const string User = "User";
+        public const string System = "System";
         public const string ClientId = "__clientId";
         public const string Credential = "__credential";
-        public const string ServiceUriMissed = "ServiceUriMissed";
+        public const string ServiceUri = "__serviceUri";
+        public const string BlobServiceUri = "__blobServiceUri";
+        public const string ServiceUriMissing = "ServiceUriMissing";
+        public const string QueueServiceUri = "__queueServiceUri";
         public const string ValidCredentialValue = "managedidentity";
         public const string FullyQualifiedNamespace = "__fullyQualifiedNamespace";
         public const string ManagedIdentityCredentialMissing = "ManagedIdentityCredentialMissing";
         #endregion
 
-        public static ConnectionStringValidationResult EvaluateResponseStatus(Exception e, ConnectionStringType type, ConnectionStringValidationResult.ManagedIdentityType identityType)
+        public static void EvaluateResponseStatus(Exception e, ConnectionStringType type, ref ConnectionStringValidationResult response)
         {
-            var response = new ConnectionStringValidationResult(type);
             if (e is MalformedConnectionStringException)
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.MalformedConnectionString;
             }
-            else if (e.Message.Contains("managedIdentityCredentialMissing"))
-            {
-                response.Status = ConnectionStringValidationResult.ResultStatus.ManagedIdentityCredentialMissing;
-            }
-            else if (e.Message.Contains("Unauthorized") || e.Message.Contains("AuthorizationPermissionMismatch"))
-            {
-                if (identityType == ConnectionStringValidationResult.ManagedIdentityType.User)
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.UserAssignedManagedIdentity;
-                }
-                else
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.SystemAssignedManagedIdentity;
-                }
-            }
-            else if (e.Message.Contains("ManagedIdentityCredential"))
-            {
-                response.Status = ConnectionStringValidationResult.ResultStatus.ManagedIdentityCredential;
-            }
-            else if (e.Message.Contains("fullyQualifiedNamespace"))
-            {
-                response.Status = ConnectionStringValidationResult.ResultStatus.FullyQualifiedNamespaceMissed;
-            }
-            else if (e.Message.Contains("ServiceUriMissed"))
-            {
-                response.Status = ConnectionStringValidationResult.ResultStatus.ServiceUriMissed;
-            }
             else if (e is EmptyConnectionStringException)
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.EmptyConnectionString;
+            }
+            else if (e.Message.Contains(ManagedIdentityCredentialMissing))
+            {
+                response.Status = ConnectionStringValidationResult.ResultStatus.ManagedIdentityCredentialMissing;
+            }
+            else if (e.Message.Contains("Unauthorized") || e.Message.Contains("unauthorized") || e.Message.Contains("request is not authorized"))
+            {
+                response.Status = ConnectionStringValidationResult.ResultStatus.ManagedIdentityAuthFailure;
+            }
+            else if (e is AuthenticationFailedException && e.Message.Contains("ManagedIdentityCredential"))
+            {
+                response.Status = ConnectionStringValidationResult.ResultStatus.ManagedIdentityNotConfigured;
+            }
+            else if (e.Message.Contains("fullyQualifiedNamespace"))
+            {
+                response.Status = ConnectionStringValidationResult.ResultStatus.FullyQualifiedNamespaceMissing;
+            }
+            else if (e.Message.Contains("ServiceUriMissing"))
+            {
+                response.Status = ConnectionStringValidationResult.ResultStatus.ServiceUriMissing;
             }
             else if (e.InnerException != null &&
                      e.InnerException.Message.Contains("The remote name could not be resolved"))
@@ -89,15 +88,13 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.MalformedConnectionString;
             }
-            else if (e.Message.Contains("InvalidSignature") ||
-                         e.Message.Contains("Unauthorized"))
+            else if (e.Message.Contains("InvalidSignature"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
             }
-            else if ((e is ArgumentException && e.Message.Contains("Authentication ")) ||
+            else if ((e is ArgumentException && e.Message.Contains("Authentication")) ||
                          e.Message.Contains("claim is empty or token is invalid") ||
-                         e.Message.Contains("InvalidSignature") ||
-                         e.Message.Contains("Unauthorized"))
+                         e.Message.Contains("InvalidSignature"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
             }
@@ -121,8 +118,6 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
                 response.Status = ConnectionStringValidationResult.ResultStatus.UnknownError;
             }
             response.Exception = e;
-
-            return response;
         }
     }
 }

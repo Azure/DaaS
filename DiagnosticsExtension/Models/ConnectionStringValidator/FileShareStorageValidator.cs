@@ -22,17 +22,14 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
     public class FileShareStorageValidator : IConnectionStringValidator
     {
         public string ProviderName => "Microsoft.WindowsAzure.Storage";
-
         public ConnectionStringType Type => ConnectionStringType.FileShareStorageAccount;
-
-        ConnectionStringValidationResult.ManagedIdentityType identityType;
         public async Task<ConnectionStringValidationResult> ValidateViaAppsettingAsync(string appsettingname, string entityName)
         {
             var response = new ConnectionStringValidationResult(Type);
 
             try
             {
-                var result = await TestConnectionStringViaAppSetting(appsettingname, entityName);
+                var result = await TestConnectionStringViaAppSettingAsync(appsettingname, entityName);
                 if (result.Succeeded)
                 {
                     response.Status = ConnectionStringValidationResult.ResultStatus.Success;
@@ -44,13 +41,13 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             }
             catch (Exception e)
             {
-                response = ConnectionStringResponseUtility.EvaluateResponseStatus(e, Type, identityType);
+                ConnectionStringResponseUtility.EvaluateResponseStatus(e, Type, ref response);
             }
 
             return response;
         }
 
-        public async Task<TestConnectionData> TestConnectionStringViaAppSetting(string appSettingName, string entityName)
+        public async Task<TestConnectionData> TestConnectionStringViaAppSettingAsync(string appSettingName, string entityName)
         {
             string value = "";
             var envDict = Environment.GetEnvironmentVariables();

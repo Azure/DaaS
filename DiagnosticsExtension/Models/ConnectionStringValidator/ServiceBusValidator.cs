@@ -20,10 +20,9 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
     public class ServiceBusValidator : IConnectionStringValidator
     {
         public string ProviderName => "Microsoft.Azure.ServiceBus";
-
+        public ConnectionStringValidationResult response = null;
         public ConnectionStringType Type => ConnectionStringType.ServiceBus;
 
-        ConnectionStringValidationResult.ManagedIdentityType identityType;
         public Task<bool> IsValidAsync(string connectionString)
         {
             try
@@ -39,7 +38,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
 
         async public Task<ConnectionStringValidationResult> ValidateAsync(string connectionString, string clientId = null)
         {
-            var response = new ConnectionStringValidationResult(Type);
+            response = new ConnectionStringValidationResult(Type);
 
             try
             {
@@ -55,7 +54,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             }
             catch (Exception e)
             {
-                response = ConnectionStringResponseUtility.EvaluateResponseStatus(e, Type, identityType);
+                ConnectionStringResponseUtility.EvaluateResponseStatus(e, Type, ref response);
             }
 
             return response;
@@ -90,7 +89,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
         }
         async public Task<ConnectionStringValidationResult> ValidateViaAppsettingAsync(string appsettingName, string entityName)
         {
-            var response = new ConnectionStringValidationResult(Type);
+            response = new ConnectionStringValidationResult(Type);
 
             try
             {
@@ -106,7 +105,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             }
             catch (Exception e)
             {
-                response = ConnectionStringResponseUtility.EvaluateResponseStatus(e, Type, identityType);
+                ConnectionStringResponseUtility.EvaluateResponseStatus(e, Type, ref response);
             }
 
             return response;
@@ -128,39 +127,30 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                 {
                     throw new MalformedConnectionStringException(e.Message, e);
                 }
-
             }
             else
             {
-                try
+                string serviceUriString = Environment.GetEnvironmentVariable(appSettingName + ConnectionStringResponseUtility.FullyQualifiedNamespace);
+                appSettingClientIdValue = Environment.GetEnvironmentVariable(appSettingName + ConnectionStringResponseUtility.ClientId);
+                appSettingClientCredValue = Environment.GetEnvironmentVariable(appSettingName + ConnectionStringResponseUtility.Credential);
+                // Creating client using User assigned managed identity
+                if (!string.IsNullOrEmpty(appSettingClientIdValue))
                 {
-                    string serviceUriString = Environment.GetEnvironmentVariable(appSettingName + ConnectionStringResponseUtility.FullyQualifiedNamespace);
-                    appSettingClientIdValue = Environment.GetEnvironmentVariable(appSettingName + ConnectionStringResponseUtility.ClientId);
-                    appSettingClientCredValue = Environment.GetEnvironmentVariable(appSettingName + ConnectionStringResponseUtility.Credential);
-                    // Creating client using User assigned managed identity
-                    if (!string.IsNullOrEmpty(appSettingClientIdValue))
+                    if (appSettingClientCredValue != ConnectionStringResponseUtility.ValidCredentialValue)
                     {
-                        if (appSettingClientCredValue != ConnectionStringResponseUtility.ValidCredentialValue)
-                        {
-
-                            throw new ManagedIdentityException(ConnectionStringResponseUtility.ManagedIdentityCredentialMissing);
-                        }
-                        else
-                        {
-                            identityType = ConnectionStringValidationResult.ManagedIdentityType.User;
-                            client = new ServiceBusClient(serviceUriString, new Azure.Identity.ManagedIdentityCredential(appSettingClientIdValue));
-                        }
+                        throw new ManagedIdentityException(ConnectionStringResponseUtility.ManagedIdentityCredentialMissing);
                     }
-                    // Creating client using System assigned managed identity
                     else
                     {
-                        identityType = ConnectionStringValidationResult.ManagedIdentityType.System;
-                        client = new ServiceBusClient(serviceUriString, new Azure.Identity.ManagedIdentityCredential());
+                        response.IdentityType = ConnectionStringResponseUtility.User;
+                        client = new ServiceBusClient(serviceUriString, new Azure.Identity.ManagedIdentityCredential(appSettingClientIdValue));
                     }
                 }
-                catch (Exception e)
+                // Creating client using System assigned managed identity
+                else
                 {
-                    throw new ManagedIdentityException(e.Message, e);
+                    response.IdentityType = ConnectionStringResponseUtility.System;
+                    client = new ServiceBusClient(serviceUriString, new Azure.Identity.ManagedIdentityCredential());
                 }
             }
             TestConnectionData data = new TestConnectionData
