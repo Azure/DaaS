@@ -201,7 +201,7 @@ namespace DaaS.V2
         async Task<bool> RunCollectorCommandAsync(Session session, string outputDir, CancellationToken ct)
         {
             var args = ExpandVariablesInArgument(session.StartTime, outputDir);
-            await RunProcessAsync(Command, args, session.SessionId, ct);
+            await RunProcessAsync(Command, args, session.SessionId, session.Description, ct);
             return true;
         }
 

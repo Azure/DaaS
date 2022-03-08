@@ -430,7 +430,8 @@ namespace DaaSConsole
                 Instances = new List<string>() { Environment.MachineName },
                 Tool = toolName,
                 ToolParams = toolParams,
-                Mode = GetModeFromOptions(options)
+                Mode = GetModeFromOptions(options),
+                Description = GetSessionDescription()
             };
 
             //
@@ -494,6 +495,23 @@ namespace DaaSConsole
                 mainSiteW3wpProcess.Kill();
                 Logger.LogSessionVerboseEvent($"DaasConsole killed process {mainSiteW3wpProcess.ProcessName} with pid {mainSiteW3wpProcess.Id}", sessionId);
             }
+        }
+
+        private static string GetSessionDescription()
+        {
+            //
+            // Starting ANT98 AutoHealing will inject the environment variable
+            // WEBSITE_AUTOHEAL_REASON whenever it is launching a custom action
+            //
+
+            string reason = "InvokedViaDaasConsole";
+            string val = Environment.GetEnvironmentVariable("WEBSITE_AUTOHEAL_REASON");
+            if (!string.IsNullOrWhiteSpace(val))
+            {
+                reason += $"-{val}";
+            }
+
+            return reason;
         }
 
         private static DaaS.V2.Mode GetModeFromOptions(Options options)

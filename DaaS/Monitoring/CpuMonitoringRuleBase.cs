@@ -61,13 +61,14 @@ namespace DaaS
             _blobSasUri = session.BlobSasUri;
             _defaultHostName = session.DefaultHostName;
             _actionToExecute = string.IsNullOrWhiteSpace(session.ActionToExecute) ? EnvironmentVariables.ProcdumpPath : session.ActionToExecute;
-            _arguments = string.IsNullOrWhiteSpace(session.ArgumentsToAction) ? " -accepteula -ma {PROCESSID} {OUTPUTPATH}" : session.ArgumentsToAction;
+            _arguments = string.IsNullOrWhiteSpace(session.ArgumentsToAction) ? " -accepteula -dc \"{MEMORYDUMPCOMMENT}\" -ma {PROCESSID} {OUTPUTPATH}" : session.ArgumentsToAction;
         }
 
         protected void ExecuteAction(string dumpFileName, int processId, Action<string, bool> appendToMonitoringLog)
         {
             var arguments = _arguments.Replace("{PROCESSID}", processId.ToString());
             arguments = arguments.Replace("{OUTPUTPATH}", dumpFileName);
+            arguments = arguments.Replace("{MEMORYDUMPCOMMENT}", $"CPU above {_cpuThreshold}% for {_thresholdSeconds}s");
             appendToMonitoringLog($"Creating dump file with path {dumpFileName}", true);
 
             var process = new Process()

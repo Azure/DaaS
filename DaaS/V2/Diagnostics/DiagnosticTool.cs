@@ -50,11 +50,11 @@ namespace DaaS.V2
 
             return input;
         }
-        protected Task RunProcessAsync(string command, string args, string sessionId)
+        protected Task RunProcessAsync(string command, string args, string sessionId, string description = "")
         {
-            return RunProcessAsync(command, args, sessionId, CancellationToken.None);
+            return RunProcessAsync(command, args, sessionId, description, CancellationToken.None);
         }
-        protected async Task RunProcessAsync(string command, string args, string sessionId, CancellationToken token)
+        protected async Task RunProcessAsync(string command, string args, string sessionId, string description, CancellationToken token)
         {
             try
             {
@@ -62,7 +62,7 @@ namespace DaaS.V2
 
                 Logger.LogSessionVerboseEvent($"Calling {Name}: {command} {args}", sessionId);
 
-                var toolProcess = DaaS.Infrastructure.RunProcess(command, args, sessionId);
+                var toolProcess = DaaS.Infrastructure.RunProcess(command, args, sessionId, description);
 
                 double secondsWaited = 0;
                 var processStartTime = DateTime.UtcNow;
