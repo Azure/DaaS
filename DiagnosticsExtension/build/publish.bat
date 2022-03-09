@@ -1,1 +1,3 @@
-"C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\MSBuild\Current\Bin\msbuild.exe" ..\DiagnosticsExtension.csproj /p:Configuration=Release /t:WebPublish /p:WebPublishMethod=FileSystem /p:DeleteExistingFiles=True /p:publishUrl=C:\source\DaaS\DiagnosticsExtension\bin\Release\PublishOutput /p:PublishProfile=FolderProfile /v:m
+"C:\Program Files\Microsoft Visual Studio\2022\Enterprise\MSBuild\Current\Bin\msbuild.exe" ..\..\Daas.sln /p:Configuration=Release /p:Platform=x64
+
+"C:\Program Files\Microsoft Visual Studio\2022\Enterprise\MSBuild\Current\Bin\msbuild.exe" ..\DiagnosticsExtension.csproj /p:Configuration=Release /p:DeployOnBuild=true /p:WebPublishMethod=FileSystem /p:PublishProfile=FolderProfile.pubxml /p:PackageAsSingleFile=true /p:publishUrl=C:\source\DaaS\DiagnosticsExtension\bin\Release\PublishOutput
