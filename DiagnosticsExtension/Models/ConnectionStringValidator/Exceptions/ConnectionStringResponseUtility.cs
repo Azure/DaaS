@@ -41,13 +41,20 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.EmptyConnectionString;
             }
-            else if (e.Message.Contains(ManagedIdentityCredentialMissing))
+            else if (e is ManagedIdentityException && e.Message.Contains(ManagedIdentityCredentialMissing))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.ManagedIdentityCredentialMissing;
             }
-            else if (e.Message.Contains("Unauthorized") || e.Message.Contains("unauthorized") || e.Message.Contains("request is not authorized"))
+            else if (e is UnauthorizedAccessException && e.Message.Contains("unauthorized") || e.Message.Contains("Unauthorized") || e.Message.Contains("request is not authorized"))
             {
-                response.Status = ConnectionStringValidationResult.ResultStatus.ManagedIdentityAuthFailure;
+                if (string.IsNullOrEmpty(response.IdentityType))
+                {
+                    response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
+                }
+                else
+                {
+                    response.Status = ConnectionStringValidationResult.ResultStatus.ManagedIdentityAuthFailure;
+                }
             }
             else if (e is AuthenticationFailedException && e.Message.Contains("ManagedIdentityCredential"))
             {
@@ -57,7 +64,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.FullyQualifiedNamespaceMissing;
             }
-            else if (e.Message.Contains("ServiceUriMissing"))
+            else if (e is ManagedIdentityException && e.Message.Contains("ServiceUriMissing"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.ServiceUriMissing;
             }

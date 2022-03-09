@@ -19,7 +19,6 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
     {
         public string ProviderName => "Microsoft.Azure.EventHubs";
         public ConnectionStringType Type => ConnectionStringType.EventHubs;
-        public ConnectionStringValidationResult response = null;
         public Task<bool> IsValidAsync(string connectionString)
         {
             try
@@ -35,7 +34,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
 
         async public Task<ConnectionStringValidationResult> ValidateAsync(string connectionString, string clientId = null)
         {
-            response = new ConnectionStringValidationResult(Type);
+            ConnectionStringValidationResult response = new ConnectionStringValidationResult(Type);
 
             try
             {
@@ -72,21 +71,66 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             return data;
         }
 
-        async public Task<ConnectionStringValidationResult> ValidateViaAppsettingAsync(string appsettingName, string entityName)
+        async public Task<ConnectionStringValidationResult> ValidateViaAppsettingAsync(string appSettingName, string entityName)
         {
-            response = new ConnectionStringValidationResult(Type);
+            ConnectionStringValidationResult response = new ConnectionStringValidationResult(Type);
 
             try
             {
-                var result = await TestConnectionStringViaAppSettingAsync(appsettingName, entityName);
-                if (result.Succeeded)
+                string appSettingClientIdValue, appSettingClientCredValue = "";
+                EventHubProducerClient client = null;
+                var envDict = Environment.GetEnvironmentVariables();
+                string eventHubName = entityName;
+
+                if (envDict.Contains(appSettingName))
                 {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.Success;
+                    try
+                    {
+                        string connectionString = Environment.GetEnvironmentVariable(appSettingName);
+                        connectionString += ";EntityPath="+eventHubName;
+                        client = new EventHubProducerClient(connectionString);
+                    }
+                    catch (Exception e)
+                    {
+                        throw new MalformedConnectionStringException(e.Message, e);
+                    }
                 }
                 else
                 {
-                    throw new Exception("Unexpected state reached: result.Succeeded == false is unexpected!");
+                    try
+                    {
+                        string serviceUriString = Environment.GetEnvironmentVariable(appSettingName + ConnectionStringResponseUtility.FullyQualifiedNamespace);
+                        appSettingClientIdValue = Environment.GetEnvironmentVariable(appSettingName + ConnectionStringResponseUtility.ClientId);
+                        appSettingClientCredValue = Environment.GetEnvironmentVariable(appSettingName + ConnectionStringResponseUtility.Credential);
+                        // Creating client using User assigned managed identity
+                        if (!string.IsNullOrEmpty(appSettingClientIdValue))
+                        {
+                            if (appSettingClientCredValue != ConnectionStringResponseUtility.ValidCredentialValue)
+                            {
+                                throw new ManagedIdentityException(ConnectionStringResponseUtility.ManagedIdentityCredentialMissing);
+                            }
+                            else
+                            {
+                                response.IdentityType = ConnectionStringResponseUtility.User;
+                                client = new EventHubProducerClient(serviceUriString, eventHubName, new ManagedIdentityCredential(appSettingClientIdValue));
+                            }
+                        }
+                        // Creating client using System assigned managed identity
+                        else
+                        {
+                            response.IdentityType = ConnectionStringResponseUtility.System;
+                            client = new EventHubProducerClient(serviceUriString, eventHubName, new ManagedIdentityCredential());
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        throw new ManagedIdentityException(e.Message, e);
+                    }
                 }
+                await client.GetPartitionIdsAsync();
+                await client.CloseAsync();
+
+                response.Status = ConnectionStringValidationResult.ResultStatus.Success;
             }
             catch (Exception e)
             {
@@ -94,68 +138,6 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             }
 
             return response;
-        }
-        protected async Task<TestConnectionData> TestConnectionStringViaAppSettingAsync(string appSettingName, string entityName)
-        {
-            string appSettingClientIdValue, appSettingClientCredValue = "";
-            EventHubProducerClient client = null;
-            var envDict = Environment.GetEnvironmentVariables();
-            string eventHubName = entityName;
-
-            if (envDict.Contains(appSettingName))
-            {
-                try
-                {
-                    string connectionString = Environment.GetEnvironmentVariable(appSettingName);
-                    client = new EventHubProducerClient(connectionString);
-                }
-                catch (Exception e)
-                {
-                    throw new MalformedConnectionStringException(e.Message, e);
-                }
-            }
-            else
-            {
-                try
-                {
-                    string serviceUriString = Environment.GetEnvironmentVariable(appSettingName + ConnectionStringResponseUtility.FullyQualifiedNamespace);
-                    appSettingClientIdValue = Environment.GetEnvironmentVariable(appSettingName + ConnectionStringResponseUtility.ClientId);
-                    appSettingClientCredValue = Environment.GetEnvironmentVariable(appSettingName + ConnectionStringResponseUtility.Credential);
-                    // Creating client using User assigned managed identity
-                    if (!string.IsNullOrEmpty(appSettingClientIdValue))
-                    {
-                        if (appSettingClientCredValue != ConnectionStringResponseUtility.ValidCredentialValue)
-                        {
-                            throw new ManagedIdentityException(ConnectionStringResponseUtility.ManagedIdentityCredentialMissing);
-                        }
-                        else
-                        {
-                            response.IdentityType = ConnectionStringResponseUtility.User;
-                            client = new EventHubProducerClient(serviceUriString, eventHubName, new ManagedIdentityCredential(appSettingClientIdValue));
-                        }
-                    }
-                    // Creating client using System assigned managed identity
-                    else
-                    {
-                        response.IdentityType = ConnectionStringResponseUtility.System;
-                        client = new EventHubProducerClient(serviceUriString, eventHubName, new ManagedIdentityCredential());
-                    }
-                }
-                catch (Exception e)
-                {
-                    throw new ManagedIdentityException(e.Message, e);
-                }
-            }
-            await client.GetPartitionIdsAsync();
-            await client.CloseAsync();
-
-            TestConnectionData data = new TestConnectionData
-            {
-                ConnectionString = client.ToString(),
-                Succeeded = true
-            };
-
-            return data;
         }
     }
 }
