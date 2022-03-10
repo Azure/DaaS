@@ -48,8 +48,8 @@ steps:
   inputs:
     SourceFolder: '$(Build.SourcesDirectory)'
     Contents: |
-      ClrProfilingCollector\bin**
-      ClrProfilingAnalyzer\bin**
+      ClrProfilingCollector\bin\x64\Release\**
+      ClrProfilingAnalyzer\bin\Release\**
     TargetFolder: '$(Agent.BuildDirectory)/Temp/SiteExtensionZip/Content/D_C/a/1/s/DiagnosticsExtension/obj/Release/Package/PackageTmp'
 
 - task: CmdLine@2
