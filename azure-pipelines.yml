@@ -47,7 +47,9 @@ steps:
 - task: CopyFiles@2
   inputs:
     SourceFolder: '$(Build.SourcesDirectory)'
-    Contents: '*ClrProfilingCollector\bin*'
+    Contents: |
+      **ClrProfilingCollector\bin**
+      **CLRProfilingAnalyzer\bin**
     TargetFolder: '$(Agent.BuildDirectory)/Temp/SiteExtensionZip'
 
 - task: CmdLine@2
@@ -62,7 +64,7 @@ steps:
       echo "Build.SourcesDirectory:"
       echo "$(Build.SourcesDirectory)"
       echo "Structure of Agent.BuildDirectory/Temp:"
-      tree $(Agent.WorkFolder)\Temp /f
+      tree $(Agent.BuildDirectory)\Temp /f
 
 - task: PublishBuildArtifacts@1
   inputs:
