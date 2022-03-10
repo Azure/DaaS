@@ -66,7 +66,6 @@ steps:
       Copy-Item -Path $Env:BUILD_SOURCESDIRECTORY\MemoryDumpCollector\MemoryDumpCollector\bin\Release\* -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin\DiagnosticTools -recurse -Force
       Copy-Item -Path $Env:BUILD_SOURCESDIRECTORY\DiagnosticAnalysisLauncher\bin\Release\* -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin\DiagnosticTools -recurse -Force
       Copy-Item -Path $Env:BUILD_SOURCESDIRECTORY\DiagnosticAnalysisLauncher\bin\Release\DiagnosticAnalysis\* -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin\DiagnosticTools\DiagnosticAnalysis -recurse -Force
-      Copy-Item -Path $Env:BUILD_SOURCESDIRECTORY\StdoutCollector\bin\Release\* -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin\DiagnosticTools -recurse -Force
       Copy-Item -Path $Env:BUILD_SOURCESDIRECTORY\jStackParser\bin\Release\* -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin\DiagnosticTools\javatools -recurse -Force
       Copy-Item -Path $Env:BUILD_SOURCESDIRECTORY\StackTracer32\bin\x86\Release\* -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin\DiagnosticTools\clrprofiler\stacktracer -recurse -Force
       Copy-Item -Path $Env:BUILD_SOURCESDIRECTORY\StackTracer64\bin\x64\Release\* -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin\DiagnosticTools\clrprofiler\stacktracer -recurse -Force
