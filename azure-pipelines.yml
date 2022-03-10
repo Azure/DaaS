@@ -47,8 +47,6 @@ steps:
       Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\amd64 -Verbose
       Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\staticcontent -Verbose
       Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\x64 -Verbose
-      Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\Configuration -Verbose
-      Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\DiagnosticTools -Verbose
       Remove-Item $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\* -include *.ps1, *.html -Verbose
       Remove-Item $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\Dia2Lib.dll -Verbose
 
