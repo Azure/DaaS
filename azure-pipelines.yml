@@ -56,7 +56,9 @@ steps:
   displayName: 'Copy CLR tools to DiagnosticTools'
   inputs:
     targetType: 'inline'
-    script: 'Copy-Item -Path $Env:BUILD_SOURCESDIRECTORY\ClrProfilingCollector\bin\x64\Release\* -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin\DiagnosticTools\clrprofiler -recurse -Force'
+    script: |
+      md $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin\DiagnosticTools\clrprofiler
+      Copy-Item -Path $Env:BUILD_SOURCESDIRECTORY\ClrProfilingCollector\bin\x64\Release\* -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin\DiagnosticTools\clrprofiler -recurse -Force
     failOnStderr: true
     showWarnings: true
 
