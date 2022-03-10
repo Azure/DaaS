@@ -36,6 +36,19 @@ steps:
     msbuildArgs: '/p:DeployOnBuild=true /p:WebPublishMethod=Package /T:"DiagnosticsExtension" /p:PublishProfile=FolderProfile.pubxml /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:PackageLocation="$(build.artifactStagingDirectory)\\"'
     platform: '$(buildPlatform)'
     configuration: '$(buildConfiguration)'
+    
+- task: ExtractFiles@1
+  inputs:
+    archiveFilePatterns: '**/DiagnosticsExtension.zip'
+    destinationFolder: '$(Agent.BuildDirectory)/Temp/SiteExtensionZip'
+    cleanDestinationFolder: true
+    overwriteExistingFiles: false
+    
+- task: CopyFiles@2
+  inputs:
+    SourceFolder: '$(build.artifactStagingDirectory)'
+    Contents: '*ClrProfilingCollector\bin*'
+    TargetFolder: '$(Agent.BuildDirectory)/Temp/SiteExtensionZip1'
 
 - task: PublishBuildArtifacts@1
   inputs:
