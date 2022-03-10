@@ -57,8 +57,6 @@ steps:
       $fileVersion = [System.Diagnostics.FileVersionInfo]::GetVersionInfo("$Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\daas.dll").FileVersion
       $fileVersion
 
-      Rename-Item $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\a $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\$fileVersion
-
 - task: ArchiveFiles@2
   displayName: 'Create Daas Site Extension Zip file'
   inputs:
