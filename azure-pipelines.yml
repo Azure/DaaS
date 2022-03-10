@@ -53,6 +53,11 @@ steps:
       Remove-Item $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\Dia2Lib.dll -Verbose
       Remove-Item $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\OSExtensions.dll -Verbose
       Remove-Item $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\TraceReloggerLib.dll -Verbose
+      
+      $fileVersion = [System.Diagnostics.FileVersionInfo]::GetVersionInfo("$Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\daas.dll").FileVersion
+      $fileVersion
+
+      Rename-Item $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\a $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\$fileVersion
 
 - task: ArchiveFiles@2
   displayName: 'Create Daas Site Extension Zip file'
