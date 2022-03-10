@@ -25,14 +25,12 @@ steps:
     vstsFeed: 'b2430cf7-78c0-440a-aa4a-a25665c5778e'
 
 - task: VSBuild@1
-  name: Rebuild whole solution
   inputs:
     solution: '$(solution)'
     platform: '$(buildPlatform)'
     configuration: '$(buildConfiguration)'
 
 - task: VSBuild@1
-  name: Publish Diagnostics Site Extension
   inputs:
     solution: '$(solution)'
     msbuildArgs: '/p:DeployOnBuild=true /p:WebPublishMethod=Package /T:"DiagnosticsExtension" /p:PublishProfile=FolderProfile.pubxml /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:PackageLocation="$(build.artifactStagingDirectory)\\"'
