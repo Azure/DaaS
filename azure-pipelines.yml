@@ -40,9 +40,15 @@ steps:
 - task: ExtractFiles@1
   inputs:
     archiveFilePatterns: '$(build.artifactStagingDirectory)/*.zip'
-    destinationFolder: '$(Agent.BuildDirectory)/Temp/SiteExtensionZip'
+    destinationFolder: '$(Agent.BuildDirectory)/Temp/SiteExtensionContents'
     cleanDestinationFolder: true
     overwriteExistingFiles: false
+
+- task: CopyFiles@2
+  inputs:
+    SourceFolder: '$(Agent.BuildDirectory)/Temp/SiteExtensionContents/Content/D_C/a/1/s/DiagnosticsExtension/obj/Release/Package/PackageTmp'
+    Contents: **
+    TargetFolder: '$(Agent.BuildDirectory)/Temp/SiteExtensionZip'
     
 - task: CopyFiles@2
   inputs:
@@ -50,7 +56,33 @@ steps:
     Contents: |
       ClrProfilingCollector\bin\x64\Release\**
       ClrProfilingAnalyzer\bin\Release\**
-    TargetFolder: '$(Agent.BuildDirectory)/Temp/SiteExtensionZip/Content/D_C/a/1/s/DiagnosticsExtension/obj/Release/Package/PackageTmp'
+    TargetFolder: '$(Agent.BuildDirectory)/Temp/SiteExtensionZip/bin/DiagnosticTools/clrprofiler'
+    
+- task: CopyFiles@2
+  inputs:
+    SourceFolder: '$(Build.SourcesDirectory)'
+    Contents: |
+      MemoryDumpCollector\MemoryDumpCollector\bin\Release\**
+      DiagnosticAnalysisLauncher\bin\Release\**
+      DiagnosticAnalysisLauncher\bin\Release\DiagnosticAnalysis\**
+      StdoutCollector\bin\Release\**
+    TargetFolder: '$(Agent.BuildDirectory)/Temp/SiteExtensionZip/bin/DiagnosticTools'
+
+- task: CopyFiles@2
+  inputs:
+    SourceFolder: '$(Build.SourcesDirectory)'
+    Contents: |
+      StackTracer32\bin\x86\Release\**
+      StackTracer64\bin\x64\Release\**
+    TargetFolder: '$(Agent.BuildDirectory)/Temp/SiteExtensionZip/bin/DiagnosticTools/clrprofiler/stacktracer'
+    
+- task: CopyFiles@2
+  inputs:
+    SourceFolder: '$(Build.SourcesDirectory)'
+    Contents: |
+      DaasConsole\bin\Release\**
+      DaasRunner\bin\x64\Release\**
+    TargetFolder: '$(Agent.BuildDirectory)/Temp/SiteExtensionZip/bin'
 
 - task: CmdLine@2
   inputs:
@@ -65,6 +97,9 @@ steps:
       echo "$(Build.SourcesDirectory)"
       echo "Structure of Agent.BuildDirectory/Temp:"
       tree $(Agent.BuildDirectory)\Temp /f
+      
+      echo "Structure of Agent.BuildDirectory/Temp/SiteExtensionZip"
+      tree $(Agent.BuildDirectory)\SiteExtensionZip /f
 
 - task: PublishBuildArtifacts@1
   inputs:
