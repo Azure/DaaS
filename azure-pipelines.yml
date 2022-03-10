@@ -44,6 +44,12 @@ steps:
     cleanDestinationFolder: true
     overwriteExistingFiles: false
     
+- task: CopyFiles@2
+  inputs:
+    SourceFolder: '$(Build.SourcesDirectory)'
+    Contents: '*ClrProfilingCollector\bin*'
+    TargetFolder: '$(Agent.BuildDirectory)/Temp/SiteExtensionZip'
+
 - task: CmdLine@2
   inputs:
     script: |
@@ -55,12 +61,8 @@ steps:
       echo "$(Build.BinariesDirectory)"
       echo "Build.SourcesDirectory:"
       echo "$(Build.SourcesDirectory)"
-    
-- task: CopyFiles@2
-  inputs:
-    SourceFolder: '$(build.artifactStagingDirectory)'
-    Contents: '*ClrProfilingCollector\bin*'
-    TargetFolder: '$(Agent.BuildDirectory)/Temp/SiteExtensionZip1'
+      echo "Structure of Agent.BuildDirectory/Temp:"
+      tree $(Agent.WorkFolder)\Temp /f
 
 - task: PublishBuildArtifacts@1
   inputs:
