@@ -33,74 +33,10 @@ steps:
 - task: VSBuild@1
   inputs:
     solution: '$(solution)'
-    msbuildArgs: '/p:DeployOnBuild=true /p:WebPublishMethod=Package /T:"DiagnosticsExtension" /p:PublishProfile=FolderProfile.pubxml /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:PackageLocation="$(build.artifactStagingDirectory)\\"'
+    msbuildArgs: 'DiagnosticsExtension/DiagnosticsExtension.csproj /p:Configuration=Release /p:DeployOnBuild=true /p:WebPublishMethod=FileSystem /p:PublishProfile=FolderProfile.pubxml /p:PackageAsSingleFile=true /p:publishUrl="$(build.artifactStagingDirectory)\\"'
     platform: '$(buildPlatform)'
     configuration: '$(buildConfiguration)'
     
-- task: ExtractFiles@1
-  inputs:
-    archiveFilePatterns: '$(build.artifactStagingDirectory)/*.zip'
-    destinationFolder: '$(Agent.BuildDirectory)/Temp/SiteExtensionContents'
-    cleanDestinationFolder: true
-    overwriteExistingFiles: false
-
-- task: CopyFiles@2
-  displayName: 'Copy Site Extension bits to SiteExtensionZip folder'
-  inputs:
-    SourceFolder: '$(Agent.BuildDirectory)/Temp/SiteExtensionContents/Content/D_C/a/1/s/DiagnosticsExtension/obj/Release/Package/PackageTmp'
-    Contents: |
-      **
-    TargetFolder: '$(Agent.BuildDirectory)/Temp/SiteExtensionZip'
-
-- task: PowerShell@2
-  displayName: 'Copy CLR tools to DiagnosticTools'
-  inputs:
-    targetType: 'inline'
-    script: |
-      md $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin\DiagnosticTools\clrprofiler
-      md $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin\DiagnosticTools\javatools
-      md $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin\DiagnosticTools\DiagnosticAnalysis
-      
-      Copy-Item -Path $Env:BUILD_SOURCESDIRECTORY\ClrProfilingCollector\bin\x64\Release\* -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin\DiagnosticTools\clrprofiler -recurse -Force
-      Copy-Item -Path $Env:BUILD_SOURCESDIRECTORY\CLRProfilingAnalyzer\bin\Release\* -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin\DiagnosticTools\clrprofiler -recurse -Force
-      Copy-Item -Path $Env:BUILD_SOURCESDIRECTORY\MemoryDumpCollector\MemoryDumpCollector\bin\Release\* -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin\DiagnosticTools -recurse -Force
-      Copy-Item -Path $Env:BUILD_SOURCESDIRECTORY\DiagnosticAnalysisLauncher\bin\Release\* -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin\DiagnosticTools -recurse -Force
-      Copy-Item -Path $Env:BUILD_SOURCESDIRECTORY\DiagnosticAnalysisLauncher\bin\Release\DiagnosticAnalysis\* -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin\DiagnosticTools\DiagnosticAnalysis -recurse -Force
-      Copy-Item -Path $Env:BUILD_SOURCESDIRECTORY\jStackParser\bin\Release\* -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin\DiagnosticTools\javatools -recurse -Force
-      Copy-Item -Path $Env:BUILD_SOURCESDIRECTORY\StackTracer32\bin\x86\Release\* -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin\DiagnosticTools\clrprofiler\stacktracer -recurse -Force
-      Copy-Item -Path $Env:BUILD_SOURCESDIRECTORY\StackTracer64\bin\x64\Release\* -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin\DiagnosticTools\clrprofiler\stacktracer -recurse -Force
-      Copy-Item -Path $Env:BUILD_SOURCESDIRECTORY\DaasConsole\bin\Release\* -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin -recurse -Force
-      Copy-Item -Path $Env:BUILD_SOURCESDIRECTORY\DaasRunner\bin\x64\Release\* -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin -recurse -Force
-    failOnStderr: true
-    showWarnings: true
-
-- task: ArchiveFiles@2
-  displayName: 'Create Daas Site Extension Zip file'
-  inputs:
-    rootFolderOrFile: '$(Agent.BuildDirectory)/Temp/SiteExtensionZip'
-    includeRootFolder: true
-    archiveType: 'zip'
-    archiveFile: '$(Build.ArtifactStagingDirectory)/DaaS_$(Build.BuildId).zip'
-    replaceExistingArchive: true
-
-- task: CmdLine@2
-  displayName: 'Folder Paths (Only for Debugging)'
-  inputs:
-    script: |
-      echo "Structure of work folder of this pipeline:"
-      tree $(Agent.WorkFolder)\1 /f
-      echo "Build.ArtifactStagingDirectory:" 
-      echo "$(Build.ArtifactStagingDirectory)"
-      echo "Build.BinariesDirectory:" 
-      echo "$(Build.BinariesDirectory)"
-      echo "Build.SourcesDirectory:"
-      echo "$(Build.SourcesDirectory)"
-      echo "Structure of Agent.BuildDirectory/Temp:"
-      tree $(Agent.BuildDirectory)\Temp /f
-      
-      echo "Structure of Agent.BuildDirectory/Temp/SiteExtensionZip"
-      tree $(Agent.BuildDirectory)\Temp\SiteExtensionZip /f
-
 - task: PublishBuildArtifacts@1
   inputs:
     pathToPublish: '$(build.artifactStagingDirectory)'
