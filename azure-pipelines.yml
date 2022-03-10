@@ -39,10 +39,22 @@ steps:
     
 - task: ExtractFiles@1
   inputs:
-    archiveFilePatterns: '**/DiagnosticsExtension.zip'
+    archiveFilePatterns: '$(build.artifactStagingDirectory)/*.zip'
     destinationFolder: '$(Agent.BuildDirectory)/Temp/SiteExtensionZip'
     cleanDestinationFolder: true
     overwriteExistingFiles: false
+    
+- task: CmdLine@2
+  inputs:
+    script: |
+      echo "Structure of work folder of this pipeline:"
+      tree $(Agent.WorkFolder)\1 /f
+      echo "Build.ArtifactStagingDirectory:" 
+      echo "$(Build.ArtifactStagingDirectory)"
+      echo "Build.BinariesDirectory:" 
+      echo "$(Build.BinariesDirectory)"
+      echo "Build.SourcesDirectory:"
+      echo "$(Build.SourcesDirectory)"
     
 - task: CopyFiles@2
   inputs:
