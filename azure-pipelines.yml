@@ -48,7 +48,8 @@ steps:
   displayName: 'Copy Site Extension bits to SiteExtensionZip folder'
   inputs:
     SourceFolder: '$(Agent.BuildDirectory)/Temp/SiteExtensionContents/Content/D_C/a/1/s/DiagnosticsExtension/obj/Release/Package/PackageTmp'
-    Contents: **
+    Contents: |
+      **
     TargetFolder: '$(Agent.BuildDirectory)/Temp/SiteExtensionZip'
     
 - task: CopyFiles@2
