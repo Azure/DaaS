@@ -49,6 +49,7 @@ steps:
      Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\a\bin\x64
      Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\a\bin\Configuration
      Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\a\bin\DiagnosticTools
+     Remove-Item $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\a\bin\* -include *.ps1, *.html
 
 - task: ArchiveFiles@2
   displayName: 'Create Daas Site Extension Zip file'
