@@ -32,7 +32,7 @@ steps:
 
 - task: VSBuild@1
   inputs:
-    solution: 'DiagnosticsExtension/DiagnosticsExtension.csproj'
+    solution: '$(solution)'
     msbuildArgs: '/p:Configuration=Release /p:DeployOnBuild=true /p:WebPublishMethod=FileSystem /p:PublishProfile=FolderProfile.pubxml /p:PackageAsSingleFile=true /p:publishUrl="$(build.artifactStagingDirectory)\\"'
     platform: '$(buildPlatform)'
     configuration: '$(buildConfiguration)'
