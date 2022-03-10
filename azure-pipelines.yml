@@ -45,12 +45,14 @@ steps:
     overwriteExistingFiles: false
 
 - task: CopyFiles@2
+  displayName: 'Copy Site Extension bits to SiteExtensionZip folder'
   inputs:
     SourceFolder: '$(Agent.BuildDirectory)/Temp/SiteExtensionContents/Content/D_C/a/1/s/DiagnosticsExtension/obj/Release/Package/PackageTmp'
     Contents: **
     TargetFolder: '$(Agent.BuildDirectory)/Temp/SiteExtensionZip'
     
 - task: CopyFiles@2
+  displayName: 'Copy CLR tools to DiagnosticTools'
   inputs:
     SourceFolder: '$(Build.SourcesDirectory)'
     Contents: |
@@ -59,6 +61,7 @@ steps:
     TargetFolder: '$(Agent.BuildDirectory)/Temp/SiteExtensionZip/bin/DiagnosticTools/clrprofiler'
     
 - task: CopyFiles@2
+  displayName: 'Copy remaining toos to DiagnosticTools'
   inputs:
     SourceFolder: '$(Build.SourcesDirectory)'
     Contents: |
@@ -69,6 +72,7 @@ steps:
     TargetFolder: '$(Agent.BuildDirectory)/Temp/SiteExtensionZip/bin/DiagnosticTools'
 
 - task: CopyFiles@2
+  displayName: 'Copy stacktracer to DiagnosticTools'
   inputs:
     SourceFolder: '$(Build.SourcesDirectory)'
     Contents: |
@@ -77,6 +81,7 @@ steps:
     TargetFolder: '$(Agent.BuildDirectory)/Temp/SiteExtensionZip/bin/DiagnosticTools/clrprofiler/stacktracer'
     
 - task: CopyFiles@2
+  displayName: 'Copy DaasConsole, DaasRunner to bin'
   inputs:
     SourceFolder: '$(Build.SourcesDirectory)'
     Contents: |
