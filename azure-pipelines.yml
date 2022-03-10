@@ -42,14 +42,15 @@ steps:
   inputs:
     targetType: 'inline'
     script: |
-     Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\Configuration
-     Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\DiagnosticTools
-     Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\amd64
-     Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\staticcontent
-     Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\x64
-     Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\Configuration
-     Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\DiagnosticTools
-     Remove-Item $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\* -include *.ps1, *.html
+      Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\Configuration
+      Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\DiagnosticTools
+      Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\amd64
+      Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\staticcontent
+      Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\x64
+      Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\Configuration
+      Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\DiagnosticTools
+      Remove-Item $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\* -include *.ps1, *.html
+      Remove-Item $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\Dia2Lib.dll
 
 - task: ArchiveFiles@2
   displayName: 'Create Daas Site Extension Zip file'
