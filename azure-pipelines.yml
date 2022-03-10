@@ -58,41 +58,22 @@ steps:
     targetType: 'inline'
     script: |
       md $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin\DiagnosticTools\clrprofiler
+      md $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin\DiagnosticTools\javatools
+      md $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin\DiagnosticTools\DiagnosticAnalysis
+      
       Copy-Item -Path $Env:BUILD_SOURCESDIRECTORY\ClrProfilingCollector\bin\x64\Release\* -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin\DiagnosticTools\clrprofiler -recurse -Force
+      Copy-Item -Path $Env:BUILD_SOURCESDIRECTORY\CLRProfilingAnalyzer\bin\Release\* -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin\DiagnosticTools\clrprofiler -recurse -Force
+      Copy-Item -Path $Env:BUILD_SOURCESDIRECTORY\MemoryDumpCollector\MemoryDumpCollector\bin\Release\* -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin\DiagnosticTools -recurse -Force
+      Copy-Item -Path $Env:BUILD_SOURCESDIRECTORY\DiagnosticAnalysisLauncher\bin\Release\* -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin\DiagnosticTools -recurse -Force
+      Copy-Item -Path $Env:BUILD_SOURCESDIRECTORY\DiagnosticAnalysisLauncher\bin\Release\DiagnosticAnalysis\* -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin\DiagnosticTools\DiagnosticAnalysis -recurse -Force
+      Copy-Item -Path $Env:BUILD_SOURCESDIRECTORY\StdoutCollector\bin\Release\* -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin\DiagnosticTools -recurse -Force
+      Copy-Item -Path $Env:BUILD_SOURCESDIRECTORY\jStackParser\bin\Release\* -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin\DiagnosticTools\javatools -recurse -Force
+      Copy-Item -Path $Env:BUILD_SOURCESDIRECTORY\StackTracer32\bin\x86\Release\* -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin\DiagnosticTools\clrprofiler\stacktracer -recurse -Force
+      Copy-Item -Path $Env:BUILD_SOURCESDIRECTORY\StackTracer64\bin\x64\Release\* -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin\DiagnosticTools\clrprofiler\stacktracer -recurse -Force
+      Copy-Item -Path $Env:BUILD_SOURCESDIRECTORY\DaasConsole\bin\Release\* -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin -recurse -Force
+      Copy-Item -Path $Env:BUILD_SOURCESDIRECTORY\DaasRunner\bin\x64\Release\* -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin -recurse -Force
     failOnStderr: true
     showWarnings: true
-
-- task: CopyFiles@2
-  displayName: 'Copy remaining toos to DiagnosticTools'
-  inputs:
-    SourceFolder: '$(Build.SourcesDirectory)'
-    Contents: |
-      MemoryDumpCollector\MemoryDumpCollector\bin\Release\**
-      DiagnosticAnalysisLauncher\bin\Release\**
-      DiagnosticAnalysisLauncher\bin\Release\DiagnosticAnalysis\**
-      StdoutCollector\bin\Release\**
-    TargetFolder: '$(Agent.BuildDirectory)/Temp/SiteExtensionZip/bin/DiagnosticTools'
-    flattenFolders: true
-
-- task: CopyFiles@2
-  displayName: 'Copy stacktracer to DiagnosticTools'
-  inputs:
-    SourceFolder: '$(Build.SourcesDirectory)'
-    Contents: |
-      StackTracer32\bin\x86\Release\**
-      StackTracer64\bin\x64\Release\**
-    TargetFolder: '$(Agent.BuildDirectory)/Temp/SiteExtensionZip/bin/DiagnosticTools/clrprofiler/stacktracer'
-    flattenFolders: true
-    
-- task: CopyFiles@2
-  displayName: 'Copy DaasConsole, DaasRunner to bin'
-  inputs:
-    SourceFolder: '$(Build.SourcesDirectory)'
-    Contents: |
-      DaasConsole\bin\Release\**
-      DaasRunner\bin\x64\Release\**
-    TargetFolder: '$(Agent.BuildDirectory)/Temp/SiteExtensionZip/bin'
-    flattenFolders: true
 
 - task: ArchiveFiles@2
   displayName: 'Create Daas Site Extension Zip file'
