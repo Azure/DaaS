@@ -71,6 +71,7 @@ steps:
       DiagnosticAnalysisLauncher\bin\Release\DiagnosticAnalysis\**
       StdoutCollector\bin\Release\**
     TargetFolder: '$(Agent.BuildDirectory)/Temp/SiteExtensionZip/bin/DiagnosticTools'
+    flattenFolders: true
 
 - task: CopyFiles@2
   displayName: 'Copy stacktracer to DiagnosticTools'
@@ -80,6 +81,7 @@ steps:
       StackTracer32\bin\x86\Release\**
       StackTracer64\bin\x64\Release\**
     TargetFolder: '$(Agent.BuildDirectory)/Temp/SiteExtensionZip/bin/DiagnosticTools/clrprofiler/stacktracer'
+    flattenFolders: true
     
 - task: CopyFiles@2
   displayName: 'Copy DaasConsole, DaasRunner to bin'
@@ -89,6 +91,7 @@ steps:
       DaasConsole\bin\Release\**
       DaasRunner\bin\x64\Release\**
     TargetFolder: '$(Agent.BuildDirectory)/Temp/SiteExtensionZip/bin'
+    flattenFolders: true
 
 - task: ArchiveFiles@2
   displayName: 'Create Daas Site Extension Zip file'
