@@ -90,6 +90,14 @@ steps:
       DaasRunner\bin\x64\Release\**
     TargetFolder: '$(Agent.BuildDirectory)/Temp/SiteExtensionZip/bin'
 
+- task: ArchiveFiles@2
+  inputs:
+    rootFolderOrFile: '$(Agent.BuildDirectory)/Temp/SiteExtensionZip'
+    includeRootFolder: true
+    archiveType: 'zip'
+    archiveFile: '$(Build.ArtifactStagingDirectory)/DaaS_$(Build.BuildId).zip'
+    replaceExistingArchive: true
+
 - task: CmdLine@2
   inputs:
     script: |
