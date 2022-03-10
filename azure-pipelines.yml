@@ -37,6 +37,19 @@ steps:
     platform: '$(buildPlatform)'
     configuration: '$(buildConfiguration)'
 
+- task: PowerShell@2
+  displayName: 'Delete additional files'
+  inputs:
+    targetType: 'inline'
+    script: |
+     Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\a\Configuration
+     Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\a\DiagnosticTools
+     Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\a\bin\amd64
+     Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\a\bin\staticcontent
+     Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\a\bin\x64
+     Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\a\bin\Configuration
+     Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\a\bin\DiagnosticTools
+
 - task: ArchiveFiles@2
   displayName: 'Create Daas Site Extension Zip file'
   inputs:
