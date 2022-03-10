@@ -51,16 +51,15 @@ steps:
     Contents: |
       **
     TargetFolder: '$(Agent.BuildDirectory)/Temp/SiteExtensionZip'
-    
-- task: CopyFiles@2
+
+- task: PowerShell@2
   displayName: 'Copy CLR tools to DiagnosticTools'
   inputs:
-    SourceFolder: '$(Build.SourcesDirectory)'
-    Contents: |
-      ClrProfilingCollector\bin\x64\Release\**
-      ClrProfilingAnalyzer\bin\Release\**
-    TargetFolder: '$(Agent.BuildDirectory)/Temp/SiteExtensionZip/bin/DiagnosticTools/clrprofiler'
-    
+    targetType: 'inline'
+    script: 'Copy-Item -Path $Env:BUILD_SOURCESDIRECTORY\ClrProfilingCollector\bin\x64\Release\* -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExtensionZip\bin\DiagnosticTools\clrprofiler -recurse -Force'
+    failOnStderr: true
+    showWarnings: true
+
 - task: CopyFiles@2
   displayName: 'Copy remaining toos to DiagnosticTools'
   inputs:
