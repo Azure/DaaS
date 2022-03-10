@@ -91,6 +91,7 @@ steps:
     TargetFolder: '$(Agent.BuildDirectory)/Temp/SiteExtensionZip/bin'
 
 - task: ArchiveFiles@2
+  displayName: 'Create Daas Site Extension Zip file'
   inputs:
     rootFolderOrFile: '$(Agent.BuildDirectory)/Temp/SiteExtensionZip'
     includeRootFolder: true
@@ -99,6 +100,7 @@ steps:
     replaceExistingArchive: true
 
 - task: CmdLine@2
+  displayName: 'Folder Paths (Only for Debugging)'
   inputs:
     script: |
       echo "Structure of work folder of this pipeline:"
