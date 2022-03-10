@@ -113,7 +113,7 @@ steps:
       tree $(Agent.BuildDirectory)\Temp /f
       
       echo "Structure of Agent.BuildDirectory/Temp/SiteExtensionZip"
-      tree $(Agent.BuildDirectory)\SiteExtensionZip /f
+      tree $(Agent.BuildDirectory)\Temp\SiteExtensionZip /f
 
 - task: PublishBuildArtifacts@1
   inputs:
