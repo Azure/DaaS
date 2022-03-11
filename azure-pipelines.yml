@@ -61,7 +61,7 @@ steps:
   displayName: 'Create Daas Site Extension Zip file'
   inputs:
     rootFolderOrFile: '$(build.artifactStagingDirectory)'
-    includeRootFolder: true
+    includeRootFolder: false
     archiveType: 'zip'
     archiveFile: '$(Build.ArtifactStagingDirectory)/DaaS_$(Build.BuildId).zip'
     replaceExistingArchive: true
