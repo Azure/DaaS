@@ -120,7 +120,7 @@ steps:
       $password = $publishProfile.userPWD
       $kuduEndpoint = $publishProfile.publishUrl
       $authorizationHeader = "Basic {0}" -f [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f  $userName, $password)))
-      Write-Host ("kuduEndpoint is " + $kuduEndpoint)
+      Write-Host ("kuduEndpoint is " + $kuduEndpoint + ". Going to upload SiteExtension bits now")
 
       $kuduApiUrl = "https://$kuduEndpoint/api/zip/SiteExtensions/DaaS/"
       try {
@@ -133,8 +133,11 @@ steps:
         catch {
             Write-Host "Encountered " + $_.Exception.Response.StatusCode + " while uploading DaaS site extension"
         }
-      
+
+      Write-Host "Stopping Web App"
       Invoke-AzResourceAction -ResourceId $srcWebApp.Id -Action stop
+
+      Write-Host "Starting Web App"
       Invoke-AzResourceAction -ResourceId $srcWebApp.Id -Action start
       
       $DaaSVersion = Invoke-RestMethod -Uri "https://$kuduEndpoint/daas/api/v2/daasversion" `
