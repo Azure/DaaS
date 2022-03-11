@@ -56,6 +56,8 @@ steps:
       
       $fileVersion = [System.Diagnostics.FileVersionInfo]::GetVersionInfo("$Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\daas.dll").FileVersion
       $fileVersion
+      
+      Write-Host "##vso[task.setvariable variable=DAAS_VERSION]$fileVersion"
 
 - task: ArchiveFiles@2
   displayName: 'Create Daas Site Extension Zip file'
@@ -73,6 +75,7 @@ steps:
       Copy-Item -Path $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\DaaS_$Env:BUILD_BUILDID.zip -Destination $Env:AGENT_BUILDDIRECTORY\Temp\DaaS_$Env:BUILD_BUILDID.zip
       Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY -Verbose
       Copy-Item -Path $Env:AGENT_BUILDDIRECTORY\Temp\DaaS_$Env:BUILD_BUILDID.zip -Destination $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\DaaS_$Env:BUILD_BUILDID.zip 
+      Write-Host FileVersion is $Env:DAAS_VERSION
     failOnStderr: true
     showWarnings: true
   
