@@ -62,7 +62,7 @@ steps:
       Remove-Item $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\Dia2Lib.dll -Verbose
       Remove-Item $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\OSExtensions.dll -Verbose
       Remove-Item $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\TraceReloggerLib.dll -Verbose
-      
+
       $fileVersion = [System.Diagnostics.FileVersionInfo]::GetVersionInfo("$Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\daas.dll").FileVersion
       $fileVersion
 
@@ -81,6 +81,7 @@ steps:
     replaceExistingArchive: true
 
 - task: PowerShell@2
+  displayName: 'Clean-up build artifacts folder'
   inputs:
     targetType: 'inline'
     script: |
@@ -123,10 +124,8 @@ steps:
       [xml]$publishProfileXml = Get-AzWebAppPublishingProfile -WebApp $srcWebApp
 
       $publishProfile = $publishProfileXml.publishData.publishProfile[0]
-      $userName = $publishProfile.userName
-      $password = $publishProfile.userPWD
       $kuduEndpoint = $publishProfile.publishUrl
-      $authorizationHeader = "Basic {0}" -f [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f  $userName, $password)))
+      $authorizationHeader = "Basic {0}" -f [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f  $publishProfile.userName, $publishProfile.userPWD)))
       Write-Host ("KuduEndpoint = " + $kuduEndpoint + ". Going to upload SiteExtension bits now")
 
       $kuduApiUrl = "https://$kuduEndpoint/api/zip/SiteExtensions/DaaS/"
