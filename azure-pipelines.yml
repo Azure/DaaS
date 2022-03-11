@@ -89,79 +89,19 @@ steps:
     failOnStderr: true
     showWarnings: true
 
-- task: AzurePowerShell@3
+- task: AzurePowerShell@5
   displayName: 'Setup new WebApp and upload DaaS bits'
   inputs:
     azureSubscription: 'Private Test Sub PUNEETG(6b6db65f-680e-4650-b97d-e82ed6a0f583)'
     ScriptType: 'InlineScript'
     Inline: |
-      $resources = az resource list --resource-group $Env:RESOURCE_GROUP | ConvertFrom-Json
-      Write-Host "Deleting Web Apps..."
-      foreach ($resource in $resources) {
-        if ($resource.id -like '*/providers/Microsoft.Web/sites/*') {
-          Write-Host $("  Deleting " + $resource.id)
-          az resource delete --resource-group $Env:RESOURCE_GROUP --ids $resource.id --verbose
-          }
-        }
-        Write-Host "Deleting App Service Plans"
-        foreach ($resource in $resources) {
-          if ($resource.id -like '*/providers/Microsoft.Web/serverfarms/*') {
-            Write-Host $("  Deleting " + $resource.id)
-            az resource delete --resource-group $Env:RESOURCE_GROUP --ids $resource.id --verbose
-          }
-        }
-
+      
       Write-Host "Creating App Service Plan"
-      az appservice plan create --name $Env:SITE_NAME --resource-group $Env:RESOURCE_GROUP --sku B1
-      
+      New-AzAppServicePlan -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location "South India" -Tier "Basic" -WorkerSize "Small"
+
       Write-Host "Creating Web App"
-      az webapp create --name $Env:SITE_NAME --resource-group $Env:RESOURCE_GROUP --plan $Env:SITE_NAME
-      az webapp config set --resource-group $Env:RESOURCE_GROUP --name $Env:SITE_NAME --always-on true
-      
-      Write-Host "Adding MSBuild App Setting"
-      az webapp config appsettings set --resource-group $Env:RESOURCE_GROUP --name $Env:SITE_NAME --settings MSBUILD_PATH=%MSBUILD_15_DIR%\\msbuild.exe
-
-      #Write-Host "Setting up Github for $Env:SITE_NAME"
-      #az webapp deployment source config --name $Env:SITE_NAME --resource-group $Env:RESOURCE_GROUP --repo-url $Env:GitRepoAspNet --branch master --manual-integration
-
-      Write-Host "Getting Publish Profile"
-      $publishProfileString = Invoke-AzureRmResourceAction -ResourceGroupName $Env:RESOURCE_GROUP `
-        -ResourceType Microsoft.Web/sites `
-        -ResourceName $Env:SITE_NAME `
-        -Action publishxml `
-        -ApiVersion 2015-08-01 -Force
-
-      $publishProfileXml =[xml]$publishProfileString
-      $publishProfile = $publishProfileXml.publishData.publishProfile[0]
-      $userName = $publishProfile.userName
-      $password = $publishProfile.userPWD
-      $kuduEndpoint = $publishProfile.publishUrl
-      $authorizationHeader = "Basic {0}" -f [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f  $userName, $password)))
-      Write-Host ("kuduEndpoint is " + $kuduEndpoint)
-
-      $kuduApiUrl = "https://$kuduEndpoint/api/zip/SiteExtensions/DaaS/"
-
-      try {
-        Invoke-RestMethod -Uri $kuduApiUrl `
-          -Headers @{"Authorization"=$authorizationHeader;"If-Match"="*"} `
-          -Method PUT `
-          -InFile $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\DaaS_$Env:BUILD_BUILDID.zip `
-          -ContentType "multipart/form-data" | Out-Null
-        }
-        catch {
-            Write-Host "Encountered " + $_.Exception.Response.StatusCode + " while uploading DaaS site extension"
-        }
-
-      Write-Host "Stopping WebApp" 
-      Invoke-AzureRmResourceAction –ResourceGroupName $Env:RESOURCE_GROUP -ResourceType Microsoft.Web/sites -ResourceName $Env:SITE_NAME -Action stop -ApiVersion 2015-08-01 -Force
-
-      Write-Host "Starting WebApp"
-      Invoke-AzureRmResourceAction -ResourceGroupName $Env:RESOURCE_GROUP -ResourceType Microsoft.Web/sites -ResourceName $Env:SITE_NAME -Action start -ApiVersion 2015-08-01 -Force
-
-      $DaaSVersion = Invoke-RestMethod -Uri "https://$kuduEndpoint/daas/api/v2/daasversion" `
-        -Headers @{"Authorization"=$authorizationHeader;"If-Match"="*"}
-
-      Write-Host ("DaasVersion is " + $DaaSVersion)
+      New-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location "South India" -AppServicePlan $Env:SITE_NAME      
+      Set-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -AlwaysOn $true
 
     azurePowerShellVersion: 'LatestVersion'
 
