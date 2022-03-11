@@ -89,19 +89,44 @@ steps:
     failOnStderr: true
     showWarnings: true
 
-- task: AzurePowerShell@5
+- task: AzurePowerShell@3
   displayName: 'Setup new WebApp and upload DaaS bits'
   inputs:
     azureSubscription: 'Private Test Sub PUNEETG(6b6db65f-680e-4650-b97d-e82ed6a0f583)'
     ScriptType: 'InlineScript'
     Inline: |
       
-      Write-Host "Creating App Service Plan"
-      New-AzAppServicePlan -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location "South India" -Tier "Basic" -WorkerSize "Small"
+      # Write-Host "Creating App Service Plan"
+      # New-AzAppServicePlan -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location "South India" -Tier "Basic" -WorkerSize "Small"
 
+      # Write-Host "Creating Web App"
+      # New-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location "South India" -AppServicePlan $Env:SITE_NAME
+      # Set-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -AlwaysOn $true
+
+      $resources = az resource list --resource-group $Env:RESOURCE_GROUP | ConvertFrom-Json
+      Write-Host "Deleting Web Apps..."
+      foreach ($resource in $resources) {
+        if ($resource.id -like '*/providers/Microsoft.Web/sites/*') {
+          Write-Host $("  Deleting " + $resource.id)
+          az resource delete --resource-group $Env:RESOURCE_GROUP --ids $resource.id --verbose
+          }
+        }
+        Write-Host "Deleting App Service Plans"
+        foreach ($resource in $resources) {
+          if ($resource.id -like '*/providers/Microsoft.Web/serverfarms/*') {
+            Write-Host $("  Deleting " + $resource.id)
+            az resource delete --resource-group $Env:RESOURCE_GROUP --ids $resource.id --verbose
+          }
+        }
+      Write-Host "Creating App Service Plan"
+      az appservice plan create --name $Env:SITE_NAME --resource-group $Env:RESOURCE_GROUP --sku B1
+      
       Write-Host "Creating Web App"
-      New-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location "South India" -AppServicePlan $Env:SITE_NAME      
-      Set-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -AlwaysOn $true
+      az webapp create --name $Env:SITE_NAME --resource-group $Env:RESOURCE_GROUP --plan $Env:SITE_NAME
+      az webapp config set --resource-group $Env:RESOURCE_GROUP --name $Env:SITE_NAME --always-on true
+      
+      Write-Host "Adding MSBuild App Setting"
+      az webapp config appsettings set --resource-group $Env:RESOURCE_GROUP --name $Env:SITE_NAME --settings MSBUILD_PATH=%MSBUILD_15_DIR%\\msbuild.exe
 
     azurePowerShellVersion: 'LatestVersion'
 
