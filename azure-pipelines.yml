@@ -96,8 +96,11 @@ steps:
     ScriptType: 'InlineScript'
     Inline: |
 
-      Write-Host "Removing App Service Plans and Sites"
+      Write-Host ("Selected ResourceGroup is " + $Env:RESOURCE_GROUP)
+      Write-Host "Removing WebApps"
       Get-AzResource -ResourceGroupName $Env:RESOURCE_GROUP -ResourceType Microsoft.Web/sites | Remove-AzResource -Force
+      
+      Write-Host "Removing App Service Plans"
       Get-AzResource -ResourceGroupName $Env:RESOURCE_GROUP -ResourceType Microsoft.Web/serverfarms | Remove-AzResource -Force
 
       Write-Host "Creating App Service Plan"
