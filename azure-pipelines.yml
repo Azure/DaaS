@@ -135,10 +135,10 @@ steps:
         }
 
       Write-Host "Stopping Web App"
-      Invoke-AzResourceAction -ResourceId $srcWebApp.Id -Action stop
+      Invoke-AzResourceAction -ResourceId $srcWebApp.Id -Action stop -Force
 
       Write-Host "Starting Web App"
-      Invoke-AzResourceAction -ResourceId $srcWebApp.Id -Action start
+      Invoke-AzResourceAction -ResourceId $srcWebApp.Id -Action start -Force
 
       Write-Host "Checking DaaS version"
       $DaaSVersion = Invoke-RestMethod -Uri "https://$kuduEndpoint/daas/api/v2/daasversion" `
