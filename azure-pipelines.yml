@@ -73,12 +73,38 @@ steps:
     targetType: 'inline'
     script: |
       md $Env:AGENT_BUILDDIRECTORY\Temp\SiteExt
-      Copy-Item -Path $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\DaaS_$Env:BUILD_BUILDID.zip -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExt\DaaS_$Env:BUILD_BUILDID.zip
+      Copy-Item -Path $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\DaaS_$Env:BUILD_BUILDID.zip -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExt\DaaS_$Env:BUILD_BUILDID.zip -Verbose
+      
+      Write-Host Cleaning up (BUILD.ARTIFACTSTAGINGDIRECTORY)
       Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY -Verbose
+      
+      md $Env:BUILD_ARTIFACTSTAGINGDIRECTORY
       Copy-Item -Path $Env:AGENT_BUILDDIRECTORY\Temp\SiteExt\DaaS_$Env:BUILD_BUILDID.zip -Destination $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\DaaS_$Env:BUILD_BUILDID.zip 
       Write-Host FileVersion is $Env:DAAS_VERSION
     failOnStderr: true
     showWarnings: true
+
+- task: AzurePowerShell@5
+  inputs:
+    azureSubscription: 'Private Test Sub PUNEETG(6b6db65f-680e-4650-b97d-e82ed6a0f583)'
+    ScriptType: 'InlineScript'
+    Inline: |
+      $resources = az resource list --resource-group $Env:RESOURCE_GROUP | ConvertFrom-Json
+          Write-Host "Deleting Web Apps..."
+          foreach ($resource in $resources) {
+              if ($resource.id -like '*/providers/Microsoft.Web/sites/*') {
+                Write-Host $("  Deleting " + $resource.id)
+                az resource delete --resource-group $Env:RESOURCE_GROUP --ids $resource.id --verbose
+              }
+          }
+          Write-Host "Deleting App Service Plans"
+          foreach ($resource in $resources) {
+              if ($resource.id -like '*/providers/Microsoft.Web/serverfarms/*') {
+                Write-Host $("  Deleting " + $resource.id)
+                az resource delete --resource-group $Env:RESOURCE_GROUP --ids $resource.id --verbose
+              }
+          }
+    azurePowerShellVersion: 'LatestVersion'
   
 - task: PublishBuildArtifacts@1
   inputs:
