@@ -139,7 +139,8 @@ steps:
 
       Write-Host "Starting Web App"
       Invoke-AzResourceAction -ResourceId $srcWebApp.Id -Action start
-      
+
+      Write-Host "Checking DaaS version"
       $DaaSVersion = Invoke-RestMethod -Uri "https://$kuduEndpoint/daas/api/v2/daasversion" `
         -Headers @{"Authorization"=$authorizationHeader;"If-Match"="*"}
 
