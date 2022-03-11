@@ -97,8 +97,8 @@ steps:
     Inline: |
 
       Write-Host "Removing App Service Plans and Sites"
-      Get-AzResource -ResourceGroupName $Env:RESOURCE_GROUP -ResourceType Microsoft.Web/serverfarms | Remove-AzResource -Force
       Get-AzResource -ResourceGroupName $Env:RESOURCE_GROUP -ResourceType Microsoft.Web/sites | Remove-AzResource -Force
+      Get-AzResource -ResourceGroupName $Env:RESOURCE_GROUP -ResourceType Microsoft.Web/serverfarms | Remove-AzResource -Force
 
       Write-Host "Creating App Service Plan"
       New-AzAppServicePlan -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location "South India" -Tier "Basic" -WorkerSize "Small"
@@ -108,6 +108,28 @@ steps:
       Set-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -AlwaysOn $true
       $setting=@{"MSBUILD_PATH"="%MSBUILD_15_DIR%\\msbuild.exe"}
       Set-AzWebApp -AppSettings $setting -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP
+
+      $srcWebApp = Get-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP
+      [xml]$publishProfileXml = Get-AzWebAppPublishingProfile -WebApp $srcWebApp
+
+      $publishProfile = $publishProfileXml.publishData.publishProfile[0]
+      $userName = $publishProfile.userName
+      $password = $publishProfile.userPWD
+      $kuduEndpoint = $publishProfile.publishUrl
+      $authorizationHeader = "Basic {0}" -f [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f  $userName, $password)))
+      Write-Host ("kuduEndpoint is " + $kuduEndpoint)
+
+      $kuduApiUrl = "https://$kuduEndpoint/api/zip/SiteExtensions/DaaS/"
+      try {
+        Invoke-RestMethod -Uri $kuduApiUrl `
+          -Headers @{"Authorization"=$authorizationHeader;"If-Match"="*"} `
+          -Method PUT `
+          -InFile $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\DaaS_$Env:BUILD_BUILDID.zip `
+          -ContentType "multipart/form-data" | Out-Null
+        }
+        catch {
+            Write-Host "Encountered " + $_.Exception.Response.StatusCode + " while uploading DaaS site extension"
+        }
 
     azurePowerShellVersion: 'LatestVersion'
 
