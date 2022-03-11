@@ -72,10 +72,10 @@ steps:
   inputs:
     targetType: 'inline'
     script: |
-      md $Env:AGENT_BUILDDIRECTORY\Temp\siteext
-      Copy-Item -Path $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\DaaS_$Env:BUILD_BUILDID.zip -Destination $Env:AGENT_BUILDDIRECTORY\Temp\siteext\DaaS_$Env:BUILD_BUILDID.zip
+      md $Env:AGENT_BUILDDIRECTORY\Temp\SiteExt
+      Copy-Item -Path $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\DaaS_$Env:BUILD_BUILDID.zip -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExt\DaaS_$Env:BUILD_BUILDID.zip
       Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY -Verbose
-      Copy-Item -Path $Env:AGENT_BUILDDIRECTORY\Temp\siteext\DaaS_$Env:BUILD_BUILDID.zip -Destination $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\DaaS_$Env:BUILD_BUILDID.zip 
+      Copy-Item -Path $Env:AGENT_BUILDDIRECTORY\Temp\SiteExt\DaaS_$Env:BUILD_BUILDID.zip -Destination $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\DaaS_$Env:BUILD_BUILDID.zip 
       Write-Host FileVersion is $Env:DAAS_VERSION
     failOnStderr: true
     showWarnings: true
