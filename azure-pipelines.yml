@@ -130,6 +130,14 @@ steps:
         catch {
             Write-Host "Encountered " + $_.Exception.Response.StatusCode + " while uploading DaaS site extension"
         }
+      
+      Invoke-AzResourceAction -ResourceId $srcWebApp.Id -Action stop
+      Invoke-AzResourceAction -ResourceId $srcWebApp.Id -Action start
+      
+      $DaaSVersion = Invoke-RestMethod -Uri "https://$kuduEndpoint/daas/api/v2/daasversion" `
+        -Headers @{"Authorization"=$authorizationHeader;"If-Match"="*"}
+
+      Write-Host ("DaasVersion is " + $DaaSVersion)
 
     azurePowerShellVersion: 'LatestVersion'
 
