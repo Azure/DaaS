@@ -121,8 +121,8 @@ steps:
       Write-Host "Adding MSBuild App Setting"
       az webapp config appsettings set --resource-group $Env:RESOURCE_GROUP --name $Env:SITE_NAME --settings MSBUILD_PATH=%MSBUILD_15_DIR%\\msbuild.exe
 
-      Write-Host "Setting up Github for $Env:SITE_NAME"
-      az webapp deployment source config --name $Env:SITE_NAME --resource-group $Env:RESOURCE_GROUP --repo-url $Env:GitRepoAspNet --branch master --manual-integration
+      #Write-Host "Setting up Github for $Env:SITE_NAME"
+      #az webapp deployment source config --name $Env:SITE_NAME --resource-group $Env:RESOURCE_GROUP --repo-url $Env:GitRepoAspNet --branch master --manual-integration
 
       Write-Host "Getting Publish Profiler"
       $publishProfileString = Invoke-AzureRmResourceAction -ResourceGroupName $Env:RESOURCE_GROUP `
