@@ -104,12 +104,17 @@ steps:
     ScriptType: 'InlineScript'
     Inline: |
 
-      Write-Host ("Selected ResourceGroup is " + $Env:RESOURCE_GROUP)
-      Write-Host "Removing WebApps"
-      Get-AzResource -ResourceGroupName $Env:RESOURCE_GROUP -ResourceType Microsoft.Web/sites | Remove-AzResource -Force
-      
-      Write-Host "Removing App Service Plans"
-      Get-AzResource -ResourceGroupName $Env:RESOURCE_GROUP -ResourceType Microsoft.Web/serverfarms | Remove-AzResource -Force
+      try {
+        Write-Host ("Selected ResourceGroup is " + $Env:RESOURCE_GROUP)
+        Write-Host "Removing WebApps"
+        Get-AzResource -ResourceGroupName $Env:RESOURCE_GROUP -ResourceType Microsoft.Web/sites | Remove-AzResource -Force
+        
+        Write-Host "Removing App Service Plans"
+        Get-AzResource -ResourceGroupName $Env:RESOURCE_GROUP -ResourceType Microsoft.Web/serverfarms | Remove-AzResource -Force
+      }
+      catch {
+        Write-Host "Encountered " + $_.Exception + " while cleaning up old resources"
+      }
 
       Write-Host "Creating App Service Plan"
       New-AzAppServicePlan -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location $Env:LOCATION -Tier "Basic" -WorkerSize "Small" | Out-Null
@@ -145,7 +150,7 @@ steps:
         Write-Host ("Uploaded site extension in " + $sw.Elapsed)
       }
       catch {
-        Write-Host "Encountered " + $_.Exception.Response.StatusCode + " while uploading DaaS site extension" -ForegroundColor Red
+        Write-Host "Encountered " + $_.Exception.Response.StatusCode + " while uploading DaaS site extension"
       }
 
       Write-Host "Stopping Web App"
