@@ -146,6 +146,9 @@ steps:
 
       Write-Host ("DaasVersion is " + $DaaSVersion)
 
+      Write-Host "##vso[task.setvariable variable=KUDU_ENDPOINT]$kuduApiUrl"
+      Write-Host "##vso[task.setvariable variable=KUDU_AUTHORIZATION_HEADER;issecret=true]$authorizationHeader"
+
     azurePowerShellVersion: 'LatestVersion'
 
 - task: PublishBuildArtifacts@1
