@@ -103,21 +103,21 @@ steps:
     ScriptType: 'InlineScript'
     Inline: |
 
-      Write-Host ("Selected ResourceGroup is " + $Env:RESOURCE_GROUP) -ForegroundColor Green
-      Write-Host "Removing WebApps" -ForegroundColor Green
+      Write-Host ("Selected ResourceGroup is " + $Env:RESOURCE_GROUP)
+      Write-Host "Removing WebApps"
       Get-AzResource -ResourceGroupName $Env:RESOURCE_GROUP -ResourceType Microsoft.Web/sites | Remove-AzResource -Force
       
-      Write-Host "Removing App Service Plans" -ForegroundColor Green
+      Write-Host "Removing App Service Plans"
       Get-AzResource -ResourceGroupName $Env:RESOURCE_GROUP -ResourceType Microsoft.Web/serverfarms | Remove-AzResource -Force
 
-      Write-Host "Creating App Service Plan" -ForegroundColor Green
-      New-AzAppServicePlan -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location $Env:LOCATION -Tier "Basic" -WorkerSize "Small"
+      Write-Host "Creating App Service Plan"
+      New-AzAppServicePlan -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location $Env:LOCATION -Tier "Basic" -WorkerSize "Small" | Out-Null
 
-      Write-Host "Creating Web App" -ForegroundColor Green
-      New-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location $Env:LOCATION -AppServicePlan $Env:SITE_NAME
-      Set-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -AlwaysOn $true
+      Write-Host "Creating Web App"
+      New-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location $Env:LOCATION -AppServicePlan $Env:SITE_NAME | Out-Null
+      Set-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -AlwaysOn $true | Out-Null
       $setting=@{"MSBUILD_PATH"="%MSBUILD_15_DIR%\\msbuild.exe"}
-      Set-AzWebApp -AppSettings $setting -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP
+      Set-AzWebApp -AppSettings $setting -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP | Out-Null
 
       $srcWebApp = Get-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP
       [xml]$publishProfileXml = Get-AzWebAppPublishingProfile -WebApp $srcWebApp
@@ -143,23 +143,23 @@ steps:
           -ContentType "multipart/form-data" | Out-Null
         
         $sw.Stop()
-        Write-Host ("Uploaded site extension in " + $sw.Elapsed) -ForegroundColor Green
+        Write-Host ("Uploaded site extension in " + $sw.Elapsed)
       }
       catch {
         Write-Host "Encountered " + $_.Exception.Response.StatusCode + " while uploading DaaS site extension" -ForegroundColor Red
       }
 
-      Write-Host "Stopping Web App" -ForegroundColor Green
+      Write-Host "Stopping Web App"
       Invoke-AzResourceAction -ResourceId $srcWebApp.Id -Action stop -Force
 
-      Write-Host "Starting Web App" -ForegroundColor Green
+      Write-Host "Starting Web App"
       Invoke-AzResourceAction -ResourceId $srcWebApp.Id -Action start -Force
 
-      Write-Host "Checking DaaS version" -ForegroundColor Green
+      Write-Host "Checking DaaS version"
       $DaaSVersion = Invoke-RestMethod -Uri "https://$kuduEndpoint/daas/api/v2/daasversion" `
         -Headers @{"Authorization"=$authorizationHeader;"If-Match"="*"}
 
-      Write-Host ("DaasVersion is " + $DaaSVersion) -ForegroundColor Green
+      Write-Host ("DaasVersion is " + $DaaSVersion)
 
       Write-Host "##vso[task.setvariable variable=KUDU_ENDPOINT]$kuduApiUrl"
       Write-Host "##vso[task.setvariable variable=KUDU_AUTHORIZATION_HEADER;issecret=true]$authorizationHeader"
@@ -175,3 +175,18 @@ steps:
   inputs:
     platform: '$(buildPlatform)'
     configuration: '$(buildConfiguration)'
+
+
+- task: AzurePowerShell@5
+  displayName: 'Delete App and App Service Plan'
+  inputs:
+    azureSubscription: 'Private Test Sub PUNEETG(6b6db65f-680e-4650-b97d-e82ed6a0f583)'
+    ScriptType: 'InlineScript'
+    Inline: |
+      Write-Host "Removing WebApps"
+      Get-AzResource -ResourceGroupName $Env:RESOURCE_GROUP -ResourceType Microsoft.Web/sites | Remove-AzResource -Force
+      Write-Host "Removing App Service Plans"
+      Get-AzResource -ResourceGroupName $Env:RESOURCE_GROUP -ResourceType Microsoft.Web/serverfarms | Remove-AzResource -Force
+
+    azurePowerShellVersion: 'LatestVersion'
+
