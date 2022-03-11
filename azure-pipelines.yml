@@ -19,6 +19,7 @@ variables:
   solution: '**/*.sln'
   buildPlatform: 'x64'
   buildConfiguration: 'Release'
+  LOCATION: 'West US 2'
   RESOURCE_GROUP: 'DAAS-DevOps-Testing'
   GitRepoAspNet: https://github.com/puneetg1983/WebCampGit
 
@@ -102,18 +103,18 @@ steps:
     ScriptType: 'InlineScript'
     Inline: |
 
-      Write-Host ("Selected ResourceGroup is " + $Env:RESOURCE_GROUP)
-      Write-Host "Removing WebApps"
+      Write-Host ("Selected ResourceGroup is " + $Env:RESOURCE_GROUP) -ForegroundColor Green
+      Write-Host "Removing WebApps" -ForegroundColor Green
       Get-AzResource -ResourceGroupName $Env:RESOURCE_GROUP -ResourceType Microsoft.Web/sites | Remove-AzResource -Force
       
-      Write-Host "Removing App Service Plans"
+      Write-Host "Removing App Service Plans" -ForegroundColor Green
       Get-AzResource -ResourceGroupName $Env:RESOURCE_GROUP -ResourceType Microsoft.Web/serverfarms | Remove-AzResource -Force
 
-      Write-Host "Creating App Service Plan"
-      New-AzAppServicePlan -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location "West US 2" -Tier "Basic" -WorkerSize "Small"
+      Write-Host "Creating App Service Plan" -ForegroundColor Green
+      New-AzAppServicePlan -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location $Env:LOCATION -Tier "Basic" -WorkerSize "Small"
 
-      Write-Host "Creating Web App"
-      New-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location "West US 2" -AppServicePlan $Env:SITE_NAME
+      Write-Host "Creating Web App" -ForegroundColor Green
+      New-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location $Env:LOCATION -AppServicePlan $Env:SITE_NAME
       Set-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -AlwaysOn $true
       $setting=@{"MSBUILD_PATH"="%MSBUILD_15_DIR%\\msbuild.exe"}
       Set-AzWebApp -AppSettings $setting -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP
@@ -126,10 +127,14 @@ steps:
       $password = $publishProfile.userPWD
       $kuduEndpoint = $publishProfile.publishUrl
       $authorizationHeader = "Basic {0}" -f [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f  $userName, $password)))
-      Write-Host ("kuduEndpoint is " + $kuduEndpoint + ". Going to upload SiteExtension bits now")
+      Write-Host ("KuduEndpoint = " + $kuduEndpoint + ". Going to upload SiteExtension bits now")
 
       $kuduApiUrl = "https://$kuduEndpoint/api/zip/SiteExtensions/DaaS/"
       try {
+      
+        # Adding below to speed up call to Invoke-RestMethod
+        $ProgressPreference = 'SilentlyContinue'
+        
         $sw = [Diagnostics.Stopwatch]::StartNew()
         Invoke-RestMethod -Uri $kuduApiUrl `
           -Headers @{"Authorization"=$authorizationHeader;"If-Match"="*"} `
@@ -138,23 +143,23 @@ steps:
           -ContentType "multipart/form-data" | Out-Null
         
         $sw.Stop()
-        Write-Host ("Uploaded site extension in " + $sw.Elapsed)
-        }
-        catch {
-            Write-Host "Encountered " + $_.Exception.Response.StatusCode + " while uploading DaaS site extension"
-        }
+        Write-Host ("Uploaded site extension in " + $sw.Elapsed) -ForegroundColor Green
+      }
+      catch {
+        Write-Host "Encountered " + $_.Exception.Response.StatusCode + " while uploading DaaS site extension" -ForegroundColor Red
+      }
 
-      Write-Host "Stopping Web App"
+      Write-Host "Stopping Web App" -ForegroundColor Green
       Invoke-AzResourceAction -ResourceId $srcWebApp.Id -Action stop -Force
 
-      Write-Host "Starting Web App"
+      Write-Host "Starting Web App" -ForegroundColor Green
       Invoke-AzResourceAction -ResourceId $srcWebApp.Id -Action start -Force
 
-      Write-Host "Checking DaaS version"
+      Write-Host "Checking DaaS version" -ForegroundColor Green
       $DaaSVersion = Invoke-RestMethod -Uri "https://$kuduEndpoint/daas/api/v2/daasversion" `
         -Headers @{"Authorization"=$authorizationHeader;"If-Match"="*"}
 
-      Write-Host ("DaasVersion is " + $DaaSVersion)
+      Write-Host ("DaasVersion is " + $DaaSVersion) -ForegroundColor Green
 
       Write-Host "##vso[task.setvariable variable=KUDU_ENDPOINT]$kuduApiUrl"
       Write-Host "##vso[task.setvariable variable=KUDU_AUTHORIZATION_HEADER;issecret=true]$authorizationHeader"
