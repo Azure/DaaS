@@ -110,10 +110,10 @@ steps:
       Get-AzResource -ResourceGroupName $Env:RESOURCE_GROUP -ResourceType Microsoft.Web/serverfarms | Remove-AzResource -Force
 
       Write-Host "Creating App Service Plan"
-      New-AzAppServicePlan -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location "South India" -Tier "Basic" -WorkerSize "Small"
+      New-AzAppServicePlan -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location "West US 2" -Tier "Basic" -WorkerSize "Small"
 
       Write-Host "Creating Web App"
-      New-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location "South India" -AppServicePlan $Env:SITE_NAME
+      New-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location "West US 2" -AppServicePlan $Env:SITE_NAME
       Set-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -AlwaysOn $true
       $setting=@{"MSBUILD_PATH"="%MSBUILD_15_DIR%\\msbuild.exe"}
       Set-AzWebApp -AppSettings $setting -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP
@@ -130,11 +130,15 @@ steps:
 
       $kuduApiUrl = "https://$kuduEndpoint/api/zip/SiteExtensions/DaaS/"
       try {
+        $sw = [Diagnostics.Stopwatch]::StartNew()
         Invoke-RestMethod -Uri $kuduApiUrl `
           -Headers @{"Authorization"=$authorizationHeader;"If-Match"="*"} `
           -Method PUT `
           -InFile $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\DaaS_$Env:BUILD_BUILDID.zip `
           -ContentType "multipart/form-data" | Out-Null
+        
+        $sw.Stop()
+        Write-Host ("Uploaded site extension in " + $sw.Elapsed)
         }
         catch {
             Write-Host "Encountered " + $_.Exception.Response.StatusCode + " while uploading DaaS site extension"
