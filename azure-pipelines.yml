@@ -13,6 +13,8 @@ variables:
   solution: '**/*.sln'
   buildPlatform: 'x64'
   buildConfiguration: 'Release'
+  RESOURCE_GROUP: 'DAAS-DevOps-Testing'
+  GitRepoAspNet: https://github.com/puneetg1983/WebCampGit
 
 steps:
 - task: NuGetToolInstaller@1
@@ -59,6 +61,9 @@ steps:
       
       Write-Host "##vso[task.setvariable variable=DAAS_VERSION]$fileVersion"
 
+      $uniqueSiteName = "daasdevops" + (Get-Date -Format "yyyyMMdd-hhmm")
+      Write-Host "##vso[task.setvariable variable=SITE_NAME]$uniqueSiteName"
+
 - task: ArchiveFiles@2
   displayName: 'Create Daas Site Extension Zip file'
   inputs:
@@ -75,7 +80,7 @@ steps:
       md $Env:AGENT_BUILDDIRECTORY\Temp\SiteExt
       Copy-Item -Path $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\DaaS_$Env:BUILD_BUILDID.zip -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExt\DaaS_$Env:BUILD_BUILDID.zip -Verbose
       
-      Write-Host Cleaning up (BUILD.ARTIFACTSTAGINGDIRECTORY)
+      Write-Host Cleaning up ARTIFACTSTAGINGDIRECTORY
       Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY -Verbose
       
       md $Env:BUILD_ARTIFACTSTAGINGDIRECTORY
@@ -85,27 +90,39 @@ steps:
     showWarnings: true
 
 - task: AzurePowerShell@5
+  displayName: 'Setup New Web-App'
   inputs:
     azureSubscription: 'Private Test Sub PUNEETG(6b6db65f-680e-4650-b97d-e82ed6a0f583)'
     ScriptType: 'InlineScript'
     Inline: |
       $resources = az resource list --resource-group $Env:RESOURCE_GROUP | ConvertFrom-Json
-          Write-Host "Deleting Web Apps..."
-          foreach ($resource in $resources) {
-              if ($resource.id -like '*/providers/Microsoft.Web/sites/*') {
-                Write-Host $("  Deleting " + $resource.id)
-                az resource delete --resource-group $Env:RESOURCE_GROUP --ids $resource.id --verbose
-              }
+      Write-Host "Deleting Web Apps..."
+      foreach ($resource in $resources) {
+        if ($resource.id -like '*/providers/Microsoft.Web/sites/*') {
+          Write-Host $("  Deleting " + $resource.id)
+          az resource delete --resource-group $Env:RESOURCE_GROUP --ids $resource.id --verbose
           }
-          Write-Host "Deleting App Service Plans"
-          foreach ($resource in $resources) {
-              if ($resource.id -like '*/providers/Microsoft.Web/serverfarms/*') {
-                Write-Host $("  Deleting " + $resource.id)
-                az resource delete --resource-group $Env:RESOURCE_GROUP --ids $resource.id --verbose
-              }
+        }
+        Write-Host "Deleting App Service Plans"
+        foreach ($resource in $resources) {
+          if ($resource.id -like '*/providers/Microsoft.Web/serverfarms/*') {
+            Write-Host $("  Deleting " + $resource.id)
+            az resource delete --resource-group $Env:RESOURCE_GROUP --ids $resource.id --verbose
           }
+        }
+
+        echo Creating App Service Plan
+      az appservice plan create --name $Env:SITE_NAME --resource-group $Env:RESOURCE_GROUP --sku B1
+      
+      echo Creating Web App
+      az webapp create --name $Env:SITE_NAME --resource-group $Env:RESOURCE_GROUP --plan $Env:SITE_NAME
+      az webapp config set --resource-group $Env:RESOURCE_GROUP --name $Env:SITE_NAME --always-on true
+      
+      echo Adding MSBuild App Setting
+      az webapp config appsettings set --resource-group $Env:RESOURCE_GROUP --name $Env:SITE_NAME --settings MSBUILD_PATH=%MSBUILD_15_DIR%\\msbuild.exe
+
     azurePowerShellVersion: 'LatestVersion'
-  
+
 - task: PublishBuildArtifacts@1
   inputs:
     pathToPublish: '$(build.artifactStagingDirectory)'
