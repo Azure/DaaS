@@ -111,15 +111,31 @@ steps:
           }
         }
 
-        echo Creating App Service Plan
+      Write-Host "Creating App Service Plan"
       az appservice plan create --name $Env:SITE_NAME --resource-group $Env:RESOURCE_GROUP --sku B1
       
-      echo Creating Web App
+      Write-Host "Creating Web App"
       az webapp create --name $Env:SITE_NAME --resource-group $Env:RESOURCE_GROUP --plan $Env:SITE_NAME
       az webapp config set --resource-group $Env:RESOURCE_GROUP --name $Env:SITE_NAME --always-on true
       
-      echo Adding MSBuild App Setting
+      Write-Host "Adding MSBuild App Setting"
       az webapp config appsettings set --resource-group $Env:RESOURCE_GROUP --name $Env:SITE_NAME --settings MSBUILD_PATH=%MSBUILD_15_DIR%\\msbuild.exe
+
+      Write-Host "Setting up Github for $Env:SITE_NAME"
+      az webapp deployment source config --name $Env:SITE_NAME --resource-group $Env:RESOURCE_GROUP --repo-url $Env:GitRepoAspNet --branch master --manual-integration
+
+      Write-Host "Getting Publish Profiler"
+      $publishProfileString = Invoke-AzureRmResourceAction -ResourceGroupName $Env:RESOURCE_GROUP `
+        -ResourceType Microsoft.Web/sites `
+        -ResourceName $Env:SITE_NAME `
+        -Action publishxml `
+        -ApiVersion 2015-08-01 -Force
+
+      $publishProfileXml =[xml]$publishProfileString
+      $userName = $publishProfileXml.publishData.publishProfile[0].userName
+      $password = $publishProfileXml.publishData.publishProfile[0].userPWD
+
+      Write-Host ("UserName is " + $userName)
 
     azurePowerShellVersion: 'LatestVersion'
 
