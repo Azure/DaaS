@@ -20,6 +20,8 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
         #region string constants for network validator
         public const string User = "User";
         public const string System = "System";
+        public const string UnderscoreSeperator = "__";
+        public const string ColonSeparator = ":";
         public const string ClientId = "__clientId";
         public const string Credential = "__credential";
         public const string ServiceUri = "__serviceUri";
@@ -28,7 +30,8 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
         public const string QueueServiceUri = "__queueServiceUri";
         public const string ValidCredentialValue = "managedidentity";
         public const string FullyQualifiedNamespace = "__fullyQualifiedNamespace";
-        public const string ManagedIdentityCredentialMissing = "ManagedIdentityCredentialMissing";
+        public const string ManagedIdentityClientIdEmpty = "ManagedIdentityClientIdEmpty";
+        public const string ManagedIdentityCredentialInvalid = "ManagedIdentityCredentialInvalid";
         #endregion
 
         public static void EvaluateResponseStatus(Exception e, ConnectionStringType type, ref ConnectionStringValidationResult response)
@@ -41,9 +44,13 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.EmptyConnectionString;
             }
-            else if (e is ManagedIdentityException && e.Message.Contains(ManagedIdentityCredentialMissing))
+            else if (e is ManagedIdentityException && e.Message.Contains(ManagedIdentityCredentialInvalid))
             {
-                response.Status = ConnectionStringValidationResult.ResultStatus.ManagedIdentityCredentialMissing;
+                response.Status = ConnectionStringValidationResult.ResultStatus.ManagedIdentityCredentialInvalid;
+            }
+            else if (e is ManagedIdentityException && e.Message.Contains(ManagedIdentityClientIdEmpty))
+            {
+                response.Status = ConnectionStringValidationResult.ResultStatus.ManagedIdentityClientIdEmpty;
             }
             else if (e is UnauthorizedAccessException && e.Message.Contains("unauthorized") || e.Message.Contains("Unauthorized") || e.Message.Contains("request is not authorized"))
             {
@@ -125,6 +132,15 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
                 response.Status = ConnectionStringValidationResult.ResultStatus.UnknownError;
             }
             response.Exception = e;
+        }
+        public static string ResolveManagedIdentityCommonProperty(string appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty prop)
+        {
+            string commonPropertyValue = Environment.GetEnvironmentVariable(appSettingName + UnderscoreSeperator + prop.ToString());
+            if (string.IsNullOrEmpty(commonPropertyValue))
+            {
+                commonPropertyValue = Environment.GetEnvironmentVariable(appSettingName + ColonSeparator + prop.ToString());
+            }
+            return commonPropertyValue;
         }
     }
 }

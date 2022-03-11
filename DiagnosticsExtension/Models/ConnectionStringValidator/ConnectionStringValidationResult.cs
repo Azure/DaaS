@@ -41,7 +41,8 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             MsiFailure,
             EmptyConnectionString,
             MalformedConnectionString,
-            ManagedIdentityCredentialMissing,
+            ManagedIdentityCredentialInvalid,
+            ManagedIdentityClientIdEmpty,
             FullyQualifiedNamespaceMissing,
             SystemAssignedIdentityFailure,
             UserAssignedIdentityFailure,
@@ -54,6 +55,15 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
         {
             User,
             System
+        }
+        public enum ManagedIdentityCommonProperty
+        {
+            fullyQualifiedNamespace,
+            credential,
+            clientId,
+            serviceUri,
+            blobServiceUri,
+            queueServiceUri
         }
 
 

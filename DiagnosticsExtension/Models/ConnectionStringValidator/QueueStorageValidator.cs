@@ -51,24 +51,25 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                 }
                 else
                 {
-                    string serviceUriString = Environment.GetEnvironmentVariable(appSettingName + ConnectionStringResponseUtility.QueueServiceUri);
+                    string serviceUriString = ConnectionStringResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.queueServiceUri);
                     if (!string.IsNullOrEmpty(serviceUriString))
                     {
-                        appSettingClientIdValue = Environment.GetEnvironmentVariable(appSettingName + ConnectionStringResponseUtility.ClientId);
-                        appSettingClientCredValue = Environment.GetEnvironmentVariable(appSettingName + ConnectionStringResponseUtility.Credential);
+                        appSettingClientIdValue = ConnectionStringResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.clientId);
+                        appSettingClientCredValue = ConnectionStringResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.credential);
                         Uri serviceUri = new Uri(serviceUriString);
                         // Creating client using User assigned managed identity
-                        if (!string.IsNullOrEmpty(appSettingClientIdValue))
+                        if (appSettingClientCredValue != null)
                         {
                             if (appSettingClientCredValue != ConnectionStringResponseUtility.ValidCredentialValue)
                             {
-                                throw new ManagedIdentityException(ConnectionStringResponseUtility.ManagedIdentityCredentialMissing);
+                                throw new ManagedIdentityException(ConnectionStringResponseUtility.ManagedIdentityCredentialInvalid);
                             }
-                            else
+                            if (string.IsNullOrEmpty(appSettingClientIdValue))
                             {
-                                response.IdentityType = ConnectionStringResponseUtility.User;
-                                client = new QueueServiceClient(serviceUri, new Azure.Identity.ManagedIdentityCredential(appSettingClientIdValue));
+                                throw new ManagedIdentityException(ConnectionStringResponseUtility.ManagedIdentityClientIdEmpty);
                             }
+                            response.IdentityType = ConnectionStringResponseUtility.User;
+                            client = new QueueServiceClient(serviceUri, new Azure.Identity.ManagedIdentityCredential(appSettingClientIdValue));
                         }
                         // Creating client using System assigned managed identity
                         else
