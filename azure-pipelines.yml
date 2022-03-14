@@ -19,6 +19,7 @@ variables:
   solution: '**/*.sln'
   buildPlatform: 'x64'
   buildConfiguration: 'Release'
+  LOCATION: 'West US 2'
   RESOURCE_GROUP: 'DAAS-DevOps-Testing'
   GitRepoAspNet: https://github.com/puneetg1983/WebCampGit
 
@@ -55,7 +56,7 @@ steps:
       Remove-Item $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\Dia2Lib.dll -Verbose
       Remove-Item $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\OSExtensions.dll -Verbose
       Remove-Item $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\TraceReloggerLib.dll -Verbose
-      
+
       $fileVersion = [System.Diagnostics.FileVersionInfo]::GetVersionInfo("$Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\daas.dll").FileVersion
       $fileVersion
 
@@ -74,6 +75,7 @@ steps:
     replaceExistingArchive: true
 
 - task: PowerShell@2
+  displayName: 'Clean-up build artifacts folder'
   inputs:
     targetType: 'inline'
     script: |
@@ -96,34 +98,41 @@ steps:
     ScriptType: 'InlineScript'
     Inline: |
 
-      Write-Host ("Selected ResourceGroup is " + $Env:RESOURCE_GROUP)
-      Write-Host "Removing WebApps"
-      Get-AzResource -ResourceGroupName $Env:RESOURCE_GROUP -ResourceType Microsoft.Web/sites | Remove-AzResource -Force
-      
-      Write-Host "Removing App Service Plans"
-      Get-AzResource -ResourceGroupName $Env:RESOURCE_GROUP -ResourceType Microsoft.Web/serverfarms | Remove-AzResource -Force
+      try {
+        Write-Host ("Selected ResourceGroup is " + $Env:RESOURCE_GROUP)
+        Write-Host "Removing WebApps"
+        Get-AzResource -ResourceGroupName $Env:RESOURCE_GROUP -ResourceType Microsoft.Web/sites | Remove-AzResource -Force
+        
+        Write-Host "Removing App Service Plans"
+        Get-AzResource -ResourceGroupName $Env:RESOURCE_GROUP -ResourceType Microsoft.Web/serverfarms | Remove-AzResource -Force
+      }
+      catch {
+        Write-Host "Encountered " + $_.Exception + " while cleaning up old resources"
+      }
 
       Write-Host "Creating App Service Plan"
-      New-AzAppServicePlan -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location "West US 2" -Tier "Basic" -WorkerSize "Small"
+      New-AzAppServicePlan -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location $Env:LOCATION -Tier "Basic" -WorkerSize "Small" | Out-Null
 
       Write-Host "Creating Web App"
-      New-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location "West US 2" -AppServicePlan $Env:SITE_NAME
-      Set-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -AlwaysOn $true
+      New-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location $Env:LOCATION -AppServicePlan $Env:SITE_NAME | Out-Null
+      Set-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -AlwaysOn $true | Out-Null
       $setting=@{"MSBUILD_PATH"="%MSBUILD_15_DIR%\\msbuild.exe"}
-      Set-AzWebApp -AppSettings $setting -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP
+      Set-AzWebApp -AppSettings $setting -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP | Out-Null
 
       $srcWebApp = Get-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP
       [xml]$publishProfileXml = Get-AzWebAppPublishingProfile -WebApp $srcWebApp
 
       $publishProfile = $publishProfileXml.publishData.publishProfile[0]
-      $userName = $publishProfile.userName
-      $password = $publishProfile.userPWD
       $kuduEndpoint = $publishProfile.publishUrl
-      $authorizationHeader = "Basic {0}" -f [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f  $userName, $password)))
-      Write-Host ("kuduEndpoint is " + $kuduEndpoint + ". Going to upload SiteExtension bits now")
+      $authorizationHeader = "Basic {0}" -f [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f  $publishProfile.userName, $publishProfile.userPWD)))
+      Write-Host ("KuduEndpoint = " + $kuduEndpoint + ". Going to upload SiteExtension bits now")
 
       $kuduApiUrl = "https://$kuduEndpoint/api/zip/SiteExtensions/DaaS/"
       try {
+      
+        # Adding below to speed up call to Invoke-RestMethod
+        $ProgressPreference = 'SilentlyContinue'
+        
         $sw = [Diagnostics.Stopwatch]::StartNew()
         Invoke-RestMethod -Uri $kuduApiUrl `
           -Headers @{"Authorization"=$authorizationHeader;"If-Match"="*"} `
@@ -133,10 +142,10 @@ steps:
         
         $sw.Stop()
         Write-Host ("Uploaded site extension in " + $sw.Elapsed)
-        }
-        catch {
-            Write-Host "Encountered " + $_.Exception.Response.StatusCode + " while uploading DaaS site extension"
-        }
+      }
+      catch {
+        Write-Host "Encountered " + $_.Exception.Response.StatusCode + " while uploading DaaS site extension"
+      }
 
       Write-Host "Stopping Web App"
       Invoke-AzResourceAction -ResourceId $srcWebApp.Id -Action stop -Force
@@ -168,3 +177,20 @@ steps:
     projects: '**/*[Tt]ests/*.csproj'
     arguments: '--configuration $(buildConfiguration) --collect "Code coverage"'
     testRunTitle: 'DaaS Tests'
+    platform: '$(buildPlatform)'
+    configuration: '$(buildConfiguration)'
+
+
+- task: AzurePowerShell@5
+  displayName: 'Delete App and App Service Plan'
+  inputs:
+    azureSubscription: 'Private Test Sub PUNEETG(6b6db65f-680e-4650-b97d-e82ed6a0f583)'
+    ScriptType: 'InlineScript'
+    Inline: |
+      Write-Host "Removing WebApps"
+      Get-AzResource -ResourceGroupName $Env:RESOURCE_GROUP -ResourceType Microsoft.Web/sites | Remove-AzResource -Force
+      Write-Host "Removing App Service Plans"
+      Get-AzResource -ResourceGroupName $Env:RESOURCE_GROUP -ResourceType Microsoft.Web/serverfarms | Remove-AzResource -Force
+
+    azurePowerShellVersion: 'LatestVersion'
+
