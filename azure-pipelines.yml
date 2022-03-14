@@ -124,7 +124,9 @@ steps:
 
       $publishProfile = $publishProfileXml.publishData.publishProfile[0]
       $kuduEndpoint = $publishProfile.publishUrl
-      $authorizationHeader = "Basic {0}" -f [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f  $publishProfile.userName, $publishProfile.userPWD)))
+      [string]$userName = $publishProfile.userName
+      [string]$publishingPassword = $publishProfile.userPWD
+      $authorizationHeader = "Basic {0}" -f [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f $userName, $publishingPassword)))
       Write-Host ("KuduEndpoint = " + $kuduEndpoint + ". Going to upload SiteExtension bits now")
 
       $kuduApiUrl = "https://$kuduEndpoint/api/zip/SiteExtensions/DaaS/"
@@ -160,8 +162,8 @@ steps:
       Write-Host ("DaasVersion is " + $DaaSVersion)
 
       Write-Host "##vso[task.setvariable variable=KUDU_ENDPOINT]$kuduEndpoint"
-      Write-Host "##vso[task.setvariable variable=KUDU_USERNAME]$publishProfile.userName"
-      Write-Host "##vso[task.setvariable variable=KUDU_PASSWORD]$publishProfile.userPWD"
+      Write-Host "##vso[task.setvariable variable=KUDU_USERNAME]$userName"
+      Write-Host "##vso[task.setvariable variable=KUDU_PASSWORD]$publishingPassword"
 
     azurePowerShellVersion: 'LatestVersion'
 
