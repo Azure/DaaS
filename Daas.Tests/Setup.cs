@@ -33,6 +33,19 @@ namespace Daas.Test
 
             if (string.IsNullOrWhiteSpace(userName))
             {
+                userName = Environment.GetEnvironmentVariable("KUDU_USERNAME");
+            }
+            if (string.IsNullOrWhiteSpace(password))
+            {
+                password = Environment.GetEnvironmentVariable("KUDU_PASSWORD");
+            }
+            if (string.IsNullOrWhiteSpace(kuduEndpoint))
+            {
+                kuduEndpoint = Environment.GetEnvironmentVariable("KUDU_ENDPOINT");
+            }
+
+            if (string.IsNullOrWhiteSpace(userName))
+            {
                 throw new ArgumentNullException(nameof(userName));
             }
             if (string.IsNullOrWhiteSpace(password))
