@@ -32,6 +32,11 @@ namespace DiagnosticsExtension.Controllers
         {
             try
             {
+                if (string.IsNullOrWhiteSpace(session.Description))
+                {
+                    session.Description = "InvokedViaDaasApi";
+                }
+
                 string sessionId = await _sessionManager.SubmitNewSessionAsync(session);
                 return ResponseMessage(Request.CreateResponse(HttpStatusCode.Accepted, sessionId));
             }

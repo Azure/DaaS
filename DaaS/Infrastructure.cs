@@ -1,4 +1,4 @@
-// -----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="Infrastructure.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
@@ -74,11 +74,14 @@ namespace DaaS
             return latestDaasDir;
         }
 
-        internal static Func<string, string, string, Process> RunProcess = RunProcessImplementation;
-
-        private static Process RunProcessImplementation(string command, string arguments, string sessionId)
+        internal static Process RunProcess(string command, string arguments, string sessionId, string description = "")
         {
-            // Expand the environment varibles just in case the command has %
+            return RunProcessImplementation(command, arguments, sessionId, description);
+        }
+
+        private static Process RunProcessImplementation(string command, string arguments, string sessionId, string description = "")
+        {
+            // Expand the environment variables just in case the command has %
             command = Environment.ExpandEnvironmentVariables(command);
             
             var process = new Process()
@@ -92,6 +95,7 @@ namespace DaaS
             };
 
             process.StartInfo.EnvironmentVariables.Add("DAAS_SESSION_ID",sessionId);
+            process.StartInfo.EnvironmentVariables.Add("DAAS_SESSION_DESCRIPTION", description);
             Logger.LogDiagnostic("Starting process. FileName = {0}, Arguments = {1}, sessionId = {2}", process.StartInfo.FileName, process.StartInfo.Arguments, sessionId);
             process.Start();
             return process;

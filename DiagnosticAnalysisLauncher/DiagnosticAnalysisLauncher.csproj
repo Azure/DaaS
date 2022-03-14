@@ -61,7 +61,7 @@
       <Version>11.0.2</Version>
     </PackageReference>
     <PackageReference Include="Microsoft.VisualStudio.DiagnosticAnalysis.Windows" GeneratePathProperty="true">
-      <Version>17.2.1012110</Version>
+      <Version>17.2.1022301</Version>
     </PackageReference>
   </ItemGroup>
   <ItemGroup>

@@ -1,0 +1,172 @@
+# ASP.NET
+# Build and test ASP.NET projects.
+# Add steps that publish symbols, save build artifacts, deploy, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/apps/aspnet/build-aspnet-4
+
+trigger:
+  batch: true
+  branches:
+    include:
+      - main
+  paths:
+    exclude:
+      - README.md
+
+pool:
+  vmImage: 'windows-latest'
+
+variables:
+  solution: '**/*.sln'
+  buildPlatform: 'x64'
+  buildConfiguration: 'Release'
+  RESOURCE_GROUP: 'DAAS-DevOps-Testing'
+  GitRepoAspNet: https://github.com/puneetg1983/WebCampGit
+
+steps:
+- task: NuGetToolInstaller@1
+
+- task: NuGetCommand@2
+  inputs:
+    command: 'restore'
+    restoreSolution: '$(solution)'
+    feedsToUse: 'select'
+    vstsFeed: 'b2430cf7-78c0-440a-aa4a-a25665c5778e'
+
+- task: VSBuild@1
+  inputs:
+    solution: '$(solution)'
+    platform: '$(buildPlatform)'
+    configuration: '$(buildConfiguration)'
+
+- task: VSBuild@1
+  inputs:
+    solution: '$(solution)'
+    msbuildArgs: '/p:Configuration=Release /p:DeployOnBuild=true /p:WebPublishMethod=FileSystem /p:PublishProfile=FolderProfile.pubxml /p:PackageAsSingleFile=true /p:publishUrl="$(build.artifactStagingDirectory)\\"'
+    platform: '$(buildPlatform)'
+    configuration: '$(buildConfiguration)'
+
+- task: PowerShell@2
+  displayName: 'Delete additional files'
+  inputs:
+    targetType: 'inline'
+    script: |
+      Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\Configuration -Verbose
+      Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\DiagnosticTools -Verbose
+      Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\amd64 -Verbose
+      Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\staticcontent -Verbose
+      Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\x64 -Verbose
+      Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\x86 -Verbose
+      Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\DiagnosticAnalysis -Verbose
+      Remove-Item $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\* -include *.ps1, *.html -Verbose
+      Remove-Item $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\Dia2Lib.dll -Verbose
+      Remove-Item $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\OSExtensions.dll -Verbose
+      Remove-Item $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\TraceReloggerLib.dll -Verbose
+      
+      $fileVersion = [System.Diagnostics.FileVersionInfo]::GetVersionInfo("$Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\daas.dll").FileVersion
+      $fileVersion
+
+      Write-Host "##vso[task.setvariable variable=DAAS_VERSION]$fileVersion"
+
+      $uniqueSiteName = "daasdevops" + (Get-Date -Format "yyyyMMdd-hhmm")
+      Write-Host "##vso[task.setvariable variable=SITE_NAME]$uniqueSiteName"
+
+- task: ArchiveFiles@2
+  displayName: 'Create Daas Site Extension Zip file'
+  inputs:
+    rootFolderOrFile: '$(build.artifactStagingDirectory)'
+    includeRootFolder: false
+    archiveType: 'zip'
+    archiveFile: '$(Build.ArtifactStagingDirectory)/DaaS_$(Build.BuildId).zip'
+    replaceExistingArchive: true
+
+- task: PowerShell@2
+  inputs:
+    targetType: 'inline'
+    script: |
+      md $Env:AGENT_BUILDDIRECTORY\Temp\SiteExt
+      Copy-Item -Path $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\DaaS_$Env:BUILD_BUILDID.zip -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExt\DaaS_$Env:BUILD_BUILDID.zip -Verbose
+
+      Write-Host Cleaning up ARTIFACTSTAGINGDIRECTORY
+      Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY -Verbose
+
+      md $Env:BUILD_ARTIFACTSTAGINGDIRECTORY
+      Copy-Item -Path $Env:AGENT_BUILDDIRECTORY\Temp\SiteExt\DaaS_$Env:BUILD_BUILDID.zip -Destination $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\DaaS_$Env:BUILD_BUILDID.zip 
+      Write-Host FileVersion is $Env:DAAS_VERSION
+    failOnStderr: true
+    showWarnings: true
+
+- task: AzurePowerShell@5
+  displayName: 'Setup new WebApp and upload DaaS bits'
+  inputs:
+    azureSubscription: 'Private Test Sub PUNEETG(6b6db65f-680e-4650-b97d-e82ed6a0f583)'
+    ScriptType: 'InlineScript'
+    Inline: |
+
+      Write-Host ("Selected ResourceGroup is " + $Env:RESOURCE_GROUP)
+      Write-Host "Removing WebApps"
+      Get-AzResource -ResourceGroupName $Env:RESOURCE_GROUP -ResourceType Microsoft.Web/sites | Remove-AzResource -Force
+      
+      Write-Host "Removing App Service Plans"
+      Get-AzResource -ResourceGroupName $Env:RESOURCE_GROUP -ResourceType Microsoft.Web/serverfarms | Remove-AzResource -Force
+
+      Write-Host "Creating App Service Plan"
+      New-AzAppServicePlan -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location "West US 2" -Tier "Basic" -WorkerSize "Small"
+
+      Write-Host "Creating Web App"
+      New-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location "West US 2" -AppServicePlan $Env:SITE_NAME
+      Set-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -AlwaysOn $true
+      $setting=@{"MSBUILD_PATH"="%MSBUILD_15_DIR%\\msbuild.exe"}
+      Set-AzWebApp -AppSettings $setting -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP
+
+      $srcWebApp = Get-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP
+      [xml]$publishProfileXml = Get-AzWebAppPublishingProfile -WebApp $srcWebApp
+
+      $publishProfile = $publishProfileXml.publishData.publishProfile[0]
+      $userName = $publishProfile.userName
+      $password = $publishProfile.userPWD
+      $kuduEndpoint = $publishProfile.publishUrl
+      $authorizationHeader = "Basic {0}" -f [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f  $userName, $password)))
+      Write-Host ("kuduEndpoint is " + $kuduEndpoint + ". Going to upload SiteExtension bits now")
+
+      $kuduApiUrl = "https://$kuduEndpoint/api/zip/SiteExtensions/DaaS/"
+      try {
+        $sw = [Diagnostics.Stopwatch]::StartNew()
+        Invoke-RestMethod -Uri $kuduApiUrl `
+          -Headers @{"Authorization"=$authorizationHeader;"If-Match"="*"} `
+          -Method PUT `
+          -InFile $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\DaaS_$Env:BUILD_BUILDID.zip `
+          -ContentType "multipart/form-data" | Out-Null
+        
+        $sw.Stop()
+        Write-Host ("Uploaded site extension in " + $sw.Elapsed)
+        }
+        catch {
+            Write-Host "Encountered " + $_.Exception.Response.StatusCode + " while uploading DaaS site extension"
+        }
+
+      Write-Host "Stopping Web App"
+      Invoke-AzResourceAction -ResourceId $srcWebApp.Id -Action stop -Force
+
+      Write-Host "Starting Web App"
+      Invoke-AzResourceAction -ResourceId $srcWebApp.Id -Action start -Force
+
+      Write-Host "Checking DaaS version"
+      $DaaSVersion = Invoke-RestMethod -Uri "https://$kuduEndpoint/daas/api/v2/daasversion" `
+        -Headers @{"Authorization"=$authorizationHeader;"If-Match"="*"}
+
+      Write-Host ("DaasVersion is " + $DaaSVersion)
+
+      Write-Host "##vso[task.setvariable variable=KUDU_ENDPOINT]$kuduApiUrl"
+      Write-Host "##vso[task.setvariable variable=KUDU_AUTHORIZATION_HEADER;issecret=true]$authorizationHeader"
+
+    azurePowerShellVersion: 'LatestVersion'
+
+- task: PublishBuildArtifacts@1
+  inputs:
+    pathToPublish: '$(build.artifactStagingDirectory)'
+    artifactName: drop
+
+- task: VSTest@2
+  inputs:
+    platform: '$(buildPlatform)'
+    configuration: '$(buildConfiguration)'

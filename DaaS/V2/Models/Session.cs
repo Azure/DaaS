@@ -25,6 +25,7 @@ namespace DaaS.V2
         [JsonConverter(typeof(StringEnumConverter))]
         public Mode Mode { get; set; }
         public string SessionId { get; set; }
+        public string Description { get; set; }
         public Status Status { get; set; }
         public DateTime StartTime { get; set; }
         public string Tool { get; set; }

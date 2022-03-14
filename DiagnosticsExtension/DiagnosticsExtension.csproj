@@ -340,6 +340,9 @@
     <Compile Include="Parsers\ServerSideEvent.cs" />
   </ItemGroup>
   <ItemGroup>
+    <Content Include="Configuration\DiagnosticSettings.xml">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="Content\img\back-down.png" />
     <Content Include="Content\img\back-hover.png" />
     <Content Include="Content\img\back-white.png" />
@@ -376,13 +379,34 @@
     <Content Include="Content\img\warningWhite.png" />
     <Content Include="Content\Site.css" />
     <Content Include="Content\themes\base\jquery-ui.css" />
+    <Content Include="DiagnosticTools\procdump.exe">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="favicon.ico" />
     <Content Include="Global.asax" />
-    <Content Include="..\packages\Microsoft.VisualStudio.DiagnosticAnalysis.ResultsViewer.1.0.1852.46\content\**\*" >
+    <Content Include="..\packages\Microsoft.VisualStudio.DiagnosticAnalysis.ResultsViewer.1.0.1879.56\content\**\*">
       <Link>DiagnosticAnalysis\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="scmApplicationHost.xdt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="DiagnosticTools\DumpAnalyzer.ps1">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="DiagnosticTools\JavaValidator.ps1">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="DiagnosticTools\mockAnalyzer.ps1">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="DiagnosticTools\mockCollector.ps1">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="DiagnosticTools\TestAnalyzer.pl">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Configuration\DiagnosticSettings.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <None Include="packages.config" />

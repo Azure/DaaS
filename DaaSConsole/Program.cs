@@ -397,13 +397,13 @@ namespace DaaSConsole
                 var scmHostingConfigPath = Environment.ExpandEnvironmentVariables("%ProgramFiles(x86)%\\SiteExtensions\\kudu\\ScmHostingConfigurations.txt");
                 if (!File.Exists(scmHostingConfigPath))
                 {
-                    return false;
+                    return true;
                 }
 
                 string fileContents = File.ReadAllText(scmHostingConfigPath);
-                if (!string.IsNullOrWhiteSpace(fileContents) && fileContents.Contains("UseV2ForDaaS=1"))
+                if (!string.IsNullOrWhiteSpace(fileContents) && fileContents.Contains("UseV2ForDaaS=0"))
                 {
-                    return true;
+                    return false;
                 }
             }
             catch (Exception ex)
@@ -411,7 +411,7 @@ namespace DaaSConsole
                 Logger.LogWarningEvent("Exception while checking ShouldSubmitV2Session", ex);
             }
 
-            return false;
+            return true;
         }
 
         private static bool IsSessionOption(Options options)
@@ -430,7 +430,8 @@ namespace DaaSConsole
                 Instances = new List<string>() { Environment.MachineName },
                 Tool = toolName,
                 ToolParams = toolParams,
-                Mode = GetModeFromOptions(options)
+                Mode = GetModeFromOptions(options),
+                Description = GetSessionDescription()
             };
 
             //
@@ -494,6 +495,23 @@ namespace DaaSConsole
                 mainSiteW3wpProcess.Kill();
                 Logger.LogSessionVerboseEvent($"DaasConsole killed process {mainSiteW3wpProcess.ProcessName} with pid {mainSiteW3wpProcess.Id}", sessionId);
             }
+        }
+
+        private static string GetSessionDescription()
+        {
+            //
+            // Starting ANT98 AutoHealing will inject the environment variable
+            // WEBSITE_AUTOHEAL_REASON whenever it is launching a custom action
+            //
+
+            string reason = "InvokedViaDaasConsole";
+            string val = Environment.GetEnvironmentVariable("WEBSITE_AUTOHEAL_REASON");
+            if (!string.IsNullOrWhiteSpace(val))
+            {
+                reason += $"-{val}";
+            }
+
+            return reason;
         }
 
         private static DaaS.V2.Mode GetModeFromOptions(Options options)

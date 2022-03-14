@@ -137,33 +137,8 @@
     <Compile Include="ZipStreamContent.cs" />
     <None Include="app.config" />
     <EmbeddedResource Include="Configuration\PrivateSettings.json" />
-    <None Include="DiagnosticTools\DumpAnalyzer.ps1">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="DiagnosticTools\JavaValidator.ps1">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="DiagnosticTools\mockAnalyzer.ps1">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="DiagnosticTools\mockCollector.ps1">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="DiagnosticTools\TestAnalyzer.pl">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <Content Include="Configuration\DiagnosticSettings.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Configuration\DiagnosticSettings.xml">
-      <SubType>Designer</SubType>
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <None Include="DiagnosticTools\procdump.exe">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
     <EmbeddedResource Include="Configuration\PrivateSettings.xml" />
   </ItemGroup>
   <ItemGroup>

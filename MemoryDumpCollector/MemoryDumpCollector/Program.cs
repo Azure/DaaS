@@ -302,12 +302,19 @@ namespace MemoryDumpCollector
 
         private static void GetMemoryDumpProcDump(Process process, string outputDir)
         {
-            string command = Path.Combine(_cdbFolder, "procdump.exe");
+            string command = EnvironmentVariables.ProcdumpPath;
             try
             {
+                string debuggerComment = "DaaS";
+                var sessionDescription = Environment.GetEnvironmentVariable("DAAS_SESSION_DESCRIPTION");
+                if (!string.IsNullOrWhiteSpace(sessionDescription))
+                {
+                    debuggerComment = $"\"{ sessionDescription }\"";
+                }
+
                 var cancellationTokenSource = new CancellationTokenSource();
                 Console.WriteLine(process.ProcessName + " is " + (process.IsWin64() ? "64" : "32") + "-bit");
-                string arguments = $" -accepteula -r -ma {process.Id} {outputDir}\\{Environment.MachineName}_{process.ProcessName}_{process.Id}_{DateTime.UtcNow:yyyyMMdd-HHmmss}.dmp";
+                string arguments = $" -accepteula -r -dc {debuggerComment} -ma {process.Id} {outputDir}\\{Environment.MachineName}_{process.ProcessName}_{process.Id}_{DateTime.UtcNow:yyyyMMdd-HHmmss}.dmp";
                 Console.WriteLine("Comand:");
                 Console.WriteLine(command + " " + arguments);
 

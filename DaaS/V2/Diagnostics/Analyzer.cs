@@ -57,7 +57,7 @@ namespace DaaS.V2
                     analyzerTimeoutCts.CancelAfter(TimeSpan.FromMinutes(Infrastructure.Settings.MaxAnalyzerTimeInMinutes));
                     var combinedCancellationSource = CancellationTokenSource.CreateLinkedTokenSource(token, analyzerTimeoutCts.Token);
 
-                    await Task.Run(() => RunProcessAsync(Command, args, activeSession.SessionId, combinedCancellationSource.Token), combinedCancellationSource.Token);
+                    await Task.Run(() => RunProcessAsync(Command, args, activeSession.SessionId, activeSession.Description, combinedCancellationSource.Token), combinedCancellationSource.Token);
                 }
 
                 AppendReportsToLogs(activeSession, logs);

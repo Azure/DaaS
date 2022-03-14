@@ -1240,13 +1240,13 @@ retryLabel:
                 string newDaasConsole = Path.Combine(Infrastructure.GetDaasInstalationPath(), "bin", "daasconsole.exe");
                 string oldDaasConsole = EnvironmentVariables.DaasConsole;
 
-                if (IsDaasRunnerVersionHigher(newDaasRunner, oldDaasRunner))
+                if (IsDaasRunnerVersionDifferent(newDaasRunner, oldDaasRunner))
                 {
                     CopyFileWithRetry(newDaasRunner, targetFile: oldDaasRunner);
                     CopyFileWithRetry($"{newDaasRunner}.config", targetFile: $"{oldDaasRunner}.config");
                 }
 
-                if (IsFileVersionHigher(newDaasConsole, oldDaasConsole))
+                if (IsFileVersionDifferent(newDaasConsole, oldDaasConsole))
                 {
                     CopyFileWithRetry(newDaasConsole, targetFile: oldDaasConsole);
                     CopyFileWithRetry($"{newDaasConsole}.config", targetFile: $"{oldDaasConsole}.config");
@@ -1324,7 +1324,7 @@ retryLabel:
             }
         }
 
-        private static bool IsFileVersionHigher(string newFile, string oldFile)
+        private static bool IsFileVersionDifferent(string newFile, string oldFile)
         {
             if (!FileSystemHelpers.FileExists(oldFile))
             {
@@ -1340,17 +1340,17 @@ retryLabel:
             Version oldVersion = GetFileVersion(oldFile);
             var fileName = Path.GetFileName(newFile);
 
-            if (oldVersion.CompareTo(newVersion) < 0)
+            if (oldVersion.Equals(newVersion))
             {
-                Logger.LogVerboseEvent($"[{fileName}] Current version : {oldVersion} is lower than version in Daas installation path : {newVersion}, new bits will be copied");
-                return true;
+                Logger.LogVerboseEvent($"[{fileName}] New version ({newVersion}) is the same as existing version {oldVersion}");
+                return false;
             }
 
-            Logger.LogVerboseEvent($"[{fileName}] New version ({newVersion}) is the same or less than the existing version {oldVersion}");
-            return false;
+            Logger.LogVerboseEvent($"[{fileName}] Current version : {oldVersion} is different than version in Daas installation path : {newVersion}, new bits will be copied");
+            return true;
         }
 
-        private static bool IsDaasRunnerVersionHigher(string newDaasRunner, string oldDaasRunner)
+        private static bool IsDaasRunnerVersionDifferent(string newDaasRunner, string oldDaasRunner)
         {
             if (!FileSystemHelpers.FileExists(oldDaasRunner))
             {
@@ -1371,21 +1371,20 @@ retryLabel:
 
             if (oldVersion.Major == 0)
             {
-                return IsFileVersionHigher(newDaasRunner, oldDaasRunner);
+                return IsFileVersionDifferent(newDaasRunner, oldDaasRunner);
             }
 
             Version newVersion = GetFileVersion(newDaasRunner);
 
-            if (oldVersion.CompareTo(newVersion) < 0)
+            if (oldVersion.Equals(newVersion))
             {
-                Logger.LogVerboseEvent($"[DaasRunner] Current version : {oldVersion} is lower than version in Daas installation path : {newVersion}, new bits will be copied");
-            }
-            else
-            {
-                Logger.LogVerboseEvent($"[DaasRunner] New version ({newVersion}) is the same or less than the existing version {oldVersion}");
+
+                Logger.LogVerboseEvent($"[DaasRunner] New version ({newVersion}) is the same as existing version {oldVersion}");
+                return false;
             }
 
-            return oldVersion.CompareTo(newVersion) < 0;
+            Logger.LogVerboseEvent($"[DaasRunner] Current version : {oldVersion} is different than version in Daas installation path : {newVersion}, new bits will be copied");
+            return true;
         }
 
         private static Version GetDaasRunnerVersion()

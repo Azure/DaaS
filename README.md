@@ -1,3 +1,4 @@
+[![Build Status](https://dev.azure.com/app-service-diagnostics-portal/app-service-diagnostics-portal/_apis/build/status/Azure.DaaS%20Build?branchName=main)](https://dev.azure.com/app-service-diagnostics-portal/app-service-diagnostics-portal/_build/latest?definitionId=41&branchName=main)
 
 # Contributing
 
