@@ -27,13 +27,32 @@ namespace Daas.Test
 
         internal static HttpClient GetHttpClient(IConfiguration configuration)
         {
+            string userName = configuration["KUDU_USERNAME"];
+            string password = configuration["KUDU_PASSWORD"];
             string kuduEndpoint = configuration["KUDU_ENDPOINT"];
+
+            if (string.IsNullOrWhiteSpace(userName))
+            {
+                throw new ArgumentNullException(nameof(userName));
+            }
+            if (string.IsNullOrWhiteSpace(password))
+            {
+                throw new ArgumentNullException(nameof(password));
+            }
+            if (string.IsNullOrWhiteSpace(kuduEndpoint))
+            {
+                throw new ArgumentNullException(nameof(kuduEndpoint));
+            }
+
+            Console.WriteLine("Kudu Endpoint = " + kuduEndpoint);
+            Console.WriteLine("Kudu UserName = " + userName);
+
             if (!kuduEndpoint.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
             {
                 kuduEndpoint = $"https://{kuduEndpoint}";
             }
 
-            var credentials = new NetworkCredential(configuration["KUDU_USERNAME"], configuration["KUDU_PASSWORD"]);
+            var credentials = new NetworkCredential(userName, password);
             var handler = new HttpClientHandler { Credentials = credentials };
 
             var client = new HttpClient(handler)
