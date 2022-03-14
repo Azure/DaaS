@@ -170,13 +170,8 @@ steps:
     pathToPublish: '$(build.artifactStagingDirectory)'
     artifactName: drop
 
-- task: DotNetCoreCLI@2
-  displayName: 'dotnet test'
+- task: VSTest@2
   inputs:
-    command: 'test'
-    projects: '**/*[Tt]ests/*.csproj'
-    arguments: '--configuration $(buildConfiguration) --collect "Code coverage"'
-    testRunTitle: 'DaaS Tests'
     platform: '$(buildPlatform)'
     configuration: '$(buildConfiguration)'
 
