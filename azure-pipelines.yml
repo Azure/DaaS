@@ -185,6 +185,7 @@ steps:
     platform: '$(buildPlatform)'
     configuration: '$(buildConfiguration)'
   env:
+    TESTING_PUNEET: 'TESTFOO'
     KUDU_ENDPOINT: $(KUDU_ENDPOINT)
     KUDU_USERNAME: $(KUDU_USERNAME)
     KUDU_PASSWORD: $(KUDU_PASSWORD)

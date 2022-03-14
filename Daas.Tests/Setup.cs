@@ -6,6 +6,7 @@
 // -----------------------------------------------------------------------
 
 using System;
+using System.Collections;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -30,6 +31,11 @@ namespace Daas.Test
             string userName = configuration["KUDU_USERNAME"];
             string password = configuration["KUDU_PASSWORD"];
             string kuduEndpoint = configuration["KUDU_ENDPOINT"];
+
+            foreach(DictionaryEntry e in Environment.GetEnvironmentVariables())
+            {
+                Console.WriteLine($"Variable {e.Key} = {e.Value}");
+            }
 
             if (string.IsNullOrWhiteSpace(userName))
             {
