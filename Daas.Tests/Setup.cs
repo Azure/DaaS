@@ -32,11 +32,6 @@ namespace Daas.Test
             string password = configuration["KUDU_PASSWORD"];
             string kuduEndpoint = configuration["KUDU_ENDPOINT"];
 
-            foreach(DictionaryEntry e in Environment.GetEnvironmentVariables())
-            {
-                Console.WriteLine($"Variable {e.Key} = {e.Value}");
-            }
-
             if (string.IsNullOrWhiteSpace(userName))
             {
                 userName = Environment.GetEnvironmentVariable("KUDU_USERNAME");
