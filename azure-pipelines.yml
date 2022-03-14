@@ -184,6 +184,10 @@ steps:
     codeCoverageEnabled: true
     platform: '$(buildPlatform)'
     configuration: '$(buildConfiguration)'
+  env:
+    KUDU_ENDPOINT: $(KUDU_ENDPOINT)
+    KUDU_USERNAME: $(KUDU_USERNAME)
+    KUDU_PASSWORD: $(KUDU_PASSWORD)
 
 
 - task: AzurePowerShell@5
