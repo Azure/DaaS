@@ -157,7 +157,8 @@ steps:
       Write-Host ("DaasVersion is " + $DaaSVersion)
 
       Write-Host "##vso[task.setvariable variable=KUDU_ENDPOINT]$kuduApiUrl"
-      Write-Host "##vso[task.setvariable variable=KUDU_AUTHORIZATION_HEADER;issecret=true]$authorizationHeader"
+      Write-Host "##vso[task.setvariable variable=KUDU_USERNAME]$userName"
+      Write-Host "##vso[task.setvariable variable=KUDU_PASSWORD]$password"
 
     azurePowerShellVersion: 'LatestVersion'
 
