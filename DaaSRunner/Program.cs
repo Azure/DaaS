@@ -587,15 +587,21 @@ namespace DaaSRunner
                 {
                     if (_runningSessions.ContainsKey(activeSession.SessionId))
                     {
+                        Logger.LogSessionVerboseEvent("Cancelling session as MaxSessionTimeInMinutes limit reached", activeSession.SessionId);
                         _runningSessions[activeSession.SessionId].CancellationTokenSource.Cancel();
                     }
+                    else
+                    {
+                        //
+                        // If the current instance is not running the session, mark the session as Complete
+                        // when MaxSessionTimeInMinutes is hit. This will ensure any long running sessions will
+                        // get completed and they will not hang indefinitely
+                        //
 
-                    //
-                    // Keeping this commented for now as task cancellations are propagated to collector
-                    // and analyzer both. We will see if a need for this code arises
-                    //
+                        Logger.LogSessionVerboseEvent("Forcefully marking the session as TimedOut as MaxSessionTimeInMinutes limit reached", activeSession.SessionId);
 
-                    // _ = _sessionManager.CheckandCompleteSessionIfNeededAsync(forceCompletion: true).Result;
+                        _ = _sessionManager.CheckandCompleteSessionIfNeededAsync(forceCompletion: true).Result;
+                    }
                 }
 
                 if (_sessionManager.ShouldCollectOnCurrentInstance(activeSession))
