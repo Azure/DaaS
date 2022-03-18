@@ -45,8 +45,9 @@ namespace Daas.Test
                 throw new ArgumentNullException(nameof(kuduEndpoint));
             }
 
-            Console.WriteLine("Kudu Endpoint = " + kuduEndpoint);
-            Console.WriteLine("Kudu UserName = " + userName);
+            // For Debugging VSTest in Azure Devops
+            // Console.WriteLine("Kudu Endpoint = " + kuduEndpoint);
+            // Console.WriteLine("Kudu UserName = " + userName);
 
             if (!kuduEndpoint.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
             {
