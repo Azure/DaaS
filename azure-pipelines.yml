@@ -116,13 +116,28 @@ steps:
         Write-Host "Encountered " + $_.Exception + " while cleaning up old resources"
       }
 
+      $storageAccountName = "daasdevopsstorage"
+      $checkNameAvail = (Get-AzStorageAccountNameAvailability -Name $storageAccountName) | Select-Object NameAvailable
+
+      if ($checkNameAvail.NameAvailable) {
+        $storageAccount = (New-AzStorageAccount -ResourceGroupName $resourceGroupName `
+          -AccountName $storageAccountName `
+          -Location $Env:LOCATION `
+          -SkuName "Standard_GRS" `
+          -AllowBlobPublicAccess $false -EnableHttpsTrafficOnly $true)
+      } else {
+        $storageAccount = Get-AzStorageAccount -ResourceGroupName $Env:RESOURCE_GROUP -StorageAccountName $storageAccountName
+      }
+
+      $sasUrl = New-AzStorageAccountSASToken -Context $storageAccount.context -Service Blob,Table,Queue -ResourceType Container,Object -Permission "acdlpruw" -ExpiryTime (Get-Date).AddDays(1)
+
       Write-Host "Creating App Service Plan"
       New-AzAppServicePlan -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location $Env:LOCATION -Tier "Basic" -WorkerSize "Small" | Out-Null
 
       Write-Host "Creating Web App"
       New-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location $Env:LOCATION -AppServicePlan $Env:SITE_NAME | Out-Null
       Set-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -AlwaysOn $true | Out-Null
-      $setting=@{"MSBUILD_PATH"="%MSBUILD_15_DIR%\\msbuild.exe"}
+      $setting=@{"MSBUILD_PATH"="%MSBUILD_15_DIR%\\msbuild.exe";"WEBSITE_DAAS_STORAGE_SASURI"=$sasUrl}
       Set-AzWebApp -AppSettings $setting -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP | Out-Null
 
       $srcWebApp = Get-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP
