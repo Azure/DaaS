@@ -83,7 +83,7 @@ steps:
 
 - task: ExtractFiles@1
   inputs:
-    archiveFilePatterns: '**/DaaS_$(Build.BuildId).zip'
+    archiveFilePatterns: '$(Build.ArtifactStagingDirectory)/DaaS_$(Build.BuildId).zip'
     destinationFolder: '$(build.artifactStagingDirectory)/$(DAAS_VERSION)'
     cleanDestinationFolder: true
     overwriteExistingFiles: true
