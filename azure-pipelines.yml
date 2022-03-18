@@ -80,6 +80,24 @@ steps:
     archiveFile: '$(Build.ArtifactStagingDirectory)/DaaS_$(Build.BuildId).zip'
     replaceExistingArchive: true
 
+
+- task: ExtractFiles@1
+  inputs:
+    archiveFilePatterns: '**/DaaS_$(Build.BuildId).zip'
+    destinationFolder: '$(build.artifactStagingDirectory)/$(DAAS_VERSION)'
+    cleanDestinationFolder: true
+    overwriteExistingFiles: true
+
+- task: ArchiveFiles@2
+  displayName: 'Create DaaS.$(DAAS_VERSION).zip'
+  inputs:
+    rootFolderOrFile: '$(build.artifactStagingDirectory)/$(DAAS_VERSION)'
+    includeRootFolder: true
+    archiveType: 'zip'
+    archiveFile: '$(Build.ArtifactStagingDirectory)/DaaS.$(DAAS_VERSION).zip'
+    replaceExistingArchive: true
+    verbose: true
+
 - task: PowerShell@2
   displayName: 'Clean-up build artifacts folder'
   inputs:
@@ -87,12 +105,14 @@ steps:
     script: |
       md $Env:AGENT_BUILDDIRECTORY\Temp\SiteExt
       Copy-Item -Path $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\DaaS_$Env:BUILD_BUILDID.zip -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExt\DaaS_$Env:BUILD_BUILDID.zip -Verbose
+      Copy-Item -Path $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\DaaS.$Env:DAAS_VERSION.zip -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExt\DaaS.$Env:DAAS_VERSION.zip -Verbose
 
       Write-Host Cleaning up ARTIFACTSTAGINGDIRECTORY
       Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY -Verbose
 
       md $Env:BUILD_ARTIFACTSTAGINGDIRECTORY
-      Copy-Item -Path $Env:AGENT_BUILDDIRECTORY\Temp\SiteExt\DaaS_$Env:BUILD_BUILDID.zip -Destination $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\DaaS_$Env:BUILD_BUILDID.zip 
+      Copy-Item -Path $Env:AGENT_BUILDDIRECTORY\Temp\SiteExt\DaaS_$Env:BUILD_BUILDID.zip -Destination $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\DaaS_$Env:BUILD_BUILDID.zip
+      Copy-Item -Path $Env:AGENT_BUILDDIRECTORY\Temp\SiteExt\DaaS.$Env:DAAS_VERSION.zip -Destination $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\DaaS.$Env:DAAS_VERSION.zip
       Write-Host FileVersion is $Env:DAAS_VERSION
     failOnStderr: true
     showWarnings: true
@@ -141,7 +161,9 @@ steps:
       Write-Host "Creating Web App"
       New-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location $Env:LOCATION -AppServicePlan $Env:SITE_NAME | Out-Null
       Set-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -AlwaysOn $true | Out-Null
-      $setting=@{"MSBUILD_PATH"="%MSBUILD_15_DIR%\\msbuild.exe";"WEBSITE_DAAS_STORAGE_SASURI"=$sasUrl}
+
+      Write-Host "Adding AppSettings for WebApp"
+      $setting=@{"MSBUILD_PATH"="%MSBUILD_15_DIR%\\msbuild.exe";"WEBSITE_DAAS_STORAGE_SASURI"= "$sasUrl"}
       Set-AzWebApp -AppSettings $setting -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP | Out-Null
 
       $srcWebApp = Get-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP
