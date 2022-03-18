@@ -124,7 +124,7 @@ steps:
           -AccountName $storageAccountName `
           -Location $Env:LOCATION `
           -SkuName "Standard_GRS" `
-          -AllowBlobPublicAccess $false -EnableHttpsTrafficOnly $true)
+          -AllowBlobPublicAccess $false)
       } else {
         $storageAccount = Get-AzStorageAccount -ResourceGroupName $Env:RESOURCE_GROUP -StorageAccountName $storageAccountName
       }
