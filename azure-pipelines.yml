@@ -80,6 +80,24 @@ steps:
     archiveFile: '$(Build.ArtifactStagingDirectory)/DaaS_$(Build.BuildId).zip'
     replaceExistingArchive: true
 
+
+- task: ExtractFiles@1
+  inputs:
+    archiveFilePatterns: '$(Build.ArtifactStagingDirectory)/DaaS_$(Build.BuildId).zip'
+    destinationFolder: '$(build.artifactStagingDirectory)/$(DAAS_VERSION)'
+    cleanDestinationFolder: true
+    overwriteExistingFiles: true
+
+- task: ArchiveFiles@2
+  displayName: 'Create DaaS RU zip'
+  inputs:
+    rootFolderOrFile: '$(build.artifactStagingDirectory)/$(DAAS_VERSION)'
+    includeRootFolder: true
+    archiveType: 'zip'
+    archiveFile: '$(Build.ArtifactStagingDirectory)/DaaS.$(DAAS_VERSION).zip'
+    replaceExistingArchive: true
+    verbose: true
+
 - task: PowerShell@2
   displayName: 'Clean-up build artifacts folder'
   inputs:
@@ -87,12 +105,14 @@ steps:
     script: |
       md $Env:AGENT_BUILDDIRECTORY\Temp\SiteExt
       Copy-Item -Path $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\DaaS_$Env:BUILD_BUILDID.zip -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExt\DaaS_$Env:BUILD_BUILDID.zip -Verbose
+      Copy-Item -Path $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\DaaS.$Env:DAAS_VERSION.zip -Destination $Env:AGENT_BUILDDIRECTORY\Temp\SiteExt\DaaS.$Env:DAAS_VERSION.zip -Verbose
 
       Write-Host Cleaning up ARTIFACTSTAGINGDIRECTORY
       Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY -Verbose
 
       md $Env:BUILD_ARTIFACTSTAGINGDIRECTORY
-      Copy-Item -Path $Env:AGENT_BUILDDIRECTORY\Temp\SiteExt\DaaS_$Env:BUILD_BUILDID.zip -Destination $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\DaaS_$Env:BUILD_BUILDID.zip 
+      Copy-Item -Path $Env:AGENT_BUILDDIRECTORY\Temp\SiteExt\DaaS_$Env:BUILD_BUILDID.zip -Destination $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\DaaS_$Env:BUILD_BUILDID.zip
+      Copy-Item -Path $Env:AGENT_BUILDDIRECTORY\Temp\SiteExt\DaaS.$Env:DAAS_VERSION.zip -Destination $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\DaaS.$Env:DAAS_VERSION.zip
       Write-Host FileVersion is $Env:DAAS_VERSION
     failOnStderr: true
     showWarnings: true
@@ -116,13 +136,35 @@ steps:
         Write-Host "Encountered " + $_.Exception + " while cleaning up old resources"
       }
 
+      Write-Host "Checking availability of Storage Account"
+      $storageAccountName = "daasdevopsstorage"
+      $checkNameAvail = (Get-AzStorageAccountNameAvailability -Name $storageAccountName) | Select-Object NameAvailable
+
+      if ($checkNameAvail.NameAvailable) {
+        Write-Host "Storage Account name is available. Creating storage account"
+        $storageAccount = (New-AzStorageAccount -ResourceGroupName $Env:RESOURCE_GROUP `
+          -AccountName $storageAccountName `
+          -Location $Env:LOCATION `
+          -SkuName "Standard_GRS" `
+          -AllowBlobPublicAccess $false)
+      } else {
+        Write-Host "Getting existing storage account"
+        $storageAccount = Get-AzStorageAccount -ResourceGroupName $Env:RESOURCE_GROUP -StorageAccountName $storageAccountName
+      }
+
+      Write-Host "Generating SAS URI"
+      $sasUrl = New-AzStorageAccountSASToken -Context $storageAccount.context -Service Blob,Table,Queue -ResourceType Container,Object -Permission "acdlpruw" -ExpiryTime (Get-Date).AddDays(1)
+      $sasUrl = "https://daasdevopsstorage.blob.core.windows.net/memorydumps" + $sasurl
+
       Write-Host "Creating App Service Plan"
       New-AzAppServicePlan -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location $Env:LOCATION -Tier "Basic" -WorkerSize "Small" | Out-Null
 
       Write-Host "Creating Web App"
       New-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location $Env:LOCATION -AppServicePlan $Env:SITE_NAME | Out-Null
       Set-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -AlwaysOn $true | Out-Null
-      $setting=@{"MSBUILD_PATH"="%MSBUILD_15_DIR%\\msbuild.exe"}
+
+      Write-Host "Adding AppSettings for WebApp"
+      $setting=@{"MSBUILD_PATH"="%MSBUILD_15_DIR%\\msbuild.exe";"WEBSITE_DAAS_STORAGE_SASURI"= "$sasUrl"}
       Set-AzWebApp -AppSettings $setting -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP | Out-Null
 
       $srcWebApp = Get-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP

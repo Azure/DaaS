@@ -5,8 +5,13 @@
 // </copyright>
 // -----------------------------------------------------------------------
 
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
+using System.Web.Http.Results;
+using DaaS.V2;
 using DiagnosticsExtension.Controllers;
 using Newtonsoft.Json;
 using Xunit;
@@ -101,5 +106,174 @@ namespace Daas.Test
                 Assert.True(resp.IsSuccessStatusCode);
             }
         }
+
+        [Fact]
+        public async Task SubmitMemoryDumpSession()
+        {
+            var session = await SubmitNewSession("MemoryDump");
+            var log = session.ActiveInstances.FirstOrDefault().Logs.FirstOrDefault();
+            Assert.Contains(".dmp", log.Name);
+            Assert.True(!string.IsNullOrWhiteSpace(session.BlobStorageHostName));
+
+            //
+            // Just ensure that size returned is within 50MB - 5GB
+            //
+
+            long minDumpSize = 52428800; // 50 MB
+            long maxDumpSize = 5368709120; // 5GB
+            Assert.InRange<long>(log.Size, minDumpSize, maxDumpSize);
+        }
+
+        [Fact]
+        public async Task SubmitProfilerSession()
+        {
+            var session = await SubmitNewSession("Profiler with Thread Stacks");
+            var log = session.ActiveInstances.FirstOrDefault().Logs.FirstOrDefault();
+            Assert.Contains(".zip", log.Name);
+
+            //
+            // Just ensure that size returned is within 1kb - 100MB
+            //
+
+            long minFileSize = 1024; // 1kb
+            long maxFileSize = 100 * 1024 * 1024; // 100MB
+            Assert.InRange(log.Size, minFileSize, maxFileSize);
+        }
+
+        [Fact]
+        public async Task InvokeListDiagnosersFromDaasConsole()
+        {
+
+            var daasConsoleResponseMessage = await _client.PostAsJsonAsync("api/command", new { command = "DaasConsole.exe -ListDiagnosers", dir = "data\\DaaS\\bin" });
+            daasConsoleResponseMessage.EnsureSuccessStatusCode();
+
+            string daasConsoleResponse = await daasConsoleResponseMessage.Content.ReadAsStringAsync();
+            var apiCommandResponse = JsonConvert.DeserializeObject<ApiCommandResponse>(daasConsoleResponse);
+            _output.WriteLine("ListDiagnosers response is " + apiCommandResponse.Output);
+        }
+
+        [Fact]
+        public async Task SubmitMockSessionFromDaasConsole()
+        {
+            var daasConsoleResponseMessage = await _client.PostAsJsonAsync("api/command", new { command = "DaasConsole.exe -Troubleshoot Mock", dir = "data\\DaaS\\bin" });
+            daasConsoleResponseMessage.EnsureSuccessStatusCode();
+
+            string daasConsoleResponse = await daasConsoleResponseMessage.Content.ReadAsStringAsync();
+            var apiCommandResponse = JsonConvert.DeserializeObject<ApiCommandResponse>(daasConsoleResponse);
+            _output.WriteLine("'DaasConsole.exe -Troubleshoot Mock' response is " + apiCommandResponse.Output);
+
+            string sessionId = string.Empty;
+            var daasConsoleOutput = apiCommandResponse.Output.Split(new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
+            foreach(var line in daasConsoleOutput)
+            {
+                if (line.StartsWith("Session submitted for "))
+                {
+                    sessionId = line.Split(' ').Last();
+                    break;
+                }
+            }
+
+            _output.WriteLine("SessionId is " + sessionId);
+
+            Assert.True(!string.IsNullOrWhiteSpace(sessionId));
+
+            var session = await GetSessionInformation(sessionId);
+            while (session.Status == Status.Active)
+            {
+                await Task.Delay(5000);
+                session = await GetSessionInformation(sessionId);
+            }
+
+            CheckSessionAsserts(session);
+        }
+
+        private async Task<Session> SubmitNewSession(string diagnosticTool)
+        {
+            var machineName = await GetMachineName();
+            var newSession = new Session()
+            {
+                Mode = Mode.CollectAndAnalyze,
+                Tool = diagnosticTool,
+                Instances = new List<string> { machineName }
+            };
+
+            var response = await _client.PostAsJsonAsync("daas/sessions", newSession);
+            Assert.NotNull(response);
+
+            Assert.Equal(System.Net.HttpStatusCode.Accepted, response.StatusCode);
+
+            string sessionIdResponse = await response.Content.ReadAsStringAsync();
+            Assert.NotNull(sessionIdResponse);
+
+            _output.WriteLine("SessionId Response is " + sessionIdResponse);
+
+            string sessionId = JsonConvert.DeserializeObject<string>(sessionIdResponse);
+
+            var session = await GetSessionInformation(sessionId);
+            while (session.Status == Status.Active)
+            {
+                await Task.Delay(15000);
+                session = await GetSessionInformation(sessionId);
+            }
+
+            CheckSessionAsserts(session);
+
+            return session;
+        }
+
+        private static void CheckSessionAsserts(Session session)
+        {
+            Assert.Equal(Status.Complete, session.Status);
+            Assert.False(session.EndTime == DateTime.MinValue || session.StartTime == DateTime.MinValue);
+
+            Assert.True(!string.IsNullOrWhiteSpace(session.Description));
+            Assert.True(!string.IsNullOrWhiteSpace(session.DefaultScmHostName));
+
+            Assert.NotNull(session.ActiveInstances);
+            Assert.NotEmpty(session.ActiveInstances);
+
+            Assert.NotNull(session.ActiveInstances.FirstOrDefault().Logs);
+            Assert.NotNull(session.ActiveInstances.FirstOrDefault().Logs.FirstOrDefault().Reports);
+            Assert.NotNull(session.ActiveInstances.FirstOrDefault().Logs.FirstOrDefault().Reports.FirstOrDefault());
+
+            var log = session.ActiveInstances.FirstOrDefault().Logs.FirstOrDefault();
+            var report = log.Reports.FirstOrDefault();
+
+            Assert.NotNull(report.Name);
+            Assert.NotNull(report.RelativePath);
+
+            Assert.StartsWith("https://", report.RelativePath, StringComparison.OrdinalIgnoreCase);
+            Assert.StartsWith("https://", log.RelativePath, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private async Task<Session> GetSessionInformation(string sessionId)
+        {
+            var sessionResponse = await _client.GetAsync($"daas/sessions/{sessionId}");
+            sessionResponse.EnsureSuccessStatusCode();
+
+            string sessionString = await sessionResponse.Content.ReadAsStringAsync();
+            var session = JsonConvert.DeserializeObject<Session>(sessionString);
+            return session;
+        }
+
+        private async Task<string> GetMachineName()
+        {
+            var machineResponseMessage = await _client.PostAsJsonAsync("api/command", new { command = "hostname", dir = "site" });
+            machineResponseMessage.EnsureSuccessStatusCode();
+
+            string machineNameResponse = await machineResponseMessage.Content.ReadAsStringAsync();
+            var apiCommandResponse = JsonConvert.DeserializeObject<ApiCommandResponse>(machineNameResponse);
+            string machineName = apiCommandResponse.Output;
+            machineName = machineName.Replace(Environment.NewLine, "");
+            _output.WriteLine("Machine Name is " + machineName);
+            return machineName;
+        }
+    }
+
+    class ApiCommandResponse
+    {
+        public string Output { get; set; }
+        public string Error { get; set; }
+        public int ExitCode { get; set; }
     }
 }
