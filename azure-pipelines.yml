@@ -89,7 +89,7 @@ steps:
     overwriteExistingFiles: true
 
 - task: ArchiveFiles@2
-  displayName: 'Create DaaS.$(DAAS_VERSION).zip'
+  displayName: 'Create DaaS RU zip'
   inputs:
     rootFolderOrFile: '$(build.artifactStagingDirectory)/$(DAAS_VERSION)'
     includeRootFolder: true
