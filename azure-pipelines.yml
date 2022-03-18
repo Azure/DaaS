@@ -116,19 +116,23 @@ steps:
         Write-Host "Encountered " + $_.Exception + " while cleaning up old resources"
       }
 
+      Write-Host "Checking availability of Storage Account"
       $storageAccountName = "daasdevopsstorage"
       $checkNameAvail = (Get-AzStorageAccountNameAvailability -Name $storageAccountName) | Select-Object NameAvailable
 
       if ($checkNameAvail.NameAvailable) {
-        $storageAccount = (New-AzStorageAccount -ResourceGroupName $resourceGroupName `
+        Write-Host "Storage Account name is available. Creating storage account"
+        $storageAccount = (New-AzStorageAccount -ResourceGroupName $Env:RESOURCE_GROUP `
           -AccountName $storageAccountName `
           -Location $Env:LOCATION `
           -SkuName "Standard_GRS" `
           -AllowBlobPublicAccess $false)
       } else {
+        Write-Host "Getting existing storage account"
         $storageAccount = Get-AzStorageAccount -ResourceGroupName $Env:RESOURCE_GROUP -StorageAccountName $storageAccountName
       }
 
+      Write-Host "Generating SAS URI"
       $sasUrl = New-AzStorageAccountSASToken -Context $storageAccount.context -Service Blob,Table,Queue -ResourceType Container,Object -Permission "acdlpruw" -ExpiryTime (Get-Date).AddDays(1)
 
       Write-Host "Creating App Service Plan"
