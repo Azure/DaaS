@@ -17,6 +17,8 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
     {
         public ResultStatus? Status;
         public string IdentityType;
+        public string StatusSummary;
+        public string StatusDetails;
         public string StatusText => Status?.ToString();
         public Exception Exception;
         public object Payload;
@@ -42,19 +44,15 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             EmptyConnectionString,
             MalformedConnectionString,
             ManagedIdentityCredentialInvalid,
-            ManagedIdentityClientIdEmpty,
+            ManagedIdentityClientIdNullorEmpty,
             FullyQualifiedNamespaceMissing,
             SystemAssignedIdentityFailure,
             UserAssignedIdentityFailure,
             ManagedIdentityNotConfigured,
             ManagedIdentityAuthFailure,
             ServiceUriMissing,
+            ManagedIdentityConnectionFailed,
             UnknownError,
-        }
-        public enum ManagedIdentityType
-        {
-            User,
-            System
         }
         public enum ManagedIdentityCommonProperty
         {

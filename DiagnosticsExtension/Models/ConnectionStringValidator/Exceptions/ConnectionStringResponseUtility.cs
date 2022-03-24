@@ -17,83 +17,60 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
 {
     public static class ConnectionStringResponseUtility
     {
-        #region string constants for network validator
-        public const string User = "User";
-        public const string System = "System";
-        public const string UnderscoreSeperator = "__";
-        public const string ColonSeparator = ":";
-        public const string ClientId = "__clientId";
-        public const string Credential = "__credential";
-        public const string ServiceUri = "__serviceUri";
-        public const string BlobServiceUri = "__blobServiceUri";
-        public const string ServiceUriMissing = "ServiceUriMissing";
-        public const string QueueServiceUri = "__queueServiceUri";
-        public const string ValidCredentialValue = "managedidentity";
-        public const string FullyQualifiedNamespace = "__fullyQualifiedNamespace";
-        public const string ManagedIdentityClientIdEmpty = "ManagedIdentityClientIdEmpty";
-        public const string ManagedIdentityCredentialInvalid = "ManagedIdentityCredentialInvalid";
-        #endregion
-
-        public static void EvaluateResponseStatus(Exception e, ConnectionStringType type, ref ConnectionStringValidationResult response)
+        public static void EvaluateResponseStatus(Exception e, ConnectionStringType type, ref ConnectionStringValidationResult response, string appSettingName = "")
         {
             if (e is MalformedConnectionStringException)
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.MalformedConnectionString;
+                response.StatusSummary = Constants.InvalidConnection;
+                response.StatusDetails = Constants.MalformedConnectionStringDetails + appSettingName;
+                response.Exception = e;
             }
             else if (e is EmptyConnectionStringException)
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.EmptyConnectionString;
-            }
-            else if (e is ManagedIdentityException && e.Message.Contains(ManagedIdentityCredentialInvalid))
-            {
-                response.Status = ConnectionStringValidationResult.ResultStatus.ManagedIdentityCredentialInvalid;
-            }
-            else if (e is ManagedIdentityException && e.Message.Contains(ManagedIdentityClientIdEmpty))
-            {
-                response.Status = ConnectionStringValidationResult.ResultStatus.ManagedIdentityClientIdEmpty;
+                response.StatusSummary = "The app setting " + appSettingName + " was not found or is set to a blank value";
+                response.Exception = e;
             }
             else if (e is UnauthorizedAccessException && e.Message.Contains("unauthorized") || e.Message.Contains("Unauthorized") || e.Message.Contains("request is not authorized"))
             {
-                if (string.IsNullOrEmpty(response.IdentityType))
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
-                }
-                else
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.ManagedIdentityAuthFailure;
-                }
-            }
-            else if (e is AuthenticationFailedException && e.Message.Contains("ManagedIdentityCredential"))
-            {
-                response.Status = ConnectionStringValidationResult.ResultStatus.ManagedIdentityNotConfigured;
-            }
-            else if (e.Message.Contains("fullyQualifiedNamespace"))
-            {
-                response.Status = ConnectionStringValidationResult.ResultStatus.FullyQualifiedNamespaceMissing;
-            }
-            else if (e is ManagedIdentityException && e.Message.Contains("ServiceUriMissing"))
-            {
-                response.Status = ConnectionStringValidationResult.ResultStatus.ServiceUriMissing;
+                response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
+                response.StatusSummary = Constants.AuthenticationFailure;
+                response.StatusDetails = Constants.AuthFailureDetails;
+
+                response.Exception = e;
             }
             else if (e.InnerException != null &&
                      e.InnerException.Message.Contains("The remote name could not be resolved"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.DnsLookupFailed;
+                response.StatusSummary = Constants.ResourceNotFound;
+                response.StatusDetails = Constants.DnsLookupFailedDetails;
+                response.Exception = e;
             }
             else if (e.InnerException != null && e.InnerException.InnerException != null &&
                         e.InnerException.InnerException.Message.Contains("The remote name could not be resolved"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.DnsLookupFailed;
+                response.StatusSummary = Constants.ResourceNotFound;
+                response.StatusDetails = Constants.DnsLookupFailedDetails;
+                response.Exception = e;
             }
             else if (e.Message.Contains("No such host is known"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.DnsLookupFailed;
+                response.StatusSummary = Constants.ResourceNotFound;
+                response.StatusDetails = Constants.DnsLookupFailedDetails;
+                response.Exception = e;
             }
             else if (e is ArgumentNullException ||
                          e.Message.Contains("could not be found") ||
                          e.Message.Contains("was not found"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.MalformedConnectionString;
+                response.StatusSummary = Constants.InvalidConnection;
+                response.StatusDetails = Constants.MalformedConnectionStringDetails;
+                response.Exception = e;
             }
             else if (e is ArgumentException && e.Message.Contains("entityPath is null") ||
                          e.Message.Contains("HostNotFound") ||
@@ -101,46 +78,50 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
                          e.Message.Contains("The argument  is null or white space"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.MalformedConnectionString;
+                response.StatusSummary = Constants.InvalidConnection;
+                response.StatusDetails = Constants.MalformedConnectionStringDetails;
+                response.Exception = e;
             }
             else if (e.Message.Contains("InvalidSignature"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
+                response.StatusSummary = Constants.AuthenticationFailure;
+                response.StatusDetails = Constants.AuthFailureDetails;
+                response.Exception = e;
             }
             else if ((e is ArgumentException && e.Message.Contains("Authentication")) ||
                          e.Message.Contains("claim is empty or token is invalid") ||
                          e.Message.Contains("InvalidSignature"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
+                response.StatusSummary = Constants.AuthenticationFailure;
+                response.StatusDetails = Constants.AuthFailureDetails;
+                response.Exception = e;
             }
             else if (e.Message.Contains("Ip has been prevented to connect to the endpoint"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.Forbidden;
+                response.Exception = e;
             }
             else if (e is StorageException)
             {
                 if (((StorageException)e).RequestInformation.HttpStatusCode == 401)
                 {
                     response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
+                    response.StatusSummary = Constants.AuthenticationFailure;
+                    response.StatusDetails = Constants.AuthFailureDetails;
                 }
                 else if (((StorageException)e).RequestInformation.HttpStatusCode == 403)
                 {
                     response.Status = ConnectionStringValidationResult.ResultStatus.Forbidden;
                 }
+                response.Exception = e;
             }
             else
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.UnknownError;
             }
-            response.Exception = e;
         }
-        public static string ResolveManagedIdentityCommonProperty(string appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty prop)
-        {
-            string commonPropertyValue = Environment.GetEnvironmentVariable(appSettingName + UnderscoreSeperator + prop.ToString());
-            if (string.IsNullOrEmpty(commonPropertyValue))
-            {
-                commonPropertyValue = Environment.GetEnvironmentVariable(appSettingName + ColonSeparator + prop.ToString());
-            }
-            return commonPropertyValue;
-        }
+
     }
 }

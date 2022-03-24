@@ -384,11 +384,14 @@
     <Compile Include="Models\ConnectionStringValidator\ConnectionStringRequestBody.cs" />
     <Compile Include="Models\ConnectionStringValidator\ConnectionStringType.cs" />
     <Compile Include="Models\ConnectionStringValidator\ConnectionStringValidationResult.cs" />
+    <Compile Include="Models\ConnectionStringValidator\Constants.cs" />
     <Compile Include="Models\ConnectionStringValidator\EventHubsValidator.cs" />
     <Compile Include="Models\ConnectionStringValidator\Exceptions\ConnectionStringResponseUtility.cs" />
     <Compile Include="Models\ConnectionStringValidator\Exceptions\EmptyConnectionStringException.cs" />
     <Compile Include="Models\ConnectionStringValidator\Exceptions\MalformedConnectionStringException.cs" />
+    <Compile Include="Models\ConnectionStringValidator\Exceptions\ManagedIdentityConnectionResponseUtility.cs" />
     <Compile Include="Models\ConnectionStringValidator\Exceptions\ManagedIdentityException.cs" />
+    <Compile Include="Models\ConnectionStringValidator\ManagedIdentityCredentialTokenValidator.cs" />
     <Compile Include="Models\ConnectionStringValidator\QueueStorageValidator.cs" />
     <Compile Include="Models\ConnectionStringValidator\BlobStorageValidator.cs" />
     <Compile Include="Models\ConnectionStringValidator\IConnectionStringValidator.cs" />

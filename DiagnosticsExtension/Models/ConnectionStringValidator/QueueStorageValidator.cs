@@ -26,7 +26,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
         public async Task<ConnectionStringValidationResult> ValidateViaAppsettingAsync(string appSettingName, string entityName)
         {
             ConnectionStringValidationResult response = new ConnectionStringValidationResult(Type);
-
+            bool isManagedIdentityConnection = false;
             try
             {
                 var envDict = Environment.GetEnvironmentVariables();
@@ -51,39 +51,40 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                 }
                 else
                 {
-                    string serviceUriString = ConnectionStringResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.queueServiceUri);
+                    isManagedIdentityConnection = true;
+                    string serviceUriString = ManagedIdentityConnectionResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.queueServiceUri);
                     if (!string.IsNullOrEmpty(serviceUriString))
                     {
-                        appSettingClientIdValue = ConnectionStringResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.clientId);
-                        appSettingClientCredValue = ConnectionStringResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.credential);
+                        appSettingClientIdValue = ManagedIdentityConnectionResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.clientId);
+                        appSettingClientCredValue = ManagedIdentityConnectionResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.credential);
                         Uri serviceUri = new Uri(serviceUriString);
                         // Creating client using User assigned managed identity
                         if (appSettingClientCredValue != null)
                         {
-                            if (appSettingClientCredValue != ConnectionStringResponseUtility.ValidCredentialValue)
+                            if (appSettingClientCredValue != Constants.ValidCredentialValue)
                             {
-                                throw new ManagedIdentityException(ConnectionStringResponseUtility.ManagedIdentityCredentialInvalid);
+                                throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityCredentialInvalid, appSettingName));
                             }
                             if (string.IsNullOrEmpty(appSettingClientIdValue))
                             {
-                                throw new ManagedIdentityException(ConnectionStringResponseUtility.ManagedIdentityClientIdEmpty);
+                                throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityClientIdNullorEmpty, appSettingName));
                             }
-                            response.IdentityType = ConnectionStringResponseUtility.User;
+                            response.IdentityType = Constants.User;
                             client = new QueueServiceClient(serviceUri, new Azure.Identity.ManagedIdentityCredential(appSettingClientIdValue));
                         }
                         // Creating client using System assigned managed identity
                         else
                         {
-                            response.IdentityType = ConnectionStringResponseUtility.System;
+                            response.IdentityType = Constants.System;
                             client = new QueueServiceClient(serviceUri, new Azure.Identity.ManagedIdentityCredential());
                         }
                     }
                     else
                     {
-                        throw new ManagedIdentityException(ConnectionStringResponseUtility.ServiceUriMissing);
+                        throw new ManagedIdentityException(String.Format(Constants.QueueServiceUriMissing, appSettingName));
                     }
                 }
-                client.GetQueuesAsync();
+                //client.GetQueuesAsync();
                 var resultSegment =
                 client.GetQueues(QueueTraits.Metadata, null, default)
                 .AsPages(default, 10);
@@ -98,7 +99,14 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             }
             catch (Exception e)
             {
-                ConnectionStringResponseUtility.EvaluateResponseStatus(e, Type, ref response);
+                if (isManagedIdentityConnection)
+                {
+                    ManagedIdentityConnectionResponseUtility.EvaluateResponseStatus(e, Type, ref response, appSettingName);
+                }
+                else
+                {
+                    ConnectionStringResponseUtility.EvaluateResponseStatus(e, Type, ref response, appSettingName);
+                }
             }
 
             return response;

@@ -74,7 +74,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
         async public Task<ConnectionStringValidationResult> ValidateViaAppsettingAsync(string appSettingName, string entityName)
         {
             ConnectionStringValidationResult response = new ConnectionStringValidationResult(Type);
-
+            bool isManagedIdentityConnection = false;
             try
             {
                 string appSettingClientIdValue, appSettingClientCredValue = "";
@@ -97,35 +97,29 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                 }
                 else
                 {
-                    try
+                    isManagedIdentityConnection = true;
+                    string serviceUriString = ManagedIdentityConnectionResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.fullyQualifiedNamespace);
+                    appSettingClientIdValue = ManagedIdentityConnectionResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.clientId);
+                    appSettingClientCredValue = ManagedIdentityConnectionResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.credential);
+                    // Creating client using User assigned managed identity
+                    if (appSettingClientCredValue != null)
                     {
-                        string serviceUriString = ConnectionStringResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.fullyQualifiedNamespace);
-                        appSettingClientIdValue = ConnectionStringResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.clientId);
-                        appSettingClientCredValue = ConnectionStringResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.credential);
-                        // Creating client using User assigned managed identity
-                        if (appSettingClientCredValue != null)
+                        if (appSettingClientCredValue != Constants.ValidCredentialValue)
                         {
-                            if (appSettingClientCredValue != ConnectionStringResponseUtility.ValidCredentialValue)
-                            {
-                                throw new ManagedIdentityException(ConnectionStringResponseUtility.ManagedIdentityCredentialInvalid);
-                            }
-                            if (string.IsNullOrEmpty(appSettingClientIdValue))
-                            {
-                                throw new ManagedIdentityException(ConnectionStringResponseUtility.ManagedIdentityClientIdEmpty);
-                            }
-                            response.IdentityType = ConnectionStringResponseUtility.User;
-                            client = new EventHubProducerClient(serviceUriString, eventHubName, new ManagedIdentityCredential(appSettingClientIdValue));
+                            throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityCredentialInvalid, appSettingName));
                         }
-                        // Creating client using System assigned managed identity
-                        else
+                        if (string.IsNullOrEmpty(appSettingClientIdValue))
                         {
-                            response.IdentityType = ConnectionStringResponseUtility.System;
-                            client = new EventHubProducerClient(serviceUriString, eventHubName, new ManagedIdentityCredential());
+                            throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityClientIdNullorEmpty, appSettingName));
                         }
+                        response.IdentityType = Constants.User;
+                        client = new EventHubProducerClient(serviceUriString, eventHubName, new ManagedIdentityCredential(appSettingClientIdValue));
                     }
-                    catch (Exception e)
+                    // Creating client using System assigned managed identity
+                    else
                     {
-                        throw new ManagedIdentityException(e.Message, e);
+                        response.IdentityType = Constants.System;
+                        client = new EventHubProducerClient(serviceUriString, eventHubName, new ManagedIdentityCredential());
                     }
                 }
                 await client.GetPartitionIdsAsync();
@@ -135,7 +129,14 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             }
             catch (Exception e)
             {
-                ConnectionStringResponseUtility.EvaluateResponseStatus(e, Type, ref response);
+                if (isManagedIdentityConnection)
+                {
+                    ManagedIdentityConnectionResponseUtility.EvaluateResponseStatus(e, Type, ref response, appSettingName);
+                }
+                else
+                {
+                    ConnectionStringResponseUtility.EvaluateResponseStatus(e, Type, ref response, appSettingName);
+                }
             }
 
             return response;

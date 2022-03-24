@@ -89,7 +89,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
         async public Task<ConnectionStringValidationResult> ValidateViaAppsettingAsync(string appSettingName, string entityName)
         {
             ConnectionStringValidationResult response = new ConnectionStringValidationResult(Type);
-
+            bool isManagedIdentityConnection = false;
             try
             {
                 string appSettingClientIdValue, appSettingClientCredValue = "";
@@ -111,27 +111,28 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                 }
                 else
                 {
-                    string serviceUriString = ConnectionStringResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.fullyQualifiedNamespace);
-                    appSettingClientIdValue = ConnectionStringResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.clientId);
-                    appSettingClientCredValue = ConnectionStringResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.credential);
+                    isManagedIdentityConnection = true;
+                    string serviceUriString = ManagedIdentityConnectionResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.fullyQualifiedNamespace);
+                    appSettingClientIdValue = ManagedIdentityConnectionResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.clientId);
+                    appSettingClientCredValue = ManagedIdentityConnectionResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.credential);
                     // Creating client using User assigned managed identity
                     if (appSettingClientCredValue != null)
                     {
-                        if (appSettingClientCredValue != ConnectionStringResponseUtility.ValidCredentialValue)
+                        if (appSettingClientCredValue != Constants.ValidCredentialValue)
                         {
-                            throw new ManagedIdentityException(ConnectionStringResponseUtility.ManagedIdentityCredentialInvalid);
+                            throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityCredentialInvalid, appSettingName));
                         }
                         if (string.IsNullOrEmpty(appSettingClientIdValue))
                         {
-                            throw new ManagedIdentityException(ConnectionStringResponseUtility.ManagedIdentityClientIdEmpty);
+                            throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityClientIdNullorEmpty, appSettingName));
                         }
-                        response.IdentityType = ConnectionStringResponseUtility.User;
+                        response.IdentityType = Constants.User;
                         client = new ServiceBusClient(serviceUriString, new Azure.Identity.ManagedIdentityCredential(appSettingClientIdValue));
                     }
                     // Creating client using System assigned managed identity
                     else
                     {
-                        response.IdentityType = ConnectionStringResponseUtility.System;
+                        response.IdentityType = Constants.System;
                         client = new ServiceBusClient(serviceUriString, new Azure.Identity.ManagedIdentityCredential());
                     }
                 }
@@ -145,7 +146,14 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             }
             catch (Exception e)
             {
-                ConnectionStringResponseUtility.EvaluateResponseStatus(e, Type, ref response);
+                if (isManagedIdentityConnection)
+                {
+                    ManagedIdentityConnectionResponseUtility.EvaluateResponseStatus(e, Type, ref response, appSettingName);
+                }
+                else
+                {
+                    ConnectionStringResponseUtility.EvaluateResponseStatus(e, Type, ref response, appSettingName);
+                }
             }
 
             return response;
