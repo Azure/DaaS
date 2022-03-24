@@ -84,7 +84,6 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                         throw new ManagedIdentityException(String.Format(Constants.QueueServiceUriMissing, appSettingName));
                     }
                 }
-                //client.GetQueuesAsync();
                 var resultSegment =
                 client.GetQueues(QueueTraits.Metadata, null, default)
                 .AsPages(default, 10);
