@@ -37,8 +37,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
         public const string InvalidConnection = "Invalid connection string";
         public const string ResourceNotFound = "Resource not found";
         public const string DetailsHeader = "Please see exception below. ";
-        public const string ClientIdInvalidTokenGeneratedResponse = "ClientIdInvalidTokenGeneratedResponse";
-        public const string ClientIdInvalidTokenGenerated = "An invalid clientId has been provided in {0}__clientId. But managed identity connection was attempted becasuse function app has system assigned identity turned on. ";
+        public const string ClientIdInvalidTokenGenerated = "An invalid clientId has been provided in {0}__clientId. But managed identity connection was attempted because function app has system assigned identity turned on. ";
         public const string SystemAssignedAuthFailure = "The azure resource mentioned in {0} is not provided with access to the function app using system assigned identity. <a href= 'https://docs.microsoft.com/en-us/azure/azure-functions/functions-reference?tabs=blob#configure-an-identity-based-connection' target='_blank'>Click here to know more</a>";
         public const string UserAssignedAuthFailure = "The azure resource mentioned in {0} is not provided with access to the managed identity resource having clientId specified in appsetting {1}__clientId . <a href= 'https://docs.microsoft.com/en-us/azure/azure-functions/functions-reference?tabs=blob#configure-an-identity-based-connection' target='_blank'>Click here to know more</a>";
         public const string AuthFailureDetails = "Authentication failure -the credentials in the configured connection string are either invalid or expired. Please update the app setting with a valid connection string.";

@@ -113,7 +113,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                             throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityClientIdNullorEmpty, appSettingName));
                         }
                         response.IdentityType = Constants.User;
-                        client = new EventHubProducerClient(serviceUriString, eventHubName, new ManagedIdentityCredential(appSettingClientIdValue));
+                        client = new EventHubProducerClient(serviceUriString, eventHubName, ManagedIdentityCredentialTokenValidator.GetValidatedCredential(appSettingClientIdValue, appSettingName));
                     }
                     // Creating client using System assigned managed identity
                     else

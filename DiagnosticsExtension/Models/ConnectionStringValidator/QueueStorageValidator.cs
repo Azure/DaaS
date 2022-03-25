@@ -70,7 +70,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                                 throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityClientIdNullorEmpty, appSettingName));
                             }
                             response.IdentityType = Constants.User;
-                            client = new QueueServiceClient(serviceUri, new Azure.Identity.ManagedIdentityCredential(appSettingClientIdValue));
+                            client = new QueueServiceClient(serviceUri, ManagedIdentityCredentialTokenValidator.GetValidatedCredential(appSettingClientIdValue, appSettingName));
                         }
                         // Creating client using System assigned managed identity
                         else

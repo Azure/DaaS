@@ -18,7 +18,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
 {
     public static class ManagedIdentityCredentialTokenValidator
     {
-        public static ManagedIdentityCredential GetValidatedCredential(string clientId)
+        public static ManagedIdentityCredential GetValidatedCredential(string clientId, string appSettingName)
         {
             var tokenCredential = new ManagedIdentityCredential(clientId);
 
@@ -26,11 +26,11 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
 
             JwtSecurityTokenHandler jwtHandler = new JwtSecurityTokenHandler();
 
-            string appId = jwtHandler.ReadJwtToken(accessToken.Result.Token).Claims.ToList().Where(c => c.Type == "appid").FirstOrDefault().Value;
+            string appId = jwtHandler.ReadJwtToken(accessToken.Result.Token).Claims.First(x => x.Type == "appid").Value;
 
-            if(clientId != "" && appId != clientId)
+            if (appId != clientId)
             {
-                throw new ManagedIdentityException(Constants.ClientIdInvalidTokenGeneratedResponse);
+                throw new ManagedIdentityException(String.Format(Constants.ClientIdInvalidTokenGenerated,appSettingName));
             }
 
             return tokenCredential;
