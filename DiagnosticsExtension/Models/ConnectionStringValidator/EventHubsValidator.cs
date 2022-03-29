@@ -106,11 +106,12 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                     {
                         if (appSettingClientCredValue != Constants.ValidCredentialValue)
                         {
-                            throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityCredentialInvalid, appSettingName));
+                            throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityCredentialInvalidSummary, appSettingName), Constants.ManagedIdentityCredentialInvalidDetails);
                         }
                         if (string.IsNullOrEmpty(appSettingClientIdValue))
                         {
-                            throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityClientIdNullorEmpty, appSettingName));
+                            throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityClientIdNullOrEmptySummary, appSettingName),
+                                                               String.Format(Constants.ManagedIdentityClientIdNullOrEmptyDetails, appSettingName));
                         }
                         response.IdentityType = Constants.User;
                         client = new EventHubProducerClient(serviceUriString, eventHubName, ManagedIdentityCredentialTokenValidator.GetValidatedCredential(appSettingClientIdValue, appSettingName));

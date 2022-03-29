@@ -63,11 +63,12 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                         {
                             if (appSettingClientCredValue != Constants.ValidCredentialValue)
                             {
-                                throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityCredentialInvalid, appSettingName));
+                                throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityCredentialInvalidSummary, appSettingName), Constants.ManagedIdentityCredentialInvalidDetails);
                             }
                             if (string.IsNullOrEmpty(appSettingClientIdValue))
                             {
-                                throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityClientIdNullorEmpty, appSettingName));
+                                throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityClientIdNullOrEmptySummary, appSettingName),
+                                                                   String.Format(Constants.ManagedIdentityClientIdNullOrEmptyDetails, appSettingName));
                             }
                             response.IdentityType = Constants.User;
                             client = new QueueServiceClient(serviceUri, ManagedIdentityCredentialTokenValidator.GetValidatedCredential(appSettingClientIdValue, appSettingName));
@@ -81,7 +82,8 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                     }
                     else
                     {
-                        throw new ManagedIdentityException(String.Format(Constants.QueueServiceUriMissing, appSettingName));
+                        throw new ManagedIdentityException(String.Format(Constants.QueueServiceUriMissingSummary, appSettingName),
+                                                           Constants.QueueServiceUriMissingDetails);
                     }
                 }
                 var resultSegment =

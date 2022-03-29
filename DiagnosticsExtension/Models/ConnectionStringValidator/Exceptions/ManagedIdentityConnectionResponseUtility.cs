@@ -36,7 +36,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
                 }
                 else
                 {
-                    response.StatusDetails = String.Format(Constants.UserAssignedAuthFailure, GetTargetConnectionAppSettingName(type, appSettingName), appSettingName);
+                    response.StatusDetails = String.Format(Constants.UserAssignedAuthFailure, GetTargetConnectionAppSettingName(type, appSettingName));
                 }
 
                 response.Exception = e;
@@ -58,9 +58,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
             {
 
                 response.Status = ConnectionStringValidationResult.ResultStatus.DnsLookupFailed;
-                response.StatusSummary = Constants.ResourceNotFound;
-                response.StatusDetails = String.Format(Constants.StorageAccountResourceNotFound, GetTargetConnectionAppSettingName(type, appSettingName));
-                response.Exception = e;
+                response.StatusSummary = String.Format(Constants.StorageAccountResourceNotFound, GetTargetConnectionAppSettingName(type, appSettingName));
             }
             else if (e.Message.Contains("No such host is known")) // event hub and service bus
             {

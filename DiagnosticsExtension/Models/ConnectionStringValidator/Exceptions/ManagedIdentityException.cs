@@ -14,16 +14,17 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
 {
     public class ManagedIdentityException : Exception
     {
+        public string MessageSummary { get; }
+        public string MessageDetails { get; }
+
         public ManagedIdentityException() : base()
         { 
         }
 
-        public ManagedIdentityException(string message) : base(message)
+        public ManagedIdentityException(string summary, string details) : base()
         { 
-        }
-
-        public ManagedIdentityException(string message, Exception innerException) : base(message, innerException)
-        { 
+            this.MessageSummary = summary;
+            this.MessageDetails = details;
         }
     }
 }

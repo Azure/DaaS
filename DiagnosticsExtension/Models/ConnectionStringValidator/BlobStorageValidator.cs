@@ -35,6 +35,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                 BlobServiceClient client = null;
                 if (envDict.Contains(appSettingName))
                 {
+                    // Connection String
                     try
                     {
                         string connectionString = Environment.GetEnvironmentVariable(appSettingName);
@@ -51,6 +52,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                 }
                 else
                 {
+                    // Managed Identity
                     isManagedIdentityConnection = true;
                     string serviceUriString = ManagedIdentityConnectionResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.blobServiceUri);
                     if (string.IsNullOrEmpty(serviceUriString))
@@ -67,11 +69,12 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                         {
                             if (appSettingClientCredValue != Constants.ValidCredentialValue)
                             {
-                                throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityCredentialInvalid, appSettingName));
+                                throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityCredentialInvalidSummary, appSettingName), Constants.ManagedIdentityCredentialInvalidDetails);
                             }
                             if (string.IsNullOrEmpty(appSettingClientIdValue))
                             {
-                                throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityClientIdNullorEmpty, appSettingName));
+                                throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityClientIdNullOrEmptySummary, appSettingName),
+                                                                   String.Format(Constants.ManagedIdentityClientIdNullOrEmptyDetails, appSettingName));
                             }
                             response.IdentityType = Constants.User;
                             client = new BlobServiceClient(serviceUri, ManagedIdentityCredentialTokenValidator.GetValidatedCredential(appSettingClientIdValue,appSettingName));
@@ -88,9 +91,11 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                         string serviceuriAppSettingName = Environment.GetEnvironmentVariables().Keys.Cast<string>().Where(k => k.StartsWith(appSettingName) && k.ToLower().EndsWith("serviceuri")).FirstOrDefault();
                         if (serviceuriAppSettingName == null)
                         {
-                            throw new ManagedIdentityException(String.Format(Constants.BlobServiceUriMissing, appSettingName));
+                            throw new ManagedIdentityException(Constants.BlobServiceUriMissingSummary, 
+                                                               Constants.BlobServiceUriMissingDetails);
                         }
-                        throw new ManagedIdentityException(String.Format(Constants.BlobServiceUriEmpty, serviceuriAppSettingName));
+                        throw new ManagedIdentityException(String.Format(Constants.BlobServiceUriEmptySummary, serviceuriAppSettingName), 
+                                                           Constants.BlobServiceUriEmptyDetails);
 
                     }
                 }
