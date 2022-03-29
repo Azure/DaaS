@@ -22,8 +22,8 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
             if (e is ManagedIdentityException)
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.ManagedIdentityConnectionFailed;
-                response.StatusSummary = Constants.ConnectionInformation;
-                response.StatusDetails = Constants.DetailsHeader;
+                response.StatusSummary = ((ManagedIdentityException)e).MessageSummary;
+                response.StatusDetails = ((ManagedIdentityException)e).MessageDetails;
                 response.Exception = e;
             }
             else if (e is UnauthorizedAccessException && e.Message.Contains("unauthorized") || e.Message.Contains("Unauthorized") || e.Message.Contains("request is not authorized"))
