@@ -45,10 +45,10 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
         
         public const string AuthFailureDetails = "Authentication failure -the credentials in the configured connection string are either invalid or expired. Please update the app setting with a valid connection string.";
         public const string DnsLookupFailedDetails = "The service resource specified in the connection string was not found. Please check the value of the setting.";
-        public const string FQNamespaceResourceNotFound = "The resource specified in the app setting {0}__fullyQualifiedNamespace was not found. Please check the value of the setting.";
+        public const string FQNamespaceResourceNotFound = "The resource specified in the app setting {0}" + FullyQualifiedNamespace + " was not found. Please check the value of the setting.";
         public const string StorageAccountResourceNotFound = "The resource specified in the app setting {0} was not found. Please check the value of the setting.";
         public const string MalformedConnectionStringDetails = "The connection string configured is invalid(e.g.missing some required elements). Please check the value configured in the app setting ";
-        public const string ManagedIdentityCredentialInvalidSummary = "The app setting {0}" + Credential + " is defined but not valid.  To configure user assigned managed identity, set it's value to \"managedidentity\".";
+        public const string ManagedIdentityCredentialInvalidSummary = "The app setting {0}" + Credential + " is defined but not valid.  To use identity based connections, set it's value to \"managedidentity\".";
         public const string ManagedIdentityCredentialInvalidDetails = "Refer <a href='https://docs.microsoft.com/azure/azure-functions/functions-reference#common-properties-for-identity-based-connections' target='_blank'>here</a> for more information about configuring this app setting. " + ManagedIdentityTutorial;
         #endregion
     }

@@ -44,13 +44,13 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
             else if (e is AuthenticationFailedException && e.Message.Contains("ManagedIdentityCredential"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.ManagedIdentityNotConfigured;
-                response.StatusSummary = "Your app is not having managed identity configured for making a successful connection. <a href= 'https://docs.microsoft.com/en-us/azure/azure-functions/functions-reference?tabs=blob#configure-an-identity-based-connection' target='_blank'>Click here to know more</a>";
+                response.StatusSummary = "Your app is configured to use identity based connection but does not have a system assigned managed identity assigned. Refer <a href= 'https://docs.microsoft.com/azure/azure-functions/functions-reference#configure-an-identity-based-connection' target='_blank'>here</a> for details.";
                 response.Exception = e;
             }
             else if (e.Message.Contains("fullyQualifiedNamespace"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.FullyQualifiedNamespaceMissing;
-                response.StatusSummary = "The app setting " + appSettingName + "__fullyQualifiedNamespace was not found or is set to a blank value <a href= 'https://docs.microsoft.com/en-us/azure/azure-functions/functions-reference?tabs=blob#common-properties-for-identity-based-connections' target='_blank'>Click here to know more</a>";
+                response.StatusSummary = "The app setting " + appSettingName + FullyQualifiedNamespace + " was not found or is set to a blank value. Refer <a href= 'https://docs.microsoft.com/azure/azure-functions/functions-reference#configure-an-identity-based-connection' target='_blank'>here</a> for details.";
                 response.Exception = e;
             }
             else if (e.InnerException != null &&

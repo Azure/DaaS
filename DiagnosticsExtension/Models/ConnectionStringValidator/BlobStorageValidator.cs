@@ -61,27 +61,28 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                     }
                     if (!string.IsNullOrEmpty(serviceUriString))
                     {
+                        string clientIdAppSettingKey = Environment.GetEnvironmentVariables().Keys.Cast<string>().Where(k => k.StartsWith(appSettingName) && k.ToLower().EndsWith("clientId")).FirstOrDefault();
                         appSettingClientIdValue = ManagedIdentityConnectionResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.clientId);
                         appSettingClientCredValue = ManagedIdentityConnectionResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.credential);
-                        Uri serviceUri = new Uri(serviceUriString);
-                        // Creating client using User assigned managed identity
-                        if (appSettingClientCredValue != null)
+                        if (appSettingClientCredValue != null && appSettingClientCredValue != Constants.ValidCredentialValue)
                         {
-                            if (appSettingClientCredValue != Constants.ValidCredentialValue)
+                            throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityCredentialInvalidSummary, appSettingName), Constants.ManagedIdentityCredentialInvalidDetails);
+                        }
+                        Uri serviceUri = new Uri(serviceUriString);
+                        // If the user has configured __credential with "managedidentity" and set an app setting for __clientId (even if its empty) we assume their intent is to use a user assigned managed identity
+                        if (appSettingClientCredValue != null && clientIdAppSettingKey != null)
+                        {   
+                            if (appSettingClientIdValue == null)
                             {
-                                throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityCredentialInvalidSummary, appSettingName), Constants.ManagedIdentityCredentialInvalidDetails);
-                            }
-                            if (string.IsNullOrEmpty(appSettingClientIdValue))
-                            {
-                                throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityClientIdNullOrEmptySummary, appSettingName),
-                                                                   String.Format(Constants.ManagedIdentityClientIdNullOrEmptyDetails, appSettingName));
+                                throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityClientIdEmptySummary, appSettingName),
+                                                                   String.Format(Constants.ManagedIdentityClientIdEmptyDetails, appSettingName));
                             }
                             response.IdentityType = Constants.User;
                             client = new BlobServiceClient(serviceUri, ManagedIdentityCredentialTokenValidator.GetValidatedCredential(appSettingClientIdValue,appSettingName));
                         }
-                        // Creating client using System assigned managed identity
                         else
                         {
+                            // Creating client using System assigned managed identity
                             response.IdentityType = Constants.System;
                             client = new BlobServiceClient(serviceUri, new Azure.Identity.ManagedIdentityCredential());
                         }
