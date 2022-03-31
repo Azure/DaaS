@@ -8,7 +8,9 @@ $programfiles = [System.Environment]::ExpandEnvironmentVariables("%ProgramFiles(
 [string] $rules = "CrashHangAnalysis"
 [string] $tempDir = $Env:TEMP
 
-Add-Type -Path "DAAS.dll"
+$daasDllPath = [io.path]::combine($PSScriptRoot, "DAAS.dll")
+Add-Type -Path $daasDllPath
+
 [DaaS.Logger]::Init("",$outputPath, "DumpAnalyzer", $false) 
 
 $dumpfileSize =  0

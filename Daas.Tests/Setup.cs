@@ -56,6 +56,7 @@ namespace Daas.Test
 
             var credentials = new NetworkCredential(userName, password);
             var handler = new HttpClientHandler { Credentials = credentials };
+            handler.ServerCertificateCustomValidationCallback += (sender, cert, chain, sslPolicyErrors) => true;
 
             var client = new HttpClient(handler)
             {

@@ -1,6 +1,8 @@
 ﻿param([string] $logfile, [string] $outputPath)
 
-Add-Type -Path "DAAS.dll"
+$daasDllPath = [io.path]::combine($PSScriptRoot, "DAAS.dll")
+Add-Type -Path $daasDllPath
+
 [DaaS.Logger]::Init("",$outputPath, "mock", $false) 
 [DaaS.Logger]::LogDiagnoserVerboseEvent("Running Mock collector")
 

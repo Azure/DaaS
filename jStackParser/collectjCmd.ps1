@@ -1,6 +1,8 @@
 ﻿param([string] $outputPath)
 
-Add-Type -Path "DAAS.dll"
+$daasDllPath = [io.path]::combine($PSScriptRoot, "DAAS.dll")
+Add-Type -Path $daasDllPath
+
 [DaaS.Logger]::Init("",$outputPath, "jCmdCollector", $true) 
 
 [DaaS.Logger]::LogDiagnoserVerboseEvent("Checking running java.exe process")
