@@ -91,7 +91,7 @@ namespace DiagnosticsExtension.Controllers
         {
             get
             {
-                var version = String.Empty;
+                var version = string.Empty;
                 if (Directory.Exists(EnvironmentVariables.PrivateSiteExtensionPath)
                     && Directory.Exists(Path.Combine(EnvironmentVariables.PrivateSiteExtensionPath, "bin")))
                 {
@@ -102,15 +102,16 @@ namespace DiagnosticsExtension.Controllers
                     try
                     {
                         var dir = AppDomain.CurrentDomain.BaseDirectory;
-                        //Presuming path format is: C:\Program Files (x86)\SiteExtensions\DaaS\0.7.151022.01
-                        version = dir.Split('\\')[4];
+                        version = Directory.GetParent(dir).Name;
                     }
                     catch (Exception)
                     {
                         // ignored
                     }
                 }
-                return version;
+
+                var v = new Version(version);
+                return v.ToString();
             }
         }
     }
