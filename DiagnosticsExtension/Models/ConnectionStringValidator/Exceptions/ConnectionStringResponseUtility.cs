@@ -37,7 +37,6 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
                 response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
                 response.StatusSummary = Constants.AuthenticationFailure;
                 response.StatusDetails = Constants.AuthFailureDetails;
-
                 response.Exception = e;
             }
             else if (e.InnerException != null &&
@@ -98,6 +97,15 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
                 response.StatusDetails = Constants.AuthFailureDetails;
                 response.Exception = e;
             }
+            else if ((e is Azure.RequestFailedException && e.Message.Contains("failed to authenticate")) ||
+                         e.Message.Contains("claim is empty or token is invalid") ||
+                         e.Message.Contains("InvalidSignature"))
+            {
+                response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
+                response.StatusSummary = Constants.AuthenticationFailure;
+                response.StatusDetails = Constants.AuthFailureDetails;
+                response.Exception = e;
+            }
             else if (e.Message.Contains("Ip has been prevented to connect to the endpoint"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.Forbidden;
@@ -120,6 +128,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
             else
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.UnknownError;
+                response.Exception = e;
             }
         }
 

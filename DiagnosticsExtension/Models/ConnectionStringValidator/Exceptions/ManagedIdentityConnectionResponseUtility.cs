@@ -24,7 +24,6 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
                 response.Status = ConnectionStringValidationResult.ResultStatus.ManagedIdentityConnectionFailed;
                 response.StatusSummary = ((ManagedIdentityException)e).MessageSummary;
                 response.StatusDetails = ((ManagedIdentityException)e).MessageDetails;
-                response.Exception = e;
             }
             else if (e is UnauthorizedAccessException && e.Message.Contains("unauthorized") || e.Message.Contains("Unauthorized") || e.Message.Contains("request is not authorized"))
             {
@@ -45,13 +44,11 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.ManagedIdentityNotConfigured;
                 response.StatusSummary = "Your app is configured to use identity based connection but does not have a system assigned managed identity assigned. Refer <a href= 'https://docs.microsoft.com/azure/azure-functions/functions-reference#configure-an-identity-based-connection' target='_blank'>here</a> for details.";
-                response.Exception = e;
             }
             else if (e.Message.Contains("fullyQualifiedNamespace"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.FullyQualifiedNamespaceMissing;
-                response.StatusSummary = "The app setting " + appSettingName + FullyQualifiedNamespace + " was not found or is set to a blank value. Refer <a href= 'https://docs.microsoft.com/azure/azure-functions/functions-reference#configure-an-identity-based-connection' target='_blank'>here</a> for details.";
-                response.Exception = e;
+                response.StatusSummary = "The app setting " + appSettingName + "__fullyQualifiedNamespace was not found or is set to a blank value. Refer <a href= 'https://docs.microsoft.com/azure/azure-functions/functions-reference#configure-an-identity-based-connection' target='_blank'>here</a> for details.";
             }
             else if (e.InnerException != null &&
                      e.InnerException.Message.Contains("The remote name could not be resolved")) // queue and blob
@@ -65,6 +62,11 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
                 response.Status = ConnectionStringValidationResult.ResultStatus.DnsLookupFailed;
                 response.StatusSummary = Constants.ResourceNotFound;
                 response.StatusDetails = String.Format(Constants.FQNamespaceResourceNotFound, appSettingName);
+                response.Exception = e;
+            }
+            else
+            {
+                response.Status = ConnectionStringValidationResult.ResultStatus.UnknownError;
                 response.Exception = e;
             }
         }

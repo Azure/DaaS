@@ -55,20 +55,21 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                     string serviceUriString = ManagedIdentityConnectionResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.queueServiceUri);
                     if (!string.IsNullOrEmpty(serviceUriString))
                     {
+                        string clientIdAppSettingKey = Environment.GetEnvironmentVariables().Keys.Cast<string>().Where(k => k.StartsWith(appSettingName) && k.ToLower().EndsWith("clientid")).FirstOrDefault();
                         appSettingClientIdValue = ManagedIdentityConnectionResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.clientId);
                         appSettingClientCredValue = ManagedIdentityConnectionResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.credential);
-                        Uri serviceUri = new Uri(serviceUriString);
-                        // Creating client using User assigned managed identity
-                        if (appSettingClientCredValue != null)
+                        if (appSettingClientCredValue != null && appSettingClientCredValue != Constants.ValidCredentialValue)
                         {
-                            if (appSettingClientCredValue != Constants.ValidCredentialValue)
-                            {
-                                throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityCredentialInvalidSummary, appSettingName), Constants.ManagedIdentityCredentialInvalidDetails);
-                            }
+                            throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityCredentialInvalidSummary, appSettingName), Constants.ManagedIdentityCredentialInvalidDetails);
+                        }
+                        Uri serviceUri = new Uri(serviceUriString);
+                        // If the user has configured __credential with "managedidentity" and set an app setting for __clientId (even if its empty) we assume their intent is to use a user assigned managed identity
+                        if (appSettingClientCredValue != null && clientIdAppSettingKey != null)
+                        {
                             if (string.IsNullOrEmpty(appSettingClientIdValue))
                             {
-                                throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityClientIdNullOrEmptySummary, appSettingName),
-                                                                   String.Format(Constants.ManagedIdentityClientIdNullOrEmptyDetails, appSettingName));
+                                throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityClientIdEmptySummary, appSettingName),
+                                                                   String.Format(Constants.ManagedIdentityClientIdEmptyDetails, appSettingName));
                             }
                             response.IdentityType = Constants.User;
                             client = new QueueServiceClient(serviceUri, ManagedIdentityCredentialTokenValidator.GetValidatedCredential(appSettingClientIdValue, appSettingName));
@@ -82,8 +83,14 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                     }
                     else
                     {
-                        throw new ManagedIdentityException(String.Format(Constants.QueueServiceUriMissingSummary, appSettingName),
-                                                           Constants.QueueServiceUriMissingDetails);
+                        string serviceuriAppSettingName = Environment.GetEnvironmentVariables().Keys.Cast<string>().Where(k => k.StartsWith(appSettingName) && k.ToLower().EndsWith("queueserviceuri")).FirstOrDefault();
+                        if (serviceuriAppSettingName == null)
+                        {
+                            throw new ManagedIdentityException(Constants.ConnectionInfoMissingSummary,
+                                                               Constants.QueueServiceUriMissingDetails);
+                        }
+                        throw new ManagedIdentityException(String.Format(Constants.QueueServiceUriEmptySummary, appSettingName),
+                                                           Constants.ServiceUriEmptyDetails);
                     }
                 }
                 var resultSegment =

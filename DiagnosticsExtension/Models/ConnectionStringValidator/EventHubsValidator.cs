@@ -12,6 +12,7 @@ using System;
 using System.Threading.Tasks;
 using Azure.Identity;
 using Azure.Messaging.EventHubs.Producer;
+using System.Linq;
 
 namespace DiagnosticsExtension.Models.ConnectionStringValidator
 {
@@ -87,8 +88,16 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                     try
                     {
                         string connectionString = Environment.GetEnvironmentVariable(appSettingName);
+                        if (string.IsNullOrEmpty(connectionString))
+                        {
+                            throw new EmptyConnectionStringException();
+                        }
                         connectionString += ";EntityPath=" + eventHubName;
                         client = new EventHubProducerClient(connectionString);
+                    }
+                    catch (EmptyConnectionStringException e)
+                    {
+                        throw new EmptyConnectionStringException(e.Message, e);
                     }
                     catch (Exception e)
                     {
@@ -99,28 +108,44 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                 {
                     isManagedIdentityConnection = true;
                     string serviceUriString = ManagedIdentityConnectionResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.fullyQualifiedNamespace);
-                    appSettingClientIdValue = ManagedIdentityConnectionResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.clientId);
-                    appSettingClientCredValue = ManagedIdentityConnectionResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.credential);
-                    // Creating client using User assigned managed identity
-                    if (appSettingClientCredValue != null)
+                    if (!string.IsNullOrEmpty(serviceUriString))
                     {
-                        if (appSettingClientCredValue != Constants.ValidCredentialValue)
+                        string clientIdAppSettingKey = Environment.GetEnvironmentVariables().Keys.Cast<string>().Where(k => k.StartsWith(appSettingName) && k.ToLower().EndsWith("clientid")).FirstOrDefault();
+                        appSettingClientIdValue = ManagedIdentityConnectionResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.clientId);
+                        appSettingClientCredValue = ManagedIdentityConnectionResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.credential);
+                        if (appSettingClientCredValue != null && appSettingClientCredValue != Constants.ValidCredentialValue)
                         {
                             throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityCredentialInvalidSummary, appSettingName), Constants.ManagedIdentityCredentialInvalidDetails);
                         }
-                        if (string.IsNullOrEmpty(appSettingClientIdValue))
+                        // If the user has configured __credential with "managedidentity" and set an app setting for __clientId (even if its empty) we assume their intent is to use a user assigned managed identity
+                        if (appSettingClientCredValue != null && clientIdAppSettingKey != null)
                         {
-                            throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityClientIdNullOrEmptySummary, appSettingName),
-                                                               String.Format(Constants.ManagedIdentityClientIdNullOrEmptyDetails, appSettingName));
+                            if (string.IsNullOrEmpty(appSettingClientIdValue))
+                            {
+                                throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityClientIdEmptySummary, appSettingName),
+                                                                   String.Format(Constants.ManagedIdentityClientIdEmptyDetails, appSettingName));
+                            }
+                            response.IdentityType = Constants.User;
+                            client = new EventHubProducerClient(serviceUriString, eventHubName, ManagedIdentityCredentialTokenValidator.GetValidatedCredential(appSettingClientIdValue, appSettingName));
                         }
-                        response.IdentityType = Constants.User;
-                        client = new EventHubProducerClient(serviceUriString, eventHubName, ManagedIdentityCredentialTokenValidator.GetValidatedCredential(appSettingClientIdValue, appSettingName));
+                        // Creating client using System assigned managed identity
+                        else
+                        {
+                            response.IdentityType = Constants.System;
+                            client = new EventHubProducerClient(serviceUriString, eventHubName, new ManagedIdentityCredential());
+                        }
                     }
-                    // Creating client using System assigned managed identity
                     else
                     {
-                        response.IdentityType = Constants.System;
-                        client = new EventHubProducerClient(serviceUriString, eventHubName, new ManagedIdentityCredential());
+                        string fullyQualifiedNamespaceAppSettingName = Environment.GetEnvironmentVariables().Keys.Cast<string>().Where(k => k.StartsWith(appSettingName) && k.ToLower().EndsWith("fullyqualifiednamespace")).FirstOrDefault();
+                        if (fullyQualifiedNamespaceAppSettingName == null)
+                        {
+                            throw new ManagedIdentityException(Constants.ConnectionInfoMissingSummary,
+                                                               Constants.EventHubFQMissingDetails);
+                        }
+                        throw new ManagedIdentityException(String.Format(Constants.FullyQualifiedNamespaceEmptySummary, fullyQualifiedNamespaceAppSettingName),
+                                                           Constants.EventHubFQNSEmptyDetails);
+
                     }
                 }
                 await client.GetPartitionIdsAsync();

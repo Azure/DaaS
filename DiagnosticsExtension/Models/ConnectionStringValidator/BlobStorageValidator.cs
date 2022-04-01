@@ -61,7 +61,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                     }
                     if (!string.IsNullOrEmpty(serviceUriString))
                     {
-                        string clientIdAppSettingKey = Environment.GetEnvironmentVariables().Keys.Cast<string>().Where(k => k.StartsWith(appSettingName) && k.ToLower().EndsWith("clientId")).FirstOrDefault();
+                        string clientIdAppSettingKey = Environment.GetEnvironmentVariables().Keys.Cast<string>().Where(k => k.StartsWith(appSettingName) && k.ToLower().EndsWith("clientid")).FirstOrDefault();
                         appSettingClientIdValue = ManagedIdentityConnectionResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.clientId);
                         appSettingClientCredValue = ManagedIdentityConnectionResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.credential);
                         if (appSettingClientCredValue != null && appSettingClientCredValue != Constants.ValidCredentialValue)
@@ -72,7 +72,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                         // If the user has configured __credential with "managedidentity" and set an app setting for __clientId (even if its empty) we assume their intent is to use a user assigned managed identity
                         if (appSettingClientCredValue != null && clientIdAppSettingKey != null)
                         {   
-                            if (appSettingClientIdValue == null)
+                            if (string.IsNullOrEmpty(appSettingClientIdValue))
                             {
                                 throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityClientIdEmptySummary, appSettingName),
                                                                    String.Format(Constants.ManagedIdentityClientIdEmptyDetails, appSettingName));
@@ -92,11 +92,11 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                         string serviceuriAppSettingName = Environment.GetEnvironmentVariables().Keys.Cast<string>().Where(k => k.StartsWith(appSettingName) && k.ToLower().EndsWith("serviceuri")).FirstOrDefault();
                         if (serviceuriAppSettingName == null)
                         {
-                            throw new ManagedIdentityException(Constants.BlobServiceUriMissingSummary, 
+                            throw new ManagedIdentityException(Constants.ConnectionInfoMissingSummary, 
                                                                Constants.BlobServiceUriMissingDetails);
                         }
                         throw new ManagedIdentityException(String.Format(Constants.BlobServiceUriEmptySummary, serviceuriAppSettingName), 
-                                                           Constants.BlobServiceUriEmptyDetails);
+                                                           Constants.ServiceUriEmptyDetails);
 
                     }
                 }
