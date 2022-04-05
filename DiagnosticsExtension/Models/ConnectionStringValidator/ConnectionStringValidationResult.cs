@@ -8,20 +8,31 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Serialization;
 using System.Web;
+using System.Web.UI.WebControls;
+using Newtonsoft.Json;
 
 namespace DiagnosticsExtension.Models.ConnectionStringValidator
 {
 
     public class ConnectionStringValidationResult
     {
+        [Newtonsoft.Json.JsonIgnore]
         public ResultStatus? Status;
+        [Newtonsoft.Json.JsonIgnore]
         public string IdentityType;
+        [JsonProperty("Summary")]
         public string StatusSummary;
+        [JsonProperty("Details")]
         public string StatusDetails;
         public string StatusText => Status?.ToString();
+        [Newtonsoft.Json.JsonIgnore]
         public Exception Exception;
+        public string ExceptionMessage => Exception?.Message;
+        [Newtonsoft.Json.JsonIgnore]
         public object Payload;
+        [Newtonsoft.Json.JsonIgnore]
         public string Type => type.ToString();
 
         private ConnectionStringType type;

@@ -109,6 +109,30 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
             else if (e.Message.Contains("Ip has been prevented to connect to the endpoint"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.Forbidden;
+                if (e.Message.Contains("AuthenticationFailed"))
+                {
+                    response.StatusSummary = Constants.AuthenticationFailure;
+                    response.StatusDetails = Constants.AuthFailureDetails;
+                }
+                else
+                {
+                    response.StatusSummary = "Access to the "+ type +" resource is restricted.";
+                    switch (type)
+                    {
+                        case ConnectionStringType.ServiceBus:
+                            response.StatusDetails = Constants.ServiceBusAccessRestrictedDetails;
+                            break;
+                        case ConnectionStringType.EventHubs:
+                            response.StatusDetails = Constants.EventHubAccessRestrictedDetails;
+                            break;
+                        case ConnectionStringType.StorageAccount:
+                        case ConnectionStringType.BlobStorageAccount:
+                        case ConnectionStringType.QueueStorageAccount:
+                        case ConnectionStringType.FileShareStorageAccount:
+                            response.StatusDetails = Constants.StorageAccessRestrictedDetails;
+                            break;
+                    }
+                }
                 response.Exception = e;
             }
             else if (e is StorageException)
@@ -122,6 +146,30 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
                 else if (((StorageException)e).RequestInformation.HttpStatusCode == 403)
                 {
                     response.Status = ConnectionStringValidationResult.ResultStatus.Forbidden;
+                    if (e.Message.Contains("AuthenticationFailed"))
+                    {
+                        response.StatusSummary = Constants.AuthenticationFailure;
+                        response.StatusDetails = Constants.AuthFailureDetails;
+                    }
+                    else
+                    {
+                        response.StatusSummary = "Access to the " + type + " resource is restricted.";
+                        switch (type)
+                        {
+                            case ConnectionStringType.ServiceBus:
+                                response.StatusDetails = Constants.ServiceBusAccessRestrictedDetails;
+                                break;
+                            case ConnectionStringType.EventHubs:
+                                response.StatusDetails = Constants.EventHubAccessRestrictedDetails;
+                                break;
+                            case ConnectionStringType.StorageAccount:
+                            case ConnectionStringType.BlobStorageAccount:
+                            case ConnectionStringType.QueueStorageAccount:
+                            case ConnectionStringType.FileShareStorageAccount:
+                                response.StatusDetails = Constants.StorageAccessRestrictedDetails;
+                                break;
+                        }
+                    }
                 }
                 response.Exception = e;
             }
