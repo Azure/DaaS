@@ -60,8 +60,8 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
             else if (e.Message.Contains("No such host is known")) // event hub and service bus
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.DnsLookupFailed;
-                response.StatusSummary = Constants.ResourceNotFound;
-                response.StatusDetails = String.Format(Constants.FQNamespaceResourceNotFound, appSettingName);
+                response.StatusSummary = String.Format(Constants.FQNamespaceResourceNotFound, appSettingName);
+                response.StatusDetails = Constants.GenericDetailsMessage;
                 response.Exception = e;
             }
             else

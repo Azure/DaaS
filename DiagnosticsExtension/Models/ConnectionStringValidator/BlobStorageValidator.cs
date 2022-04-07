@@ -66,7 +66,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                         appSettingClientCredValue = ManagedIdentityConnectionResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.credential);
                         if (appSettingClientCredValue != null && appSettingClientCredValue != Constants.ValidCredentialValue)
                         {
-                            throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityCredentialInvalidSummary, appSettingName), Constants.ManagedIdentityCredentialInvalidDetails);
+                            throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityCredentialInvalidSummary, appSettingName));
                         }
                         Uri serviceUri = new Uri(serviceUriString);
                         // If the user has configured __credential with "managedidentity" and set an app setting for __clientId (even if its empty) we assume their intent is to use a user assigned managed identity
@@ -74,7 +74,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                         {   
                             if (string.IsNullOrEmpty(appSettingClientIdValue))
                             {
-                                throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityClientIdEmptySummary, appSettingName),
+                                throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityClientIdEmptySummary, clientIdAppSettingKey),
                                                                    String.Format(Constants.ManagedIdentityClientIdEmptyDetails, appSettingName));
                             }
                             response.IdentityType = Constants.User;
@@ -92,11 +92,9 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                         string serviceuriAppSettingName = Environment.GetEnvironmentVariables().Keys.Cast<string>().Where(k => k.StartsWith(appSettingName) && k.ToLower().EndsWith("serviceuri")).FirstOrDefault();
                         if (serviceuriAppSettingName == null)
                         {
-                            throw new ManagedIdentityException(Constants.ConnectionInfoMissingSummary, 
-                                                               Constants.BlobServiceUriMissingDetails);
+                            throw new ManagedIdentityException(Constants.BlobServiceUriMissingSummary);
                         }
-                        throw new ManagedIdentityException(String.Format(Constants.BlobServiceUriEmptySummary, serviceuriAppSettingName), 
-                                                           Constants.ServiceUriEmptyDetails);
+                        throw new ManagedIdentityException(String.Format(Constants.BlobServiceUriEmptySummary, serviceuriAppSettingName));
 
                     }
                 }

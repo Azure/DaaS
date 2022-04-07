@@ -30,8 +30,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
 
             if (appId != clientId)
             {
-                throw new ManagedIdentityException(String.Format(Constants.ClientIdInvalidTokenGeneratedSummary,appSettingName),
-                                                   Constants.ClientIdInvalidTokenGeneratedDetails);
+                throw new ManagedIdentityException(String.Format(Constants.ClientIdInvalidTokenGeneratedSummary, appSettingName));
             }
 
             return tokenCredential;

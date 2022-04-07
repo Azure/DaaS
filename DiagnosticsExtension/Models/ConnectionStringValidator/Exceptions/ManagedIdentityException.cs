@@ -21,7 +21,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
         { 
         }
 
-        public ManagedIdentityException(string summary, string details) : base()
+        public ManagedIdentityException(string summary, string details = null) : base()
         { 
             this.MessageSummary = summary;
             this.MessageDetails = details;

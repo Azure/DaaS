@@ -22,8 +22,8 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
             if (e is MalformedConnectionStringException)
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.MalformedConnectionString;
-                response.StatusSummary = Constants.InvalidConnection;
-                response.StatusDetails = Constants.MalformedConnectionStringDetails + appSettingName;
+                response.StatusSummary = String.Format(Constants.MalformedConnectionStringDetails, appSettingName);
+                response.StatusDetails = Constants.GenericDetailsMessage;
                 response.Exception = e;
             }
             else if (e is EmptyConnectionStringException)
@@ -43,23 +43,20 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
                      e.InnerException.Message.Contains("The remote name could not be resolved"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.DnsLookupFailed;
-                response.StatusSummary = Constants.ResourceNotFound;
-                response.StatusDetails = Constants.DnsLookupFailedDetails;
+                response.StatusSummary = Constants.DnsLookupFailed;
                 response.Exception = e;
             }
             else if (e.InnerException != null && e.InnerException.InnerException != null &&
                         e.InnerException.InnerException.Message.Contains("The remote name could not be resolved"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.DnsLookupFailed;
-                response.StatusSummary = Constants.ResourceNotFound;
-                response.StatusDetails = Constants.DnsLookupFailedDetails;
+                response.StatusSummary = Constants.DnsLookupFailed;
                 response.Exception = e;
             }
             else if (e.Message.Contains("No such host is known"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.DnsLookupFailed;
-                response.StatusSummary = Constants.ResourceNotFound;
-                response.StatusDetails = Constants.DnsLookupFailedDetails;
+                response.StatusSummary = Constants.DnsLookupFailed;
                 response.Exception = e;
             }
             else if (e is ArgumentNullException ||
@@ -67,8 +64,8 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
                          e.Message.Contains("was not found"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.MalformedConnectionString;
-                response.StatusSummary = Constants.InvalidConnection;
-                response.StatusDetails = Constants.MalformedConnectionStringDetails;
+                response.StatusSummary = String.Format(Constants.MalformedConnectionStringDetails, appSettingName);
+                response.StatusDetails = Constants.GenericDetailsMessage;
                 response.Exception = e;
             }
             else if (e is ArgumentException && e.Message.Contains("entityPath is null") ||
@@ -77,8 +74,8 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
                          e.Message.Contains("The argument  is null or white space"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.MalformedConnectionString;
-                response.StatusSummary = Constants.InvalidConnection;
-                response.StatusDetails = Constants.MalformedConnectionStringDetails;
+                response.StatusSummary = String.Format(Constants.MalformedConnectionStringDetails, appSettingName);
+                response.StatusDetails = Constants.GenericDetailsMessage;
                 response.Exception = e;
             }
             else if (e.Message.Contains("InvalidSignature"))
