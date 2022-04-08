@@ -35,8 +35,8 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
             else if (e is UnauthorizedAccessException && e.Message.Contains("unauthorized") || e.Message.Contains("Unauthorized") || e.Message.Contains("request is not authorized"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
-                response.StatusSummary = Constants.AuthenticationFailure;
-                response.StatusDetails = Constants.AuthFailureDetails;
+                response.StatusSummary = Constants.AuthFailureSummary + " " + GetRelevantAuthFailureDocs(type);
+                response.StatusDetails = Constants.GenericDetailsMessage;
                 response.Exception = e;
             }
             else if (e.InnerException != null &&
@@ -81,8 +81,8 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
             else if (e.Message.Contains("InvalidSignature"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
-                response.StatusSummary = Constants.AuthenticationFailure;
-                response.StatusDetails = Constants.AuthFailureDetails;
+                response.StatusSummary = Constants.AuthFailureSummary + " " + GetRelevantAuthFailureDocs(type);
+                response.StatusDetails = Constants.GenericDetailsMessage;
                 response.Exception = e;
             }
             else if ((e is ArgumentException && e.Message.Contains("Authentication")) ||
@@ -90,8 +90,8 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
                          e.Message.Contains("InvalidSignature"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
-                response.StatusSummary = Constants.AuthenticationFailure;
-                response.StatusDetails = Constants.AuthFailureDetails;
+                response.StatusSummary = Constants.AuthFailureSummary + " " + GetRelevantAuthFailureDocs(type);
+                response.StatusDetails = Constants.GenericDetailsMessage;
                 response.Exception = e;
             }
             else if ((e is Azure.RequestFailedException && e.Message.Contains("failed to authenticate")) ||
@@ -99,8 +99,8 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
                          e.Message.Contains("InvalidSignature"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
-                response.StatusSummary = Constants.AuthenticationFailure;
-                response.StatusDetails = Constants.AuthFailureDetails;
+                response.StatusSummary = Constants.AuthFailureSummary + " " + GetRelevantAuthFailureDocs(type);
+                response.StatusDetails = Constants.GenericDetailsMessage;
                 response.Exception = e;
             }
             else if (e.Message.Contains("Ip has been prevented to connect to the endpoint"))
@@ -108,8 +108,8 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
                 response.Status = ConnectionStringValidationResult.ResultStatus.Forbidden;
                 if (e.Message.Contains("AuthenticationFailed"))
                 {
-                    response.StatusSummary = Constants.AuthenticationFailure;
-                    response.StatusDetails = Constants.AuthFailureDetails;
+                    response.StatusSummary = Constants.AuthFailureSummary + " " + GetRelevantAuthFailureDocs(type);
+                    response.StatusDetails = Constants.GenericDetailsMessage;
                 }
                 else
                 {
@@ -137,16 +137,16 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
                 if (((StorageException)e).RequestInformation.HttpStatusCode == 401)
                 {
                     response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
-                    response.StatusSummary = Constants.AuthenticationFailure;
-                    response.StatusDetails = Constants.AuthFailureDetails;
+                    response.StatusSummary = Constants.AuthFailureSummary + " " + GetRelevantAuthFailureDocs(type);
+                    response.StatusDetails = Constants.GenericDetailsMessage;
                 }
                 else if (((StorageException)e).RequestInformation.HttpStatusCode == 403)
                 {
                     response.Status = ConnectionStringValidationResult.ResultStatus.Forbidden;
                     if (e.Message.Contains("AuthenticationFailed"))
                     {
-                        response.StatusSummary = Constants.AuthenticationFailure;
-                        response.StatusDetails = Constants.AuthFailureDetails;
+                        response.StatusSummary = Constants.AuthFailureSummary + " " + GetRelevantAuthFailureDocs(type);
+                        response.StatusDetails = Constants.GenericDetailsMessage;
                     }
                     else
                     {
@@ -177,5 +177,23 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
             }
         }
 
+        private static string GetRelevantAuthFailureDocs(ConnectionStringType type)
+        {
+            switch (type)
+            {
+                case ConnectionStringType.BlobStorageAccount:
+                    return Constants.AuthFailureBlobStorageDocs;
+                case ConnectionStringType.QueueStorageAccount:
+                    return Constants.AuthFailureQueueStorageDocs;
+                case ConnectionStringType.FileShareStorageAccount:
+                    return Constants.AuthFailureFileShareStorageDocs;
+                case ConnectionStringType.ServiceBus:
+                    return Constants.AuthFailureServiceBusDocs;
+                case ConnectionStringType.EventHubs:
+                    return Constants.AuthFailureEventHubsDocs;
+                default:
+                    return "";
+            }
+        }
     }
 }
