@@ -68,6 +68,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             else
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.UnknownError;
+                response.StatusSummary = Constants.UnknownErrorSummary;
                 response.Exception = e;
             }
         }

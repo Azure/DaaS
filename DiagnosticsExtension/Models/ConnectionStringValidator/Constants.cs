@@ -24,6 +24,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
         public const string QueueServiceUri = "__queueServiceUri";
         public const string ValidCredentialValue = "managedidentity";
         public const string FullyQualifiedNamespace = "__fullyQualifiedNamespace";
+        public const string UnknownErrorSummary = "Validation of connection string failed due to an unknown error.";
         public const string GenericDetailsMessage = "Additional details of the error:";
         public const string ManagedIdentityTutorial = "Here is a <a href='https://docs.microsoft.com/azure/azure-functions/functions-identity-based-connections-tutorial' target='_blank'>relevant tutorial</a>.";
         public const string BlobServiceUriMissingSummary = "Necessary connection settings not found. A connection string or identity-based connection settings are required.  See <a href='https://docs.microsoft.com/azure/azure-functions/functions-bindings-storage-blob-trigger#connections>' target='_blank'>relevant docs</a>. ";
