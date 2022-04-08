@@ -58,6 +58,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             ManagedIdentityNotConfigured,
             ManagedIdentityAuthFailure,
             ManagedIdentityConnectionFailed,
+            KeyVaultReferenceResolutionFailed,
             UnknownError,
         }
         public enum ManagedIdentityCommonProperty

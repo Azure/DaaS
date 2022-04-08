@@ -12,8 +12,9 @@ using System.Web;
 using Azure;
 using Azure.Identity;
 using Microsoft.WindowsAzure.Storage;
+using DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions;
 
-namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
+namespace DiagnosticsExtension.Models.ConnectionStringValidator
 {
     public static class ManagedIdentityConnectionResponseUtility
     {

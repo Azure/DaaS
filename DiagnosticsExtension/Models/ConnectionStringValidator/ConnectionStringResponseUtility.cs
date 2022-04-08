@@ -12,14 +12,21 @@ using System.Web;
 using Azure;
 using Azure.Identity;
 using Microsoft.WindowsAzure.Storage;
+using DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions;
 
-namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
+namespace DiagnosticsExtension.Models.ConnectionStringValidator
 {
     public static class ConnectionStringResponseUtility
     {
         public static void EvaluateResponseStatus(Exception e, ConnectionStringType type, ref ConnectionStringValidationResult response, string appSettingName = "")
         {
-            if (e is MalformedConnectionStringException)
+            // Check if the value is a key vault reference that failed to resolve to the connection string by platform
+            if (ConnectionStringResponseUtility.IsKeyVaultReference(Environment.GetEnvironmentVariable(appSettingName)))
+            {
+                response.Status = ConnectionStringValidationResult.ResultStatus.KeyVaultReferenceResolutionFailed;
+                response.StatusSummary = String.Format(Constants.KeyVaultReferenceResolutionFailedSummary, appSettingName);
+            }
+            else if (e is MalformedConnectionStringException)
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.MalformedConnectionString;
                 response.StatusSummary = String.Format(Constants.MalformedConnectionStringDetails, appSettingName);
@@ -175,6 +182,10 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions
                 response.Status = ConnectionStringValidationResult.ResultStatus.UnknownError;
                 response.Exception = e;
             }
+        }
+        public static bool IsKeyVaultReference(string value)
+        {
+            return value.Contains("@Microsoft.KeyVault");
         }
 
         private static string GetRelevantAuthFailureDocs(ConnectionStringType type)
