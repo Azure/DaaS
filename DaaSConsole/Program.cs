@@ -262,19 +262,20 @@ namespace DaaSConsole
         private static string GetV2ToolName(string diagnoserName)
         {
             string retval = diagnoserName;
-            switch (diagnoserName)
+            string toolNameToMatch = diagnoserName.ToLower();
+            switch (toolNameToMatch)
             {
-                case "Memory Dump":
-                case "MemoryDump":
+                case "memory dump":
+                case "memorydump":
                     retval = "MemoryDump";
                     break;
-                case "CLR Profiler":
+                case "clr profiler":
                     retval = "Profiler";
                     break;
-                case "CLR Profiler with Thread Stacks":
+                case "clr profiler with thread stacks":
                     retval = "Profiler with Thread Stacks";
                     break;
-                case "CLR Profiler CPUStacks":
+                case "clr profiler cpustacks":
                     retval = "Profiler with CPU Stacks";
                     break;
             }
