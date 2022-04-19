@@ -54,7 +54,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                 response.Exception = e;
             }
             else if (e.InnerException != null && e.InnerException.InnerException != null &&
-                        e.InnerException.InnerException.Message.Contains("The remote name could not be resolved"))
+                     e.InnerException.InnerException.Message.Contains("The remote name could not be resolved"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.DnsLookupFailed;
                 response.StatusSummary = Constants.DnsLookupFailed;
@@ -62,6 +62,9 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             }
             else if (e.Message.Contains("No such host is known"))
             {
+                // Thrown when the endpoint specified (e.g. Service Bus namespace) is not found (DNS resolution fails)
+                // Can happen due to misconfiguration or when the resource cannot be discovered as it is is behind a private
+                // endpoint not accessible from this network
                 response.Status = ConnectionStringValidationResult.ResultStatus.DnsLookupFailed;
                 response.StatusSummary = Constants.DnsLookupFailed;
                 response.Exception = e;

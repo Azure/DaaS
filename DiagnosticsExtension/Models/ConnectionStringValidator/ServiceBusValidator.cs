@@ -169,7 +169,15 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             }
             catch (Exception e)
             {
-                if (isManagedIdentityConnection)
+                // TODO: Find out what exception class is thrown for the message below and add that to the set of conditions
+                if (e.Message.Contains("The messaging entity") && e.Message.Contains("could not be found"))
+                {
+                    response.Status = ConnectionStringValidationResult.ResultStatus.EntityNotFound;
+                    response.StatusSummary = String.Format(Constants.ServiceBusEntityNotFoundSummary, entityName);
+                    response.StatusDetails = Constants.ServiceBusEntityNotFoundDetails;
+                    response.Exception = e;
+                }
+                else if (isManagedIdentityConnection)
                 {
                     ManagedIdentityConnectionResponseUtility.EvaluateResponseStatus(e, Type, ref response, appSettingName);
                 }

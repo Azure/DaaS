@@ -54,6 +54,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             MsiFailure,
             EmptyConnectionString,
             MalformedConnectionString,
+            EntityNotFound,
             FullyQualifiedNamespaceMissing,
             ManagedIdentityNotConfigured,
             ManagedIdentityAuthFailure,
