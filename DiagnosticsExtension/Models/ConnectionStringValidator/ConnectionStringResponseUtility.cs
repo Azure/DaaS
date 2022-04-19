@@ -42,7 +42,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             else if (e is UnauthorizedAccessException && e.Message.Contains("unauthorized") || e.Message.Contains("Unauthorized") || e.Message.Contains("request is not authorized"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
-                response.StatusSummary = Constants.AuthFailureSummary + " " + GetRelevantAuthFailureDocs(type);
+                response.StatusSummary = String.Format(Constants.AuthFailureSummary, appSettingName) + " " + GetRelevantAuthFailureDocs(type);
                 response.StatusDetails = Constants.GenericDetailsMessage;
                 response.Exception = e;
             }
@@ -88,7 +88,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             else if (e.Message.Contains("InvalidSignature"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
-                response.StatusSummary = Constants.AuthFailureSummary + " " + GetRelevantAuthFailureDocs(type);
+                response.StatusSummary = String.Format(Constants.AuthFailureSummary, appSettingName) + " " + GetRelevantAuthFailureDocs(type);
                 response.StatusDetails = Constants.GenericDetailsMessage;
                 response.Exception = e;
             }
@@ -97,7 +97,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                          e.Message.Contains("InvalidSignature"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
-                response.StatusSummary = Constants.AuthFailureSummary + " " + GetRelevantAuthFailureDocs(type);
+                response.StatusSummary = String.Format(Constants.AuthFailureSummary, appSettingName) + " " + GetRelevantAuthFailureDocs(type);
                 response.StatusDetails = Constants.GenericDetailsMessage;
                 response.Exception = e;
             }
@@ -106,7 +106,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                          e.Message.Contains("InvalidSignature"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
-                response.StatusSummary = Constants.AuthFailureSummary + " " + GetRelevantAuthFailureDocs(type);
+                response.StatusSummary = String.Format(Constants.AuthFailureSummary, appSettingName) + " " + GetRelevantAuthFailureDocs(type);
                 response.StatusDetails = Constants.GenericDetailsMessage;
                 response.Exception = e;
             }
@@ -115,7 +115,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                 response.Status = ConnectionStringValidationResult.ResultStatus.Forbidden;
                 if (e.Message.Contains("AuthenticationFailed"))
                 {
-                    response.StatusSummary = Constants.AuthFailureSummary + " " + GetRelevantAuthFailureDocs(type);
+                    response.StatusSummary = String.Format(Constants.AuthFailureSummary, appSettingName) + " " + GetRelevantAuthFailureDocs(type);
                     response.StatusDetails = Constants.GenericDetailsMessage;
                 }
                 else
@@ -144,7 +144,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                 if (((StorageException)e).RequestInformation.HttpStatusCode == 401)
                 {
                     response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
-                    response.StatusSummary = Constants.AuthFailureSummary + " " + GetRelevantAuthFailureDocs(type);
+                    response.StatusSummary = String.Format(Constants.AuthFailureSummary, appSettingName) + " " + GetRelevantAuthFailureDocs(type);
                     response.StatusDetails = Constants.GenericDetailsMessage;
                 }
                 else if (((StorageException)e).RequestInformation.HttpStatusCode == 403)
@@ -152,7 +152,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                     response.Status = ConnectionStringValidationResult.ResultStatus.Forbidden;
                     if (e.Message.Contains("AuthenticationFailed"))
                     {
-                        response.StatusSummary = Constants.AuthFailureSummary + " " + GetRelevantAuthFailureDocs(type);
+                        response.StatusSummary = String.Format(Constants.AuthFailureSummary, appSettingName) + " " + GetRelevantAuthFailureDocs(type);
                         response.StatusDetails = Constants.GenericDetailsMessage;
                     }
                     else
