@@ -27,7 +27,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
         [JsonProperty("Details")]
         public string StatusDetails;
         public string StatusText => Status?.ToString();
-        [Newtonsoft.Json.JsonIgnore]
+        
         public Exception Exception;
         public string ExceptionMessage => Exception?.Message;
         [Newtonsoft.Json.JsonIgnore]

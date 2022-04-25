@@ -170,7 +170,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             catch (Exception e)
             {
                 // TODO: Find out what exception class is thrown for the message below and add that to the set of conditions
-                if (e.Message.Contains("The messaging entity") && e.Message.Contains("could not be found"))
+                if (e.Message.Contains("Put token failed") && e.Message.Contains("could not be found"))
                 {
                     response.Status = ConnectionStringValidationResult.ResultStatus.EntityNotFound;
                     response.StatusSummary = String.Format(Constants.ServiceBusEntityNotFoundSummary, entityName);
