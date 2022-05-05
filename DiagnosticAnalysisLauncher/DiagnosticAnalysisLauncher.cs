@@ -173,7 +173,7 @@ namespace DiagnosticAnalysisLauncher
                 }
 
                 var analysis = JsonConvert.DeserializeObject<DiagnosticAnalysis>(diagCliJsonOutput);
-                Logger.LogDiagnoserEvent(JsonConvert.SerializeObject(new { Dump = dumpName, Analysis = analysis }));
+                Logger.LogDiagnoserEvent(JsonConvert.SerializeObject(new { Dump = dumpName, Analysis = analysis, JsonOutputLength = diagCliJsonOutput.Length }));
             }
             catch (Exception ex)
             {
