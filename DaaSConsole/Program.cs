@@ -443,6 +443,18 @@ namespace DaaSConsole
             var sessionId = SessionManager.SubmitNewSessionAsync(session, invokedViaDaasConsole: true).Result;
             Console.WriteLine($"Session submitted for '{toolName}' with Id - {sessionId}");
             Console.Write("Waiting...");
+
+            var details = new
+            {
+                Diagnoser = toolName,
+                InstancesSelected = Environment.MachineName,
+                Options = options.ToString()
+            };
+
+            var detailsString = JsonConvert.SerializeObject(details);
+            Logger.LogDaasConsoleEvent("DaasConsole started a new Session", detailsString);
+            EventLog.WriteEntry("Application", $"DaasConsole started with {detailsString} ", EventLogEntryType.Information);
+
             while (true)
             {
                 Thread.Sleep(10000);
