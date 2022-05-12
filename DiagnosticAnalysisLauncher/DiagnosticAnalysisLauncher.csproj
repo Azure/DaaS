@@ -12,7 +12,6 @@
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>
-    <RestoreAdditionalProjectSources>https://pkgs.dev.azure.com/devdiv/DevDiv/_packaging/Microsoft.ProductionDiagnostics.DiagnosticAnalysis/nuget/v3/index.json</RestoreAdditionalProjectSources>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>

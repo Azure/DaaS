@@ -33,7 +33,6 @@
     <NuGetPackageImportStamp>
     </NuGetPackageImportStamp>
     <TargetFrameworkProfile />
-    <RestoreAdditionalProjectSources>https://pkgs.dev.azure.com/devdiv/DevDiv/_packaging/Microsoft.ProductionDiagnostics.DiagnosticAnalysis/nuget/v3/index.json</RestoreAdditionalProjectSources>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>

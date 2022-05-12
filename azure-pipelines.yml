@@ -204,10 +204,30 @@ steps:
       Invoke-AzResourceAction -ResourceId $srcWebApp.Id -Action start -Force
 
       Write-Host "Checking DaaS version"
-      $DaaSVersion = Invoke-RestMethod -Uri "https://$kuduEndpoint/daas/api/v2/daasversion" `
-        -Headers @{"Authorization"=$authorizationHeader;"If-Match"="*"}
+      $retryCount = 0;
+      $succeeded = $false
+      while( ($retryCount -lt 2) -and ($succeeded -eq $false))
+      {
+        try
+        {
+          $DaaSVersion = Invoke-RestMethod -Uri "https://$kuduEndpoint/daas/api/v2/daasversion" `
+          -Headers @{"Authorization"=$authorizationHeader;"If-Match"="*"}
 
-      Write-Host ("DaasVersion is " + $DaaSVersion)
+          Write-Host ("DaasVersion is " + $DaaSVersion)
+          $succeeded = $true
+        }
+        catch 
+        {
+          Write-Host "StatusCode: " $_.Exception.Response.StatusCode.value__
+          Write-Host "StatusDescription:" $_.Exception.Response.StatusDescription
+          $retryCount++
+        }
+      }
+      
+      if ($succeeded -eq $false)
+      {
+        throw "Call to get DaaS Version failed"
+      }
 
       Write-Host "##vso[task.setvariable variable=KUDU_ENDPOINT]$kuduEndpoint"
       Write-Host "##vso[task.setvariable variable=KUDU_USERNAME]$userName"
