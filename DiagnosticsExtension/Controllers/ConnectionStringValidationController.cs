@@ -79,9 +79,16 @@ namespace DiagnosticsExtension.Controllers
             return result;
         }
 
+        /// <summary>
+        /// This method is used to validate connection information via appsetting.
+        /// </summary>
+        /// <param name="appSettingName">This should be the configured appsetting key/connection property of the function. </param>
+        /// <param name="type">This should be the type of Azure service being connected.</param>
+        /// <param name="entityName">This is valid only for servicebus and eventhub. Need not be passed for other azure services.</param>
+        /// <returns>ConnectionStringValidationResult</returns>
         [HttpGet]
-        [Route("validateappsetting")]
-        public async Task<HttpResponseMessage> ValidateAppSetting(string appSettingName, string type, string entityName = null)
+        [Route("validateappsettingforfunctionapp")]
+        public async Task<HttpResponseMessage> ValidateAppSettingForFunctionApp(string appSettingName, string type, string entityName = null)
         {
             bool success = Enum.TryParse(type, out ConnectionStringType csType);
             if (success && typeValidatorMap.ContainsKey(csType))

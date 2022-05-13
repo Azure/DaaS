@@ -22,12 +22,9 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
         public ResultStatus? Status;
         [Newtonsoft.Json.JsonIgnore]
         public string IdentityType;
-        [JsonProperty("Summary")]
-        public string StatusSummary;
-        [JsonProperty("Details")]
-        public string StatusDetails;
+        public string Summary;
+        public string Details;
         public string StatusText => Status?.ToString();
-        
         public Exception Exception;
         public string ExceptionMessage => Exception?.Message;
         [Newtonsoft.Json.JsonIgnore]

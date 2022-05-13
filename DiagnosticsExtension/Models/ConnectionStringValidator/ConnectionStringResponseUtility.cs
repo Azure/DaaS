@@ -24,40 +24,40 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             if (ConnectionStringResponseUtility.IsKeyVaultReference(Environment.GetEnvironmentVariable(appSettingName)))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.KeyVaultReferenceResolutionFailed;
-                response.StatusSummary = String.Format(Constants.KeyVaultReferenceResolutionFailedSummary, appSettingName);
+                response.Summary = String.Format(Constants.KeyVaultReferenceResolutionFailedSummary, appSettingName);
             }
             else if (e is MalformedConnectionStringException)
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.MalformedConnectionString;
-                response.StatusSummary = String.Format(Constants.MalformedConnectionStringDetails, appSettingName);
-                response.StatusDetails = Constants.GenericDetailsMessage;
+                response.Summary = String.Format(Constants.MalformedConnectionStringDetails, appSettingName);
+                response.Details = Constants.GenericDetailsMessage;
                 response.Exception = e;
             }
             else if (e is EmptyConnectionStringException)
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.EmptyConnectionString;
-                response.StatusSummary = "The app setting " + appSettingName + " was not found or is set to a blank value";
+                response.Summary = "The app setting " + appSettingName + " was not found or is set to a blank value";
                 response.Exception = e;
             }
             else if (e is UnauthorizedAccessException && e.Message.Contains("unauthorized") || e.Message.Contains("Unauthorized") || e.Message.Contains("request is not authorized"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
-                response.StatusSummary = String.Format(Constants.AuthFailureSummary, appSettingName) + " " + GetRelevantAuthFailureDocs(type);
-                response.StatusDetails = Constants.GenericDetailsMessage;
+                response.Summary = String.Format(Constants.AuthFailureSummary, appSettingName) + " " + GetRelevantAuthFailureDocs(type);
+                response.Details = Constants.GenericDetailsMessage;
                 response.Exception = e;
             }
             else if (e.InnerException != null &&
                      e.InnerException.Message.Contains("The remote name could not be resolved"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.DnsLookupFailed;
-                response.StatusSummary = Constants.DnsLookupFailed;
+                response.Summary = Constants.DnsLookupFailed;
                 response.Exception = e;
             }
             else if (e.InnerException != null && e.InnerException.InnerException != null &&
                      e.InnerException.InnerException.Message.Contains("The remote name could not be resolved"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.DnsLookupFailed;
-                response.StatusSummary = Constants.DnsLookupFailed;
+                response.Summary = Constants.DnsLookupFailed;
                 response.Exception = e;
             }
             else if (e.Message.Contains("No such host is known"))
@@ -66,7 +66,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                 // Can happen due to misconfiguration or when the resource cannot be discovered as it is is behind a private
                 // endpoint not accessible from this network
                 response.Status = ConnectionStringValidationResult.ResultStatus.DnsLookupFailed;
-                response.StatusSummary = Constants.DnsLookupFailed;
+                response.Summary = Constants.DnsLookupFailed;
                 response.Exception = e;
             }
             else if (e is ArgumentNullException ||
@@ -74,8 +74,8 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                          e.Message.Contains("was not found"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.MalformedConnectionString;
-                response.StatusSummary = String.Format(Constants.MalformedConnectionStringDetails, appSettingName);
-                response.StatusDetails = Constants.GenericDetailsMessage;
+                response.Summary = String.Format(Constants.MalformedConnectionStringDetails, appSettingName);
+                response.Details = Constants.GenericDetailsMessage;
                 response.Exception = e;
             }
             else if (e is ArgumentException && e.Message.Contains("entityPath is null") ||
@@ -84,15 +84,15 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                          e.Message.Contains("The argument  is null or white space"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.MalformedConnectionString;
-                response.StatusSummary = String.Format(Constants.MalformedConnectionStringDetails, appSettingName);
-                response.StatusDetails = Constants.GenericDetailsMessage;
+                response.Summary = String.Format(Constants.MalformedConnectionStringDetails, appSettingName);
+                response.Details = Constants.GenericDetailsMessage;
                 response.Exception = e;
             }
             else if (e.Message.Contains("InvalidSignature"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
-                response.StatusSummary = String.Format(Constants.AuthFailureSummary, appSettingName) + " " + GetRelevantAuthFailureDocs(type);
-                response.StatusDetails = Constants.GenericDetailsMessage;
+                response.Summary = String.Format(Constants.AuthFailureSummary, appSettingName) + " " + GetRelevantAuthFailureDocs(type);
+                response.Details = Constants.GenericDetailsMessage;
                 response.Exception = e;
             }
             else if ((e is ArgumentException && e.Message.Contains("Authentication")) ||
@@ -100,8 +100,8 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                          e.Message.Contains("InvalidSignature"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
-                response.StatusSummary = String.Format(Constants.AuthFailureSummary, appSettingName) + " " + GetRelevantAuthFailureDocs(type);
-                response.StatusDetails = Constants.GenericDetailsMessage;
+                response.Summary = String.Format(Constants.AuthFailureSummary, appSettingName) + " " + GetRelevantAuthFailureDocs(type);
+                response.Details = Constants.GenericDetailsMessage;
                 response.Exception = e;
             }
             else if ((e is Azure.RequestFailedException && e.Message.Contains("failed to authenticate")) ||
@@ -109,8 +109,8 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                          e.Message.Contains("InvalidSignature"))
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
-                response.StatusSummary = String.Format(Constants.AuthFailureSummary, appSettingName) + " " + GetRelevantAuthFailureDocs(type);
-                response.StatusDetails = Constants.GenericDetailsMessage;
+                response.Summary = String.Format(Constants.AuthFailureSummary, appSettingName) + " " + GetRelevantAuthFailureDocs(type);
+                response.Details = Constants.GenericDetailsMessage;
                 response.Exception = e;
             }
             else if (e.Message.Contains("Ip has been prevented to connect to the endpoint"))
@@ -118,25 +118,25 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                 response.Status = ConnectionStringValidationResult.ResultStatus.Forbidden;
                 if (e.Message.Contains("AuthenticationFailed"))
                 {
-                    response.StatusSummary = String.Format(Constants.AuthFailureSummary, appSettingName) + " " + GetRelevantAuthFailureDocs(type);
-                    response.StatusDetails = Constants.GenericDetailsMessage;
+                    response.Summary = String.Format(Constants.AuthFailureSummary, appSettingName) + " " + GetRelevantAuthFailureDocs(type);
+                    response.Details = Constants.GenericDetailsMessage;
                 }
                 else
                 {
-                    response.StatusSummary = "Access to the "+ type +" resource is restricted.";
+                    response.Summary = "Access to the "+ type +" resource is restricted.";
                     switch (type)
                     {
                         case ConnectionStringType.ServiceBus:
-                            response.StatusDetails = Constants.ServiceBusAccessRestrictedDetails;
+                            response.Details = Constants.ServiceBusAccessRestrictedDetails;
                             break;
                         case ConnectionStringType.EventHubs:
-                            response.StatusDetails = Constants.EventHubAccessRestrictedDetails;
+                            response.Details = Constants.EventHubAccessRestrictedDetails;
                             break;
                         case ConnectionStringType.StorageAccount:
                         case ConnectionStringType.BlobStorageAccount:
                         case ConnectionStringType.QueueStorageAccount:
                         case ConnectionStringType.FileShareStorageAccount:
-                            response.StatusDetails = Constants.StorageAccessRestrictedDetails;
+                            response.Details = Constants.StorageAccessRestrictedDetails;
                             break;
                     }
                 }
@@ -147,33 +147,33 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                 if (((StorageException)e).RequestInformation.HttpStatusCode == 401)
                 {
                     response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
-                    response.StatusSummary = String.Format(Constants.AuthFailureSummary, appSettingName) + " " + GetRelevantAuthFailureDocs(type);
-                    response.StatusDetails = Constants.GenericDetailsMessage;
+                    response.Summary = String.Format(Constants.AuthFailureSummary, appSettingName) + " " + GetRelevantAuthFailureDocs(type);
+                    response.Details = Constants.GenericDetailsMessage;
                 }
                 else if (((StorageException)e).RequestInformation.HttpStatusCode == 403)
                 {
                     response.Status = ConnectionStringValidationResult.ResultStatus.Forbidden;
                     if (e.Message.Contains("AuthenticationFailed"))
                     {
-                        response.StatusSummary = String.Format(Constants.AuthFailureSummary, appSettingName) + " " + GetRelevantAuthFailureDocs(type);
-                        response.StatusDetails = Constants.GenericDetailsMessage;
+                        response.Summary = String.Format(Constants.AuthFailureSummary, appSettingName) + " " + GetRelevantAuthFailureDocs(type);
+                        response.Details = Constants.GenericDetailsMessage;
                     }
                     else
                     {
-                        response.StatusSummary = "Access to the " + type + " resource is restricted.";
+                        response.Summary = "Access to the " + type + " resource is restricted.";
                         switch (type)
                         {
                             case ConnectionStringType.ServiceBus:
-                                response.StatusDetails = Constants.ServiceBusAccessRestrictedDetails;
+                                response.Details = Constants.ServiceBusAccessRestrictedDetails;
                                 break;
                             case ConnectionStringType.EventHubs:
-                                response.StatusDetails = Constants.EventHubAccessRestrictedDetails;
+                                response.Details = Constants.EventHubAccessRestrictedDetails;
                                 break;
                             case ConnectionStringType.StorageAccount:
                             case ConnectionStringType.BlobStorageAccount:
                             case ConnectionStringType.QueueStorageAccount:
                             case ConnectionStringType.FileShareStorageAccount:
-                                response.StatusDetails = Constants.StorageAccessRestrictedDetails;
+                                response.Details = Constants.StorageAccessRestrictedDetails;
                                 break;
                         }
                     }
@@ -183,7 +183,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             else
             {
                 response.Status = ConnectionStringValidationResult.ResultStatus.UnknownError;
-                response.StatusSummary = Constants.UnknownErrorSummary;
+                response.Summary = Constants.UnknownErrorSummary;
                 response.Exception = e;
             }
         }

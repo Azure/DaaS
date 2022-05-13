@@ -157,8 +157,8 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                 if (e.Message.Contains("The messaging entity") && e.Message.Contains("could not be found"))
                 {
                     response.Status = ConnectionStringValidationResult.ResultStatus.EntityNotFound;
-                    response.StatusSummary = String.Format(Constants.EventHubEntityNotFoundSummary, entityName);
-                    response.StatusDetails = Constants.EventHubEntityNotFoundDetails;
+                    response.Summary = String.Format(Constants.EventHubEntityNotFoundSummary, entityName);
+                    response.Details = Constants.EventHubEntityNotFoundDetails;
                     response.Exception = e;
                 }
                 else if (isManagedIdentityConnection)

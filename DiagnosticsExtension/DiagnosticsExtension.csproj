@@ -400,9 +400,9 @@
     <Compile Include="Models\ConnectionStringValidator\HttpValidator.cs" />
     <Compile Include="Models\ConnectionStringValidator\KeyVaultValidator.cs" />
     <Compile Include="Models\ConnectionStringValidator\ServiceBusValidator.cs" />
-    <Compile Include="Models\ConnectionStringValidator\StorageValidator.cs" />
     <Compile Include="Models\ConnectionStringValidator\MySqlValidator.cs" />
     <Compile Include="Models\ConnectionStringValidator\SqlServerValidator.cs" />
+    <Compile Include="Models\ConnectionStringValidator\StorageValidator.cs" />
     <Compile Include="Models\LogsSettings.cs" />
     <Compile Include="Models\MsiValidatorModels.cs" />
     <Compile Include="Models\SasUriResponse.cs" />

@@ -173,8 +173,8 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
                 if (e.Message.Contains("Put token failed") && e.Message.Contains("could not be found"))
                 {
                     response.Status = ConnectionStringValidationResult.ResultStatus.EntityNotFound;
-                    response.StatusSummary = String.Format(Constants.ServiceBusEntityNotFoundSummary, entityName);
-                    response.StatusDetails = Constants.ServiceBusEntityNotFoundDetails;
+                    response.Summary = String.Format(Constants.ServiceBusEntityNotFoundSummary, entityName);
+                    response.Details = Constants.ServiceBusEntityNotFoundDetails;
                     response.Exception = e;
                 }
                 else if (isManagedIdentityConnection)
