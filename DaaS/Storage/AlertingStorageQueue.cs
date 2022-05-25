@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Linq;
+using DaaS.Configuration;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Auth;
 using Microsoft.WindowsAzure.Storage.Queue;
@@ -23,7 +24,7 @@ namespace DaaS.Storage
 
         public AlertingStorageQueue()
         {
-            string blobSasUri = Configuration.Settings.GetBlobSasUriFromEnvironment(out bool _);
+            string blobSasUri = Settings.Instance.BlobSasUri;
 
             if (string.IsNullOrWhiteSpace(blobSasUri))
             {

@@ -11,8 +11,6 @@ using Microsoft.WindowsAzure.Storage.Blob;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace DaaS
@@ -25,7 +23,7 @@ namespace DaaS
         public async Task<List<CrashMonitoringFile>> GetCrashDumpsAsync(bool includeFullUri = false)
         {
             var filesCollected = new List<CrashMonitoringFile>();
-            string blobSasUri = Settings.IsBlobSasUriConfiguredAsEnvironmentVariable() ? Settings.WebSiteDaasStorageSasUri : Settings.Instance.BlobStorageSas;
+            string blobSasUri = Settings.Instance.BlobSasUri;
 
             if (!string.IsNullOrWhiteSpace(blobSasUri))
             {

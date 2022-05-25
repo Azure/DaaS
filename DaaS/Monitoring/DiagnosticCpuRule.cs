@@ -26,9 +26,8 @@ namespace DaaS
             appendToMonitoringLog($"Monitoring started [CPU={_cpuThreshold}%, Mode={_sessionMode}, MaxActions={_maxActions}, Threshold={_thresholdSeconds}s, CheckEvery={_monitorDuration}s]", true);
         }
 
-        public bool ShouldAnalyze(out string blobSasUri)
+        public bool ShouldAnalyze()
         {
-            blobSasUri = _blobSasUri;
             return _sessionMode == SessionMode.CollectKillAndAnalyze;
         }
 
@@ -62,10 +61,10 @@ namespace DaaS
 
                 //
                 // Since we copied the file to permanent storage, delete the temp file if the mode 
-                // doesnt require analysis to be done or if the number of instances is more than 1
+                // doesnt require analysis to be done
                 //
 
-                if (_sessionMode != SessionMode.CollectKillAndAnalyze || HeartBeats.HeartBeatController.GetNumberOfLiveInstances() > 1)
+                if (_sessionMode != SessionMode.CollectKillAndAnalyze)
                 {
                     FileSystemHelpers.DeleteFileSafe(dumpFileInTempDirectory);
                 }

@@ -4,7 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Web.Http;
 using System.Web.Http.Results;
-using DaaS.V2;
+using DaaS.Sessions;
 using DiagnosticsExtension.Controllers;
 using Newtonsoft.Json;
 using Xunit;
@@ -85,9 +85,9 @@ namespace Daas.Test
         //    Assert.Equal(Status.Complete, completedSession.Content.Status);
         //}
 
-        private static SessionV2Controller GetSessionController(SessionManager sessionManager)
+        private static DiagnosticsExtension.Controllers.SessionController GetSessionController(SessionManager sessionManager)
         {
-            return new SessionV2Controller(sessionManager)
+            return new DiagnosticsExtension.Controllers.SessionController(sessionManager)
             {
                 Request = new System.Net.Http.HttpRequestMessage(),
                 Configuration = new HttpConfiguration()

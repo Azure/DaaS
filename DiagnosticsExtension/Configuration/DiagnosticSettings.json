@@ -15,6 +15,8 @@
   "MaxSessionCountInThresholdPeriod": 5,
   "HoursBetweenOldSessionsCleanup": 4,
   "DiagnosticToolsPath": null,
+  "LeaseDurationInSeconds": 15,
+  "HeartBeatLifeTimeInSeconds": 300,
   "Diagnosers": [
     {
       "Name": "MemoryDump",
@@ -137,8 +139,7 @@
         "Command": "%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
         "Arguments": "-File \"%diagnosticToolsPath%\\javatools\\analyzeJavaTool.ps1\" \"%logFile%\" \"%outputDir%\" \"jmapAnalysis.html\""
       }
-    }
-    ,
+    },
     {
       "Name": "Mock",
       "Description": "Mock Collector and Analyzer",

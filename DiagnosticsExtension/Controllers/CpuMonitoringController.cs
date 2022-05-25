@@ -165,7 +165,7 @@ namespace DiagnosticsExtension.Controllers
             var session = monitoringController.GetSession(sessionId);
             try
             {
-                var result = monitoringController.AnalyzeSession(sessionId, session.BlobSasUri);
+                var result = monitoringController.AnalyzeSession(sessionId);
                 return Request.CreateResponse(HttpStatusCode.OK, result);
             }
             catch (Exception ex)

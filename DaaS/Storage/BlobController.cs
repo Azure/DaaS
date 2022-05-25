@@ -51,6 +51,11 @@ namespace DaaS.Storage
 
         internal static CloudBlockBlob GetBlobForFile(string relativeFilePath, string blobSasUri)
         {
+            if (string.IsNullOrWhiteSpace(blobSasUri))
+            {
+                throw new NullReferenceException("BlobSasUri cannot be an empty value");
+            }
+
             try
             {
                 var dir = GetBlobDirectory(Path.GetDirectoryName(relativeFilePath), blobSasUri);
@@ -165,7 +170,7 @@ namespace DaaS.Storage
 
             if (blobSasUri.StartsWith("%"))
             {
-                blobSasUri = Settings.GetBlobSasUriFromEnvironment(out _);
+                blobSasUri = Settings.Instance.BlobSasUri;
             }
             return blobSasUri;
         }
@@ -177,7 +182,7 @@ namespace DaaS.Storage
                 string siteNameMatch = $"Logs/{Settings.Instance.SiteName}/";
                 string siteNameShortMatch = Settings.Instance.SiteName.Length > 10 ? Settings.Instance.SiteName.Substring(0, 10) : Settings.Instance.SiteName;
                 siteNameShortMatch = $"Logs/{siteNameShortMatch}/";
-                string defaultHostNameMatch = $"Logs/{Settings.GetDefaultHostName()}/";
+                string defaultHostNameMatch = $"Logs/{Settings.Instance.DefaultHostName}/";
 
                 foreach (var blob in GetBlobs()
                     .Where(x => x.Name.EndsWith(".diaglog") &&
@@ -206,7 +211,7 @@ namespace DaaS.Storage
                 prefix = prefix.ConvertBackSlashesToForwardSlashes();
             }
 
-            string blobSasUri = Settings.GetBlobSasUriFromEnvironment(out _);
+            string blobSasUri = Settings.Instance.BlobSasUri;
 
             if (!string.IsNullOrWhiteSpace(blobSasUri))
             {

@@ -118,8 +118,7 @@ namespace DaaS
                 monitoringSession.MaxActions,
                 monitoringSession.MaximumNumberOfHours,
                 monitoringSession.BlobStorageHostName,
-                monitoringSession.RuleType,
-                SasUriEnvironmentVariableExists = Configuration.Settings.IsBlobSasUriConfiguredAsEnvironmentVariable()
+                monitoringSession.RuleType
             };
 
             DaasEventSource.Instance.LogNewCpuMonitoringSession(SiteName, _assemblyVersion, monitoringSession.SessionId, monitoringSession.Mode.ToString(), JsonConvert.SerializeObject(details));

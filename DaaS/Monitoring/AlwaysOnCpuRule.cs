@@ -35,9 +35,8 @@ namespace DaaS
                 + $"IntervalDays={_intervalDays} CheckEvery={_monitorDuration}s]", true);
         }
 
-        public bool ShouldAnalyze(out string blobSasUri)
+        public bool ShouldAnalyze()
         {
-            blobSasUri = _blobSasUri;
             return false;
         }
 
@@ -77,17 +76,17 @@ namespace DaaS
 
                 //
                 // Since we copied the file to permanent storage, delete the temp file if the mode 
-                // doesnt require analysis to be done or if the number of instances is more than 1
+                // doesnt require analysis to be done 
                 //
 
-                if (_sessionMode != SessionMode.CollectKillAndAnalyze || HeartBeats.HeartBeatController.GetNumberOfLiveInstances() > 1)
+                if (_sessionMode != SessionMode.CollectKillAndAnalyze)
                 {
                     FileSystemHelpers.DeleteFileSafe(dumpFileInTempDirectory);
                 }
 
                 if (_sessionMode == SessionMode.CollectKillAndAnalyze)
                 {
-                    MonitoringAnalysisController.QueueAnalysisRequest(_sessionId, fileName + ".dmp", _blobSasUri, isActiveSession: true);
+                    MonitoringAnalysisController.QueueAnalysisRequest(_sessionId, fileName + ".dmp", isActiveSession: true);
                 }
             }
 

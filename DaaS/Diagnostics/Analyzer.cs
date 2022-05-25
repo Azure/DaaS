@@ -8,112 +8,134 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using DaaS.Configuration;
-using DaaS.Diagnostics;
-using DaaS.Leases;
 using DaaS.Sessions;
-using DaaS.Storage;
 
 namespace DaaS.Diagnostics
 {
-    class Analyzer : DiagnosticTool
+    internal class Analyzer : DiagnosticTool
     {
         public override string Name { get; internal set; }
         public string Command { get; set; }
         public string Arguments { get; set; }
-        internal async Task<List<Report>> Analyze(Log log, string sessionId, string blobSasUri, string defaultHostName, CancellationToken ct)
+
+        internal Analyzer(Diagnoser diagnoser)
         {
-            // Get a lease to analzye this particular log
-            Lease lease = Infrastructure.LeaseManager.TryGetLease(log.RelativePath, blobSasUri);
-            if (!Lease.IsValid(lease))
-            {
-                return null;
-            }
+            Name = diagnoser.Name;
+            Command = diagnoser.Analyzer.Command;
+            Arguments = diagnoser.Analyzer.Arguments;
+        }
 
-            // Run the analyzer command
-            var outputDir = CreateTemporaryReportDestinationFolder(log, defaultHostName);
-
-            await RunAnalyzerAsync(lease, log, outputDir, sessionId, ct);
-            
-            // Store the reports to blob storage
-            var reports = MoveReportsToPermanentStorage(outputDir);
-            if (reports == null || reports.Count == 0 || reports.Any(x => x.FileName.EndsWith(".err.diaglog")))
+        internal async Task AnalyzeLogsAsync(List<LogFile> logs, Session activeSession, CancellationToken token)
+        {
+            try
             {
-                string analyzerException = string.Empty;
-                if (reports.Any(x => x.FileName.EndsWith(".err.diaglog")))
+                Logger.LogSessionVerboseEvent($"Going to analyze logs for session. File count = {logs.Count}", activeSession.SessionId);
+                if (logs.Count == 0)
                 {
-                    var report = reports.FirstOrDefault(x => x.FileName.EndsWith(".err.diaglog"));
-                    string errorFileName = report.FullPermanentStoragePath;
-                    if (System.IO.File.Exists(errorFileName))
-                    {
-                        analyzerException = System.IO.File.ReadAllText(errorFileName);
-                    }
+                    Logger.LogSessionVerboseEvent($"Found no logs to analyze", activeSession.SessionId);
+                    return;
                 }
-                throw new DiagnosticToolHasNoOutputException(Name, analyzerException);
+
+                foreach (var log in logs)
+                {
+                    string tempOutputDir = log.GetReportTempPath(activeSession.SessionId);
+
+                    //
+                    // If DaasRunner restarts, there may be left over files from the previous runs
+                    // Clean any existing files to keep the analysis output clean
+                    //
+
+                    if (FileSystemHelpers.DirectoryExists(tempOutputDir))
+                    {
+                        FileSystemHelpers.DeleteDirectoryContentsSafe(tempOutputDir);
+                    }
+
+                    var args = ExpandVariablesInArgument(log, tempOutputDir);
+
+                    CancellationTokenSource analyzerTimeoutCts = new CancellationTokenSource();
+                    analyzerTimeoutCts.CancelAfter(TimeSpan.FromMinutes(Infrastructure.Settings.MaxAnalyzerTimeInMinutes));
+                    var combinedCancellationSource = CancellationTokenSource.CreateLinkedTokenSource(token, analyzerTimeoutCts.Token);
+
+                    await Task.Run(() => RunProcessAsync(Command, args, activeSession.SessionId, activeSession.Description, combinedCancellationSource.Token), combinedCancellationSource.Token);
+                }
+
+                AppendReportsToLogs(activeSession, logs);
+
+                await CopyReportsToPermanentLocationAsync(logs, activeSession);
             }
-
-            // Return the reports (we'll just let the lease expire on its own so that we can hold on to it until the reports have been logged in the session)
-            return  reports.Where(x => !x.FileName.EndsWith(".diaglog")).ToList();
+            catch (Exception ex)
+            {
+                Logger.LogSessionErrorEvent("Exception in AnalyzeLogsAsync", ex, activeSession.SessionId);
+                var currentInstance = activeSession.GetCurrentInstance();
+                if (currentInstance != null)
+                {
+                    currentInstance.AnalyzerErrors.Add($"{ex.GetType()}:{ex.Message}");
+                }
+            }
         }
 
-        private async Task RunAnalyzerAsync(Lease lease, Log log, string outputDir, string sessionId, CancellationToken ct)
-        {
-            await log.CacheLogInTempFolderAsync(sessionId);
-
-            Logger.LogSessionVerboseEvent($"Cached log file {log.FileName} in TempFolder", sessionId);
-
-            var args = ExpandVariablesInArgument(log, outputDir);
-
-            CancellationTokenSource analyzerTimeoutCts = new CancellationTokenSource();
-            analyzerTimeoutCts.CancelAfter(TimeSpan.FromMinutes(Infrastructure.Settings.MaxAnalyzerTimeInMinutes));
-            var combinedCancellationSource = CancellationTokenSource.CreateLinkedTokenSource(ct, analyzerTimeoutCts.Token);
-
-            await Task.Run(() => RunProcessWhileKeepingLeaseAliveAsync(lease, Command, args, sessionId, combinedCancellationSource.Token), combinedCancellationSource.Token);
-        }
-
-        private string CreateTemporaryReportDestinationFolder(Log log, string defaultHostName)
-        {
-            var destinationDir = Path.Combine(
-                "Reports",
-                defaultHostName,
-                log.StartTime.ToString(SessionConstants.SessionFileNameFormat),
-                Name);
-            var tempDir = Infrastructure.Storage.GetNewTempFolder(destinationDir);
-            return tempDir;
-        }
-
-        protected string ExpandVariablesInArgument(Log log, string outputDir)
+        private string ExpandVariablesInArgument(LogFile log, string tempOutputDir)
         {
             var variables = new Dictionary<string, string>()
             {
-                {"logFile", Path.Combine(Infrastructure.Settings.TempDir, log.RelativePath.ConvertForwardSlashesToBackSlashes())},
-                {"outputDir", outputDir}
+                {"logFile", log.TempPath},
+                {"outputDir", tempOutputDir}
             };
             var args = ExpandVariables(Arguments, variables);
             return args;
         }
 
-        protected List<Report> MoveReportsToPermanentStorage(string outputDir)
+        private void AppendReportsToLogs(Session activeSession, List<LogFile> logs)
         {
-            // Once collector finishes executing, move log to permanent storage
-            List<string> reportsGenerated = Infrastructure.Storage.GetFilesInDirectory(outputDir, StorageLocation.TempStorage, string.Empty);
-            List<Report> reports = new List<Report>();
-            List<Task> saveReportTasks = new List<Task>();
-            foreach (var reportFile in reportsGenerated)
+            foreach (var log in logs)
             {
-                var relativeFilePath = reportFile.Replace(Infrastructure.Settings.TempDir + "\\", "");
-                var report = Report.GetReport(relativeFilePath);
-                reports.Add(report);
-                var saveTask = Infrastructure.Storage.SaveFileAsync(report, report.StorageLocation);
-                saveReportTasks.Add(saveTask);
-            }
+                string tempOutputDir = log.GetReportTempPath(activeSession.SessionId);
+                if (!Directory.Exists(tempOutputDir))
+                {
+                    return;
+                }
 
-            Task.WaitAll(saveReportTasks.ToArray());
-            return reports;
+                var reportDirectory = new DirectoryInfo(tempOutputDir);
+                foreach (var file in reportDirectory.GetFiles("*", SearchOption.AllDirectories))
+                {
+                    log.Reports.Add(new Report()
+                    {
+                        Name = file.Name,
+                        TempPath = file.FullName
+                    });
+                }
+            }
+        }
+
+        private async Task CopyReportsToPermanentLocationAsync(List<LogFile> logs, Session activeSession)
+        {
+            foreach (var log in logs)
+            {
+                foreach (var report in log.Reports)
+                {
+                    string reportRelativePath = report.TempPath.Replace(DaasDirectory.ReportsTempDir + "\\", "");
+                    report.PartialPath = ConvertBackSlashesToForwardSlashes(reportRelativePath, DaasDirectory.ReportsDirRelativePath);
+                    report.RelativePath = $"{Utility.GetScmHostName()}/api/vfs/{report.PartialPath}";
+                    string destination = Path.Combine(DaasDirectory.ReportsDir, reportRelativePath);
+
+                    try
+                    {
+                        await MoveFileAsync(report.TempPath, destination, activeSession.SessionId, deleteAfterCopy: true);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogSessionErrorEvent($"Failed while copying {reportRelativePath} to permanent storage", ex, activeSession.SessionId);
+                    }
+                }
+
+                //
+                // Delete the log file now from the temp directory to save temp disk space
+                //
+
+                FileSystemHelpers.DeleteFileSafe(log.TempPath);
+            }
         }
     }
 }

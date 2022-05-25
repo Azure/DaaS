@@ -18,7 +18,6 @@ namespace DiagnosticsExtension.Models
         public string StorageAccount { get; set; }
         public string Exception { get; set; }
         public bool IsValid { get; set; }
-        public string SpecifiedAt { get; set; }
     }
 
     public class ExtendedError

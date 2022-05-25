@@ -10,8 +10,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
-using System.Web.Http.Results;
-using DaaS.V2;
+using DaaS.Sessions;
 using DiagnosticsExtension.Controllers;
 using Newtonsoft.Json;
 using Xunit;
@@ -102,6 +101,7 @@ namespace Daas.Test
             foreach (var file in knownFiles)
             {
                 _output.WriteLine($"Checking for file {file}");
+                //var resp = await _client.GetAsync($"api/vfs/SystemDrive/Program%20Files%20(x86)/SiteExtensions/DaaS/2.9.22512.01/{file}");
                 var resp = await _client.GetAsync($"api/vfs/siteextensions/daas/{file}");
                 Assert.True(resp.IsSuccessStatusCode);
             }

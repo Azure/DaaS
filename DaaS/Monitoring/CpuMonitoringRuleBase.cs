@@ -10,6 +10,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using DaaS.Configuration;
 using DaaS.Leases;
 using DaaS.Storage;
 using Microsoft.WindowsAzure.Storage;
@@ -32,7 +33,6 @@ namespace DaaS
         protected readonly int _thresholdSeconds;
         protected readonly int _maxActions;
         protected readonly string _sessionId;
-        protected readonly string _blobSasUri;
         protected readonly string _actionToExecute;
         protected readonly string _arguments;
         protected readonly bool _monitorScmProcess;
@@ -58,7 +58,6 @@ namespace DaaS
             _cpuThreshold = session.CpuThreshold;
             _maxActions = session.MaxActions;
             _sessionId = session.SessionId;
-            _blobSasUri = session.BlobSasUri;
             _defaultHostName = session.DefaultHostName;
             _actionToExecute = string.IsNullOrWhiteSpace(session.ActionToExecute) ? EnvironmentVariables.ProcdumpPath : session.ActionToExecute;
             _arguments = string.IsNullOrWhiteSpace(session.ArgumentsToAction) ? " -accepteula -dc \"{MEMORYDUMPCOMMENT}\" -ma {PROCESSID} {OUTPUTPATH}" : session.ArgumentsToAction;
@@ -132,7 +131,7 @@ namespace DaaS
             {
                 Category = "CpuMonitoring",
                 TimeStampUtc = DateTime.UtcNow,
-                SiteName = Configuration.Settings.GetDefaultHostName(fullHostName: true),
+                SiteName = Settings.Instance.DefaultHostName,
                 SessionId = _sessionId,
                 FileName = fileName,
                 BlobFileName = fileNameOnBlob
@@ -154,8 +153,7 @@ namespace DaaS
         {
             try
             {
-                string blobSasUri = BlobController.GetActualBlobSasUri(_blobSasUri);
-
+                string blobSasUri = Settings.Instance.BlobSasUri;
                 if (string.IsNullOrWhiteSpace(blobSasUri))
                 {
                     Logger.LogCpuMonitoringVerboseEvent("Incorrect value for BlobSasUri in MoveToPermanentStorage method", _sessionId);

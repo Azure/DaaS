@@ -6,7 +6,6 @@
 // -----------------------------------------------------------------------
 
 using DaaS.Configuration;
-using DaaS.Sessions;
 using DaaS.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
 using System;
@@ -49,7 +48,7 @@ namespace DaaS
             }
             else
             {
-                path = Path.Combine(Settings.UserSiteStorageDirectory, MonitoringFolder, folderName);
+                path = Path.Combine(Settings.Instance.UserSiteStorageDirectory, MonitoringFolder, folderName);
                 FileSystemHelpers.CreateDirectoryIfNotExistsSafe(path);
             }
 
@@ -71,9 +70,9 @@ namespace DaaS
                 FileSystemHelpers.DeleteDirectoryContentsSafe(cpuMonitoringActive);
                 monitoringSession.StartDate = DateTime.UtcNow;
                 monitoringSession.EndDate = DateTime.MinValue.ToUniversalTime();
-                monitoringSession.SessionId = monitoringSession.StartDate.ToString(SessionConstants.SessionFileNameFormat);
-                monitoringSession.BlobStorageHostName = BlobController.GetBlobStorageHostName(monitoringSession.BlobSasUri);
-                monitoringSession.DefaultHostName = V2.Settings.Instance.DefaultHostName;
+                monitoringSession.SessionId = monitoringSession.StartDate.ToString(Constants.SessionFileNameFormat);
+                monitoringSession.BlobStorageHostName = BlobController.GetBlobStorageHostName(Settings.Instance.BlobSasUri);
+                monitoringSession.DefaultHostName = Settings.Instance.DefaultHostName;
                 cpuMonitoringActive = Path.Combine(cpuMonitoringActive, monitoringSession.SessionId + ".json");
 
                 if (monitoringSession.RuleType == RuleType.AlwaysOn
@@ -147,10 +146,9 @@ namespace DaaS
             }
         }
 
-        public string AnalyzeSession(string sessionId, string blobSasUri)
+        public string AnalyzeSession(string sessionId)
         {
             var session = GetSession(sessionId);
-
             if (session == null)
             {
                 throw new InvalidOperationException("Session does not exist or is not yet completed");
@@ -160,7 +158,7 @@ namespace DaaS
             {
                 if (string.IsNullOrWhiteSpace(log.ReportFile) && !string.IsNullOrWhiteSpace(log.FileName))
                 {
-                    MonitoringAnalysisController.QueueAnalysisRequest(sessionId, log.FileName, blobSasUri);
+                    MonitoringAnalysisController.QueueAnalysisRequest(sessionId, log.FileName);
                 }
             }
             session.AnalysisStatus = AnalysisStatus.InProgress;
@@ -195,9 +193,9 @@ namespace DaaS
             try
             {
                 var session = GetSession(sessionId);
-                if (!string.IsNullOrWhiteSpace(session.BlobSasUri))
+                string blobSasUri = Settings.Instance.BlobSasUri;
+                if (!string.IsNullOrWhiteSpace(blobSasUri))
                 {
-                    var blobSasUri = BlobController.GetActualBlobSasUri(session.BlobSasUri);
                     var fileBlobLegacy = BlobController.GetBlobForFile(GetRelativePathForSession(sessionId), blobSasUri);
                     if (fileBlobLegacy != null)
                     {
@@ -290,31 +288,21 @@ namespace DaaS
             var filesCollected = new List<MonitoringFile>();
             string folderName = GetLogsFolderForSession(session.SessionId);
             var reports = FileSystemHelpers.GetFilesInDirectory(folderName, "*.mht", false, SearchOption.TopDirectoryOnly);
-            string blobSasUri = session.BlobSasUri;
+            string blobSasUri = Settings.Instance.BlobSasUri;
             string sessionId = session.SessionId;
 
             try
             {
                 if (string.IsNullOrWhiteSpace(blobSasUri))
                 {
-                    if (FileSystemHelpers.DirectoryExists(folderName))
-                    {
-                        var logFiles = FileSystemHelpers.GetFilesInDirectory(folderName, "*.dmp", false, SearchOption.TopDirectoryOnly);
-                        foreach (var fileName in logFiles)
-                        {
-                            string relativePath = MonitoringFile.GetRelativePath(sessionId, Path.GetFileName(fileName));
-                            filesCollected.Add(new MonitoringFile(fileName, relativePath));
-                        }
-                    }
+                    throw new NullReferenceException("BlobSasUri is empty or not set");
                 }
-                else
-                {
-                    string directoryPath = GetRelativePathForSession(session.DefaultHostName, sessionId);
-                    UpdateFilesCollected(sessionId, blobSasUri, filesCollected, reports, directoryPath);
 
-                    string directoryPathLegacy = GetRelativePathForSession(sessionId);
-                    UpdateFilesCollected(sessionId, blobSasUri, filesCollected, reports, directoryPathLegacy);
-                }
+                string directoryPath = GetRelativePathForSession(session.DefaultHostName, sessionId);
+                UpdateFilesCollected(sessionId, blobSasUri, filesCollected, reports, directoryPath);
+
+                string directoryPathLegacy = GetRelativePathForSession(sessionId);
+                UpdateFilesCollected(sessionId, blobSasUri, filesCollected, reports, directoryPathLegacy);
             }
             catch (Exception ex)
             {
@@ -563,20 +551,22 @@ namespace DaaS
             string cpuMonitorPath = GetCpuMonitoringPath(MonitoringSessionDirectories.Active);
             var activeInstances = HeartBeats.HeartBeatController.GetLiveInstances();
 
-            if (GetActiveSession() != null)
+            if (GetActiveSession() == null)
             {
-                foreach (var logFile in FileSystemHelpers.GetFilesInDirectory(cpuMonitorPath, "*.log", false, SearchOption.TopDirectoryOnly))
+                return logs;
+            }
+
+            foreach (var logFile in FileSystemHelpers.GetFilesInDirectory(cpuMonitorPath, "*.log", false, SearchOption.TopDirectoryOnly))
+            {
+                string instanceName = Path.GetFileNameWithoutExtension(logFile);
+                if (activeInstances.Any(x => x.Name.Equals(instanceName, StringComparison.OrdinalIgnoreCase)))
                 {
-                    string instanceName = Path.GetFileNameWithoutExtension(logFile);
-                    if (activeInstances.Any(x => x.Name.Equals(instanceName, StringComparison.OrdinalIgnoreCase)))
+                    string logContent = ReadEndTokens(logFile, 10, Encoding.Default, Environment.NewLine);
+                    logs.Add(new MonitoringLogsPerInstance()
                     {
-                        string logContent = ReadEndTokens(logFile, 10, Encoding.Default, Environment.NewLine);
-                        logs.Add(new MonitoringLogsPerInstance()
-                        {
-                            Instance = instanceName,
-                            Logs = logContent
-                        });
-                    }
+                        Instance = instanceName,
+                        Logs = logContent
+                    });
                 }
             }
 
