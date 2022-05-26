@@ -283,10 +283,12 @@ namespace DaaSRunner
 
         private static void StopMonitoringSession()
         {
+            bool analysisNeeded = false;
             string sessionId = "";
             if (m_CpuMonitoringRule != null)
             {
                 sessionId = m_CpuMonitoringRule.SessionId;
+                analysisNeeded = m_CpuMonitoringRule.ShouldAnalyze();
             }
             Logger.LogCpuMonitoringVerboseEvent($"Stopping a monitoring session", sessionId);
 
@@ -304,7 +306,7 @@ namespace DaaSRunner
                 m_FailedStoppingSession = false;
                 
                 if (!string.IsNullOrWhiteSpace(sessionId) 
-                    && m_CpuMonitoringRule.ShouldAnalyze())
+                    && analysisNeeded)
                 {
                     MonitoringSessionController controller = new MonitoringSessionController();
                     controller.AnalyzeSession(sessionId);

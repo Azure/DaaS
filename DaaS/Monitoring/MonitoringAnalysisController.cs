@@ -205,7 +205,7 @@ namespace DaaS
             try
             {
                 string filePath = Path.Combine(path, Path.GetFileName(request.LogFileName));
-                var blob = BlobController.GetBlobForFile(filePath, Settings.Instance.BlobSasUri);
+                var blob = BlobController.GetBlobForFile(filePath);
                 blob.DownloadToFile(dumpFileInTempDirectory, FileMode.Append);
                 Logger.LogCpuMonitoringVerboseEvent($"Copied file from {request.LogFileName} to {dumpFileInTempDirectory} ", request.SessionId);
             }

@@ -121,9 +121,6 @@
     <EmbeddedResource Include="Configuration\PrivateSettings.json" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="Configuration\PrivateSettings.xml" />
-  </ItemGroup>
-  <ItemGroup>
     <WCFMetadata Include="Service References\" />
   </ItemGroup>
   <ItemGroup />

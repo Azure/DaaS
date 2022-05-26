@@ -153,15 +153,8 @@ namespace DaaS
         {
             try
             {
-                string blobSasUri = Settings.Instance.BlobSasUri;
-                if (string.IsNullOrWhiteSpace(blobSasUri))
-                {
-                    Logger.LogCpuMonitoringVerboseEvent("Incorrect value for BlobSasUri in MoveToPermanentStorage method", _sessionId);
-                    return;
-                }
-
                 string relativeFilePath = Path.Combine(MonitoringSessionController.GetRelativePathForSession(_defaultHostName, _sessionId), fileName);
-                Lease lease = Infrastructure.LeaseManager.TryGetLease(relativeFilePath, blobSasUri);
+                Lease lease = Infrastructure.LeaseManager.TryGetLease(relativeFilePath);
                 if (lease == null)
                 {
                     // This instance is already running this collector
@@ -172,7 +165,7 @@ namespace DaaS
                 var accessCondition = AccessCondition.GenerateLeaseCondition(lease.Id);
                 var taskToUpload = Task.Run(() =>
                 {
-                    var blockBlob = BlobController.GetBlobForFile(relativeFilePath, blobSasUri);
+                    var blockBlob = BlobController.GetBlobForFile(relativeFilePath);
                     blockBlob.UploadFromFile(sourceFile, accessCondition);
                     if (EnqueueEventToAzureQueue(fileName, blockBlob.Uri.ToString()))
                     {

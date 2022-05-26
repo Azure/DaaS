@@ -19,59 +19,62 @@ namespace DaaS.Storage
     {
         private static readonly ConcurrentDictionary<string, CloudBlobContainer> Containers = new ConcurrentDictionary<string, CloudBlobContainer>();
 
-        internal static CloudBlobDirectory GetBlobDirectory(string directoryPath, string blobSasUri)
+        internal static CloudBlobDirectory GetBlobDirectory(string directoryPath)
         {
+            string blobSasUri = Settings.Instance.BlobSasUri;
+            if (string.IsNullOrWhiteSpace(blobSasUri))
+            {
+                throw new InvalidOperationException("Azure Storage account or Blob SAS URI is not specified");
+            }
+
+            //
             // Blob storage uses forward slashes rather than back slashes
+            //
+
             directoryPath = directoryPath.ConvertBackSlashesToForwardSlashes();
             CloudBlobDirectory dirBlob = null;
-            if (!string.IsNullOrWhiteSpace(blobSasUri))
+
+            if (!Containers.ContainsKey(blobSasUri))
             {
-                blobSasUri = GetActualBlobSasUri(blobSasUri);
-                if (!Containers.ContainsKey(blobSasUri))
+                try
                 {
-                    try
-                    {
-                        var container = new CloudBlobContainer(new Uri(blobSasUri));
-                        var blobList = container.ListBlobs();
-                        Containers.TryAdd(blobSasUri, container);
-                        dirBlob = container.GetDirectoryReference(directoryPath);
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.LogErrorEvent("Failed while accessing blob storage", ex);
-                    }
+                    var container = new CloudBlobContainer(new Uri(blobSasUri));
+                    var blobList = container.ListBlobs();
+                    Containers.TryAdd(blobSasUri, container);
+                    dirBlob = container.GetDirectoryReference(directoryPath);
                 }
-                else
+                catch (Exception ex)
                 {
-                    dirBlob = Containers[blobSasUri].GetDirectoryReference(directoryPath);
+                    Logger.LogErrorEvent("Failed while accessing blob storage", ex);
                 }
             }
+            else
+            {
+                dirBlob = Containers[blobSasUri].GetDirectoryReference(directoryPath);
+            }
+
             return dirBlob;
         }
 
-        internal static CloudBlockBlob GetBlobForFile(string relativeFilePath, string blobSasUri)
+        internal static CloudBlockBlob GetBlobForFile(string relativeFilePath)
         {
-            if (string.IsNullOrWhiteSpace(blobSasUri))
-            {
-                throw new NullReferenceException("BlobSasUri cannot be an empty value");
-            }
-
             try
             {
-                var dir = GetBlobDirectory(Path.GetDirectoryName(relativeFilePath), blobSasUri);
+                var dir = GetBlobDirectory(Path.GetDirectoryName(relativeFilePath));
                 CloudBlockBlob blockBlob = dir.GetBlockBlobReference(Path.GetFileName(relativeFilePath));
                 return blockBlob;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return null;
+                Logger.LogErrorEvent("Encountered exception while getting blob for file", ex);
             }
+
+            return null;
         }
 
         public static bool ValidateBlobSasUri(string blobSasUri, out Exception exceptionContactingStorage)
         {
             exceptionContactingStorage = null;
-            blobSasUri = GetActualBlobSasUri(blobSasUri);
             try
             {
                 var container = new CloudBlobContainer(new Uri(blobSasUri));
@@ -113,15 +116,15 @@ namespace DaaS.Storage
             }
         }
 
-        internal static string GetBlobStorageHostName(string blobSasUri)
+        internal static string GetBlobStorageHostName()
         {
+            string blobSasUri = Settings.Instance.BlobSasUri;
             if (string.IsNullOrWhiteSpace(blobSasUri))
             {
                 return string.Empty;
             }
             try
             {
-                blobSasUri = GetActualBlobSasUri(blobSasUri);
                 if (Uri.TryCreate(blobSasUri, UriKind.Absolute, out Uri uri))
                 {
                     return uri.Host;
@@ -142,7 +145,6 @@ namespace DaaS.Storage
                 throw new Exception("Blob storage isn't configured. Can't access a file from blob storage");
             }
 
-            blobSasUri = GetActualBlobSasUri(blobSasUri);
             var blobUriSections = blobSasUri.Split('?');
             if (blobUriSections.Length >= 2)
             {
@@ -155,24 +157,6 @@ namespace DaaS.Storage
             {
                 return blobUriSections[0] + "/" + relativeFilePath.ConvertBackSlashesToForwardSlashes();
             }
-        }
-
-        internal static string GetActualBlobSasUri(string blobSasUri)
-        {
-            //
-            // BlobSasUri could be set to %WEBSITE_DAAS_STORAGE_SASURI%
-            //
-
-            if (string.IsNullOrWhiteSpace(blobSasUri))
-            {
-                return string.Empty;
-            }
-
-            if (blobSasUri.StartsWith("%"))
-            {
-                blobSasUri = Settings.Instance.BlobSasUri;
-            }
-            return blobSasUri;
         }
 
         internal static void RemoveOlderFilesFromBlob()
@@ -217,7 +201,6 @@ namespace DaaS.Storage
             {
                 CloudBlobContainer container = null;
 
-                blobSasUri = GetActualBlobSasUri(blobSasUri);
                 if (!Containers.ContainsKey(blobSasUri))
                 {
                     try

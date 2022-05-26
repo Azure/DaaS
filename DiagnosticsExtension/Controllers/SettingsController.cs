@@ -1,14 +1,8 @@
 ﻿using DiagnosticsExtension.Models;
 using Microsoft.WindowsAzure.Storage;
-using Microsoft.WindowsAzure.Storage.Blob;
-using DaaS.Sessions;
 using System;
-using System.Collections.Generic;
-using System.Net;
 using System.Net.Http;
 using System.Web.Http;
-using System.Globalization;
-using Microsoft.WindowsAzure.Storage.Auth;
 using DaaS;
 using DaaS.Storage;
 
@@ -21,20 +15,10 @@ namespace DiagnosticsExtension.Controllers
         public Settings Get()
         {
             var sessionController = new DaaS.Sessions.SessionController();
-
-            List<string> diagnosers = new List<string>();
-            diagnosers.Add("Event Viewer Logs");
-            diagnosers.Add("Memory Dump");
-            diagnosers.Add("Http Logs");
-            diagnosers.Add("PHP error Logs");
-            diagnosers.Add("PHP Process Report");
-
             Settings settings = new Settings
             {
                 BlobSasUri = sessionController.BlobStorageSasUri,
-                BlobContainer = "",
-                BlobKey = "",
-                BlobAccount = ""
+                StorageConnectionString = sessionController.StorageConnectionString
             };
 
             return settings;
@@ -45,37 +29,43 @@ namespace DiagnosticsExtension.Controllers
         public HttpResponseMessage ValidateSasUri()
         {
             var sasUriResponse = new SasUriResponse();
-            var sessionController = new DaaS.Sessions.SessionController();
 
-            string blobSasUri = sessionController.BlobStorageSasUri;
-            if (BlobController.ValidateBlobSasUri(blobSasUri, out Exception exceptionCallingStorage))
+            try
             {
-                try
-                {
-                    Uri u = new Uri(blobSasUri);
-                    sasUriResponse.StorageAccount = u.Host;
-                    sasUriResponse.IsValid = true;
+                var sessionController = new DaaS.Sessions.SessionController();
+                string connectionString = sessionController.StorageConnectionString;
+                sasUriResponse.StorageConnectionStringSpecified = !string.IsNullOrWhiteSpace(connectionString);
+                sasUriResponse.IsValidStorageConnectionString = IsValidStorageConnectionString(connectionString, out string storageConnectionStringEx);
+                sasUriResponse.StorageConnectionStringException = storageConnectionStringEx;
 
-                }
-                catch (Exception ex)
+                string blobSasUri = sessionController.BlobStorageSasUri;
+                if (BlobController.ValidateBlobSasUri(blobSasUri, out Exception exceptionCallingStorage))
                 {
-                    sasUriResponse.Exception = ex.Message;
-                    sasUriResponse.IsValid = false;
-                }
-            }
-            else
-            {
-                sasUriResponse.IsValid = false;
-                if (Uri.TryCreate(blobSasUri, UriKind.Absolute, out Uri outUri) && (outUri.Scheme == Uri.UriSchemeHttp || outUri.Scheme == Uri.UriSchemeHttps))
-                {
-                    sasUriResponse.StorageAccount = outUri.Host;
-                }
-                if (exceptionCallingStorage != null)
-                {
-                    sasUriResponse.Exception = exceptionCallingStorage.Message;
-                    if (exceptionCallingStorage is StorageException storageEx)
+                    try
                     {
-                        if (storageEx.RequestInformation != null)
+                        Uri u = new Uri(blobSasUri);
+                        sasUriResponse.StorageAccount = u.Host;
+                        sasUriResponse.IsValid = true;
+
+                    }
+                    catch (Exception ex)
+                    {
+                        sasUriResponse.Exception = ex.Message;
+                        sasUriResponse.IsValid = false;
+                    }
+                }
+                else
+                {
+                    sasUriResponse.IsValid = false;
+                    if (Uri.TryCreate(blobSasUri, UriKind.Absolute, out Uri outUri) && (outUri.Scheme == Uri.UriSchemeHttp || outUri.Scheme == Uri.UriSchemeHttps))
+                    {
+                        sasUriResponse.StorageAccount = outUri.Host;
+                    }
+                    if (exceptionCallingStorage != null)
+                    {
+                        sasUriResponse.Exception = exceptionCallingStorage.Message;
+                        if (exceptionCallingStorage is StorageException storageEx
+                            && storageEx.RequestInformation != null)
                         {
                             sasUriResponse.ExtendedError = new ExtendedError()
                             {
@@ -93,9 +83,35 @@ namespace DiagnosticsExtension.Controllers
                     }
                 }
             }
+            catch (Exception ex)
+            {
+                sasUriResponse.Exception = ex.Message;
+                sasUriResponse.IsValid = false;
+            }
 
             return Request.CreateResponse(sasUriResponse);
         }
 
+        private bool IsValidStorageConnectionString(string connectionString, out string storageConnectionStringEx)
+        {
+            storageConnectionStringEx = "";
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                return false;
+            }
+
+            try
+            {
+                var account = CloudStorageAccount.Parse(connectionString);
+                account.CreateCloudBlobClient();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                storageConnectionStringEx = ex.ToLogString();
+            }
+
+            return false;
+        }
     }
 }

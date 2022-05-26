@@ -6,25 +6,36 @@
 // -----------------------------------------------------------------------
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
+using Microsoft.WindowsAzure.Storage;
+using Microsoft.WindowsAzure.Storage.Blob;
+using Microsoft.WindowsAzure.Storage.Queue;
 using Newtonsoft.Json;
 
 namespace DaaS.Configuration
 {
     public class Settings
     {
+        public const string AlertQueueName = "diagnosticalerts";
+
         const string DefaultSettingsFileName = "DiagnosticSettings.json";
         const string PrivateSettingsFilePath = "PrivateSettings.json";
         const string DefaultHostNameSandboxProperty = "SANDBOX_FUNCTION_RESOURCE_ID";
-        const string WebSiteDaasStorageSasUri = "%WEBSITE_DAAS_STORAGE_SASURI%";
+        const string DaasStorageSasUri = "WEBSITE_DAAS_STORAGE_SASURI";
+        const string DaasStorageConnectionString = "WEBSITE_DAAS_STORAGE_CONNECTIONSTRING";
+        const string ContainerName = "memorydumps";
 
         private string _diagnosticToolsPath;
         private bool? _isSandboxAvailable;
         private string _siteName;
+        private readonly Dictionary<string, string> _blobStorageConnectionStrings = new Dictionary<string, string>();
+        private readonly Dictionary<string, string> _queueStorageConnectionStrings = new Dictionary<string, string>();
+
         private static string _instanceName;
         private string _tempDir;
         private static string _siteRootDir;
@@ -49,26 +60,56 @@ namespace DaaS.Configuration
         public Diagnoser[] Diagnosers { get; set; }
         public string DiagnosticToolsPath { get; set; }
 
-        public string BlobSasUri
+        internal string BlobSasUri
         {
             get
             {
-                var envVarName = WebSiteDaasStorageSasUri.Replace("%", "");
+                if (!string.IsNullOrWhiteSpace(StorageConnectionString))
+                {
+                    return GetBlobSasUri(StorageConnectionString);
+                }
+
+                return AccountSasUri;
+            }
+        }
+
+        internal string AccountSasUri
+        {
+            get
+            {
                 if (IsSandBoxAvailable())
                 {
-                    int copiedBytes = 0;
-                    byte[] valueBuffer = new byte[4096];
-                    if (GetSandboxProperty(envVarName, valueBuffer, valueBuffer.Length, 0, ref copiedBytes))
+                    string accountSasUri = GetSandboxProperty(DaasStorageSasUri);
+                    if (!string.IsNullOrWhiteSpace(accountSasUri))
                     {
-                        string value = Encoding.Unicode.GetString(valueBuffer, 0, copiedBytes);
-                        if (!string.IsNullOrWhiteSpace(value))
-                        {
-                            return value;
-                        }
+                        return accountSasUri;
                     }
                 }
 
-                string envvar = Environment.GetEnvironmentVariable(envVarName);
+                string envvar = Environment.GetEnvironmentVariable(DaasStorageSasUri);
+                if (!string.IsNullOrWhiteSpace(envvar))
+                {
+                    return envvar;
+                }
+
+                return string.Empty;
+            }
+        }
+
+        internal string StorageConnectionString
+        {
+            get
+            {
+                if (IsSandBoxAvailable())
+                {
+                    string storageConnectionString = GetSandboxProperty(DaasStorageConnectionString);
+                    if (!string.IsNullOrWhiteSpace(storageConnectionString))
+                    {
+                        return storageConnectionString;
+                    }
+                }
+
+                string envvar = Environment.GetEnvironmentVariable(DaasStorageConnectionString);
                 if (!string.IsNullOrWhiteSpace(envvar))
                 {
                     return envvar;
@@ -82,7 +123,7 @@ namespace DaaS.Configuration
         /// This may may either return the Site Name or the full DefaultHostName.
         /// Use it with caution.
         /// </summary>
-        public string DefaultHostName
+        internal string DefaultHostName
         {
             get
             {
@@ -100,25 +141,16 @@ namespace DaaS.Configuration
         /// Caution: There is a possibility that Sandbox property may not point to the 
         /// correct host name so this property may return empty. Use it carefully.
         /// </summary>
-        public string DefaultScmHostName
+        internal string DefaultScmHostName
         {
             get
             {
-                string defaultHostName = string.Empty;
                 if (!IsSandBoxAvailable())
                 {
                     return SiteName;
                 }
 
-                int copiedBytes = 0;
-                byte[] valueBuffer = new byte[4096];
-                if (GetSandboxProperty(DefaultHostNameSandboxProperty, valueBuffer, valueBuffer.Length, 0, ref copiedBytes))
-                {
-                    string value = Encoding.Unicode.GetString(valueBuffer, 0, copiedBytes);
-                    defaultHostName = value;
-                }
-
-                return defaultHostName;
+                return GetSandboxProperty(DefaultHostNameSandboxProperty);
             }
         }
 
@@ -214,7 +246,7 @@ namespace DaaS.Configuration
                 {
                     _instanceName = Environment.GetEnvironmentVariable("COMPUTERNAME");
                 }
-                
+
                 return _instanceName;
             }
         }
@@ -384,6 +416,61 @@ namespace DaaS.Configuration
             UriBuilder uri = new UriBuilder(codeBase);
             string path = Uri.UnescapeDataString(uri.Path);
             return Path.GetDirectoryName(path);
+        }
+
+        private static string GetSandboxProperty(string propertyName)
+        {
+            int copiedBytes = 0;
+            byte[] valueBuffer = new byte[4096];
+            if (GetSandboxProperty(propertyName, valueBuffer, valueBuffer.Length, 0, ref copiedBytes))
+            {
+                string value = Encoding.Unicode.GetString(valueBuffer, 0, copiedBytes);
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    return value;
+                }
+            }
+
+            return string.Empty;
+        }
+
+        private string GetBlobSasUri(string connectionString)
+        {
+            if (_blobStorageConnectionStrings.ContainsKey(connectionString))
+            {
+                return _blobStorageConnectionStrings[connectionString];
+            }
+
+            _blobStorageConnectionStrings[connectionString] = GenerateBlobSasUri(connectionString);
+            return _blobStorageConnectionStrings[connectionString];
+
+        }
+
+        private static string GenerateBlobSasUri(string connectionString)
+        {
+            CloudStorageAccount storageAccount = CloudStorageAccount.Parse(connectionString);
+            CloudBlobClient blobClient = storageAccount.CreateCloudBlobClient();
+            CloudBlobContainer container = blobClient.GetContainerReference(ContainerName);
+            container.CreateIfNotExists();
+
+            //
+            // Set the expiry time and permissions for the container. In this case no start
+            // time is specified, so the shared access signature becomes valid immediately.
+            //
+
+            SharedAccessBlobPolicy sasConstraints = new SharedAccessBlobPolicy
+            {
+                SharedAccessExpiryTime = DateTime.UtcNow.AddMonths(1),
+                Permissions = SharedAccessBlobPermissions.Write | SharedAccessBlobPermissions.Read | SharedAccessBlobPermissions.List | SharedAccessBlobPermissions.Delete
+            };
+
+            //
+            // Generate the shared access signature on the container, setting the constraints
+            // directly on the signature.
+            //
+
+            string sasContainerToken = container.GetSharedAccessSignature(sasConstraints);
+            return container.Uri + sasContainerToken;
         }
     }
 }

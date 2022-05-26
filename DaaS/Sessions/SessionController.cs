@@ -30,6 +30,14 @@ namespace DaaS.Sessions
             }
         }
 
+        public string StorageConnectionString
+        {
+            get
+            {
+                return Settings.Instance.StorageConnectionString;
+            }
+        }
+
         public bool IsSandboxAvailable()
         {
             return Settings.Instance.IsSandBoxAvailable();
@@ -115,11 +123,17 @@ namespace DaaS.Sessions
                 DeleteWebjobFolderIfExists(EnvironmentVariables.DaasWebJobAppData);
                 DeleteOlderDlls(EnvironmentVariables.DaasConsoleDirectory);
                 DeleteOlderDlls(EnvironmentVariables.DaasWebJobDirectory);
+                DeletePrivateSettingsXml();
             }
             catch (Exception ex)
             {
                 Logger.LogErrorEvent("Failed while cleaning up obsolete files", ex);
             }
+        }
+
+        private void DeletePrivateSettingsXml()
+        {
+            File.Delete(Path.Combine(EnvironmentVariables.DaasDirectory, "PrivateSettings.xml"));
         }
 
         private void DeleteOlderDlls(string directoryPath)

@@ -151,14 +151,14 @@ namespace DaaS.Sessions
             try
             {
                 var activeInstance = activeSession.GetCurrentInstance();
-                
+
                 //
                 // It's possible that DaasRunner restarts after the data is already collected. In that
                 // situation, the current Instance status would be set to Analyzing, TimedOut or Complete
                 // Just make sure that we are not past that stage for the current session.
                 //
-                
-                if (activeInstance== null || activeInstance.Status == Status.Active || activeInstance.Status == Status.Started)
+
+                if (activeInstance == null || activeInstance.Status == Status.Active || activeInstance.Status == Status.Started)
                 {
                     DiagnosticToolResponse resp = null;
                     Collector collector = GetCollectorForSession(activeSession.Tool);
@@ -292,7 +292,7 @@ namespace DaaS.Sessions
         {
             try
             {
-                var fileBlob = Storage.BlobController.GetBlobForFile(log.PartialPath, Settings.Instance.BlobSasUri);
+                var fileBlob = BlobController.GetBlobForFile(log.PartialPath);
                 await fileBlob.DeleteIfExistsAsync(DeleteSnapshotsOption.None, null, null, null);
             }
             catch (Exception ex)
@@ -810,16 +810,24 @@ namespace DaaS.Sessions
                 return string.Empty;
             }
 
-            string path;
-            var blobUriSections = Settings.Instance.BlobSasUri.Split('?');
-            if (blobUriSections.Length >= 2)
+            string path = string.Empty;
+            try
             {
-                path = blobUriSections[0] + "/" + relativePath.ConvertBackSlashesToForwardSlashes() + "?" +
-                           string.Join("?", blobUriSections, 1, blobUriSections.Length - 1);
+
+                var blobUriSections = Settings.Instance.BlobSasUri.Split('?');
+                if (blobUriSections.Length >= 2)
+                {
+                    path = blobUriSections[0] + "/" + relativePath.ConvertBackSlashesToForwardSlashes() + "?" +
+                               string.Join("?", blobUriSections, 1, blobUriSections.Length - 1);
+                }
+                else
+                {
+                    path = blobUriSections[0] + "/" + relativePath.ConvertBackSlashesToForwardSlashes();
+                }
             }
-            else
+            catch (Exception ex)
             {
-                path = blobUriSections[0] + "/" + relativePath.ConvertBackSlashesToForwardSlashes();
+                Logger.LogWarningEvent("Failed while getting RelativePath with SAS URI", ex);
             }
 
             return path;
@@ -836,7 +844,7 @@ namespace DaaS.Sessions
                 var diagnoser = GetDiagnoserForSession(session);
                 if (diagnoser != null && diagnoser.RequiresStorageAccount)
                 {
-                    session.BlobStorageHostName = Storage.BlobController.GetBlobStorageHostName(Settings.Instance.BlobSasUri);
+                    session.BlobStorageHostName = BlobController.GetBlobStorageHostName();
                 }
 
                 session.DefaultScmHostName = Settings.Instance.DefaultScmHostName;
@@ -993,7 +1001,7 @@ namespace DaaS.Sessions
                 {
                     FileSystemHelpers.EnsureDirectory(x);
                 }
-                catch(Exception)
+                catch (Exception)
                 {
                     // Ignore
                 }
@@ -1031,7 +1039,7 @@ namespace DaaS.Sessions
             {
                 return;
             }
-            
+
             string sessionId = activeSession.SessionId;
             await UpdateActiveSessionAsync((latestSessionFromDisk) =>
             {
@@ -1061,7 +1069,7 @@ namespace DaaS.Sessions
                 //
                 // Clean-up the lock file from the Active session folder
                 //
-                
+
                 Logger.LogSessionVerboseEvent($"Cleaning up the lock file from Active session folder", sessionId);
                 FileSystemHelpers.DeleteFileSafe(GetActiveSessionLockPath(sessionId));
                 Logger.LogSessionVerboseEvent($"Session is complete after {DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes} minutes", sessionId);
@@ -1110,9 +1118,9 @@ namespace DaaS.Sessions
                 return files;
             }
 
-            foreach(var activeInstance in session.ActiveInstances)
+            foreach (var activeInstance in session.ActiveInstances)
             {
-                foreach(var log in activeInstance.Logs)
+                foreach (var log in activeInstance.Logs)
                 {
                     files.Add(log.Name);
                 }

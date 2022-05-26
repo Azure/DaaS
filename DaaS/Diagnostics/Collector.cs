@@ -21,14 +21,14 @@ namespace DaaS.Diagnostics
 
     internal class Collector : DiagnosticTool
     {
-        private readonly string _blobSasUri = string.Empty;
-
         public override string Name { get; internal set; }
         public string Command { get; set; }
         public string Arguments { get; set; }
         public string PreValidationCommand { get; set; } = string.Empty;
         public string PreValidationArguments { get; set; } = string.Empty;
         public string PreValidationMethod { get; set; } = string.Empty;
+
+        public bool RequiresStorageAccount { get; set; }
 
         internal Collector(Diagnoser diagnoser)
         {
@@ -39,11 +39,7 @@ namespace DaaS.Diagnostics
             PreValidationCommand = diagnoser.Collector.PreValidationCommand;
             PreValidationArguments = diagnoser.Collector.PreValidationArguments;
             Warning = diagnoser.Collector.Warning;
-
-            if (diagnoser.RequiresStorageAccount)
-            {
-                _blobSasUri = Settings.Instance.BlobSasUri;
-            }
+            RequiresStorageAccount = diagnoser.RequiresStorageAccount;
         }
 
         internal async Task<DiagnosticToolResponse> CollectLogsAsync(Session session, CancellationToken ct)
@@ -220,23 +216,18 @@ namespace DaaS.Diagnostics
 
         private async Task CopyLogsToPermanentLocationAsync(DiagnosticToolResponse resp, Session activeSession)
         {
-            if (string.IsNullOrWhiteSpace(_blobSasUri))
+            if (RequiresStorageAccount)
             {
-                await CopyLogsToFileSystem(resp, activeSession);
+                await CopyLogsToBlobStorage(resp, activeSession); 
             }
             else
             {
-                await CopyLogsToBlobStorage(resp, activeSession);
+                await CopyLogsToFileSystem(resp, activeSession);
             }
         }
 
         private async Task CopyLogsToBlobStorage(DiagnosticToolResponse resp, Session activeSession)
         {
-            if (string.IsNullOrWhiteSpace(_blobSasUri))
-            {
-                throw new InvalidOperationException("BlobSasUri cannot be empty");
-            }
-
             if (resp.Logs == null || !resp.Logs.Any())
             {
                 return;
@@ -252,7 +243,7 @@ namespace DaaS.Diagnostics
 
                 try
                 {
-                    var blob = Storage.BlobController.GetBlobForFile(logPath, _blobSasUri);
+                    var blob = Storage.BlobController.GetBlobForFile(logPath);
                     BlobRequestOptions blobRequestOptions = new BlobRequestOptions()
                     {
                         ServerTimeout = TimeSpan.FromMinutes(10)

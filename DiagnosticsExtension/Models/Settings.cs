@@ -9,12 +9,6 @@ namespace DiagnosticsExtension.Models
         [DataMember]
         public string BlobSasUri;
         [DataMember]
-        public string BlobContainer;
-        [DataMember]
-        public string BlobKey;
-        [DataMember]
-        public string BlobAccount;
-        [DataMember]
-        public string EndpointSuffix;
+        public string StorageConnectionString;
     }
 }

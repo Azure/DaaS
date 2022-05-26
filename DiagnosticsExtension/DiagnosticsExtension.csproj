@@ -329,9 +329,6 @@
     <Compile Include="Parsers\ServerSideEvent.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Configuration\DiagnosticSettings.xml">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
     <Content Include="Content\img\back-down.png" />
     <Content Include="Content\img\back-hover.png" />
     <Content Include="Content\img\back-white.png" />

@@ -71,7 +71,7 @@ namespace DaaS
                 monitoringSession.StartDate = DateTime.UtcNow;
                 monitoringSession.EndDate = DateTime.MinValue.ToUniversalTime();
                 monitoringSession.SessionId = monitoringSession.StartDate.ToString(Constants.SessionFileNameFormat);
-                monitoringSession.BlobStorageHostName = BlobController.GetBlobStorageHostName(Settings.Instance.BlobSasUri);
+                monitoringSession.BlobStorageHostName = BlobController.GetBlobStorageHostName();
                 monitoringSession.DefaultHostName = Settings.Instance.DefaultHostName;
                 cpuMonitoringActive = Path.Combine(cpuMonitoringActive, monitoringSession.SessionId + ".json");
 
@@ -193,20 +193,16 @@ namespace DaaS
             try
             {
                 var session = GetSession(sessionId);
-                string blobSasUri = Settings.Instance.BlobSasUri;
-                if (!string.IsNullOrWhiteSpace(blobSasUri))
+                var fileBlobLegacy = BlobController.GetBlobForFile(GetRelativePathForSession(sessionId));
+                if (fileBlobLegacy != null)
                 {
-                    var fileBlobLegacy = BlobController.GetBlobForFile(GetRelativePathForSession(sessionId), blobSasUri);
-                    if (fileBlobLegacy != null)
-                    {
-                        fileBlobLegacy.DeleteIfExists(DeleteSnapshotsOption.None);
-                    }
+                    fileBlobLegacy.DeleteIfExists(DeleteSnapshotsOption.None);
+                }
 
-                    var fileBlob = BlobController.GetBlobForFile(GetRelativePathForSession(session.DefaultHostName, sessionId), blobSasUri);
-                    if (fileBlob != null)
-                    {
-                        fileBlob.DeleteIfExists(DeleteSnapshotsOption.None);
-                    }
+                var fileBlob = BlobController.GetBlobForFile(GetRelativePathForSession(session.DefaultHostName, sessionId));
+                if (fileBlob != null)
+                {
+                    fileBlob.DeleteIfExists(DeleteSnapshotsOption.None);
                 }
             }
             catch (Exception ex)
@@ -288,21 +284,15 @@ namespace DaaS
             var filesCollected = new List<MonitoringFile>();
             string folderName = GetLogsFolderForSession(session.SessionId);
             var reports = FileSystemHelpers.GetFilesInDirectory(folderName, "*.mht", false, SearchOption.TopDirectoryOnly);
-            string blobSasUri = Settings.Instance.BlobSasUri;
             string sessionId = session.SessionId;
 
             try
             {
-                if (string.IsNullOrWhiteSpace(blobSasUri))
-                {
-                    throw new NullReferenceException("BlobSasUri is empty or not set");
-                }
-
                 string directoryPath = GetRelativePathForSession(session.DefaultHostName, sessionId);
-                UpdateFilesCollected(sessionId, blobSasUri, filesCollected, reports, directoryPath);
+                UpdateFilesCollected(sessionId, filesCollected, reports, directoryPath);
 
                 string directoryPathLegacy = GetRelativePathForSession(sessionId);
-                UpdateFilesCollected(sessionId, blobSasUri, filesCollected, reports, directoryPathLegacy);
+                UpdateFilesCollected(sessionId, filesCollected, reports, directoryPathLegacy);
             }
             catch (Exception ex)
             {
@@ -312,11 +302,11 @@ namespace DaaS
             return filesCollected;
         }
 
-        private void UpdateFilesCollected(string sessionId, string blobSasUri, List<MonitoringFile> filesCollected, List<string> reports, string directoryPath)
+        private void UpdateFilesCollected(string sessionId, List<MonitoringFile> filesCollected, List<string> reports, string directoryPath)
         {
             try
             {
-                var dir = BlobController.GetBlobDirectory(directoryPath, blobSasUri);
+                var dir = BlobController.GetBlobDirectory(directoryPath);
                 if (dir == null)
                 {
                     //

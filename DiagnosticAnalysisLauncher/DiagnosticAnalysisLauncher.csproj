@@ -54,20 +54,19 @@
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
-  
   <ItemGroup>
     <PackageReference Include="Newtonsoft.Json">
       <Version>11.0.2</Version>
     </PackageReference>
     <PackageReference Include="Microsoft.VisualStudio.DiagnosticAnalysis.Windows" GeneratePathProperty="true">
-      <Version>17.3.1050301</Version>
+      <Version>17.3.1052503</Version>
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
-   <Content Include="$(PkgMicrosoft_VisualStudio_DiagnosticAnalysis_Windows)\content\**\*">
+    <Content Include="$(PkgMicrosoft_VisualStudio_DiagnosticAnalysis_Windows)\content\**\*">
       <Link>DiagnosticAnalysis\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-   </Content>
+    </Content>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
