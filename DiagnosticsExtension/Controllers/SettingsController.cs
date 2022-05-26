@@ -35,7 +35,7 @@ namespace DiagnosticsExtension.Controllers
                 var sessionController = new DaaS.Sessions.SessionController();
                 string connectionString = sessionController.StorageConnectionString;
                 sasUriResponse.StorageConnectionStringSpecified = !string.IsNullOrWhiteSpace(connectionString);
-                sasUriResponse.IsValidStorageConnectionString = IsValidStorageConnectionString(connectionString, out string storageConnectionStringEx);
+                sasUriResponse.IsValidStorageConnectionString = sessionController.IsValidStorageConnectionString(out string storageConnectionStringEx);
                 sasUriResponse.StorageConnectionStringException = storageConnectionStringEx;
 
                 string blobSasUri = sessionController.BlobStorageSasUri;
@@ -90,28 +90,6 @@ namespace DiagnosticsExtension.Controllers
             }
 
             return Request.CreateResponse(sasUriResponse);
-        }
-
-        private bool IsValidStorageConnectionString(string connectionString, out string storageConnectionStringEx)
-        {
-            storageConnectionStringEx = "";
-            if (string.IsNullOrWhiteSpace(connectionString))
-            {
-                return false;
-            }
-
-            try
-            {
-                var account = CloudStorageAccount.Parse(connectionString);
-                account.CreateCloudBlobClient();
-                return true;
-            }
-            catch (Exception ex)
-            {
-                storageConnectionStringEx = ex.ToLogString();
-            }
-
-            return false;
         }
     }
 }

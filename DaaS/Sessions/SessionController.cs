@@ -13,13 +13,13 @@ using System.Diagnostics;
 using DaaS.Configuration;
 using System.Collections.Generic;
 using DaaS.HeartBeats;
+using Microsoft.WindowsAzure.Storage;
 
 namespace DaaS.Sessions
 {
     public class SessionController
     {
         private static readonly object _daasVersionUpdateLock = new object();
-        private static readonly AlertingStorageQueue _alertingStorageQueue = new AlertingStorageQueue();
         private static bool _daasVersionCheckInProgress = false;
 
         public string BlobStorageSasUri
@@ -114,6 +114,29 @@ namespace DaaS.Sessions
                     _daasVersionCheckInProgress = false;
                 }
             }
+        }
+
+        public bool IsValidStorageConnectionString(out string storageConnectionStringEx)
+        {
+            string connectionString = Settings.Instance.StorageConnectionString;
+            storageConnectionStringEx = "";
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                return false;
+            }
+
+            try
+            {
+                var account = CloudStorageAccount.Parse(connectionString);
+                account.CreateCloudBlobClient();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                storageConnectionStringEx = ex.ToLogString();
+            }
+
+            return false;
         }
 
         private void CleanUpObsoleteFiles()

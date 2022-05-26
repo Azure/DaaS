@@ -260,7 +260,7 @@ namespace DaaS.Sessions
                 }
                 catch (Exception ex)
                 {
-                    Logger.LogSessionErrorEvent("Failed while deleting session", ex, sessionId);
+                    Logger.LogSessionWarningEvent("Failed while deleting session", ex, sessionId);
                     throw;
                 }
             });
@@ -704,51 +704,63 @@ namespace DaaS.Sessions
         private async Task<List<Session>> LoadSessionsAsync(List<string> directoriesToLoadSessionsFrom, bool isDetailed = false)
         {
             EnsureSessionDirectories();
-
             var sessions = new List<Session>();
-            foreach (var directory in directoriesToLoadSessionsFrom)
+
+            try
             {
-                foreach (var sessionFile in FileSystemHelpers.GetFiles(directory, "*.json", SearchOption.TopDirectoryOnly))
+                foreach (var directory in directoriesToLoadSessionsFrom)
                 {
-                    try
+                    foreach (var sessionFile in FileSystemHelpers.GetFiles(directory, "*.json", SearchOption.TopDirectoryOnly))
                     {
-                        var session = await FromJsonFileAsync<Session>(sessionFile);
-                        if (IncludeSasUri)
-                        {
-                            UpdateRelativePathForLogs(session);
-                        }
-
-                        //
-                        // For Active session, populate Collector and Analyzer detailed status
-                        //
-
-                        if (isDetailed && session.ActiveInstances != null)
-                        {
-                            if (session.Status == Status.Active)
-                            {
-                                UpdateCollectorStatus(session);
-                                UpdateAnalyzerStatus(session);
-                            }
-
-                            foreach (var activeInstance in session.ActiveInstances)
-                            {
-                                foreach (var log in activeInstance.Logs)
-                                {
-                                    log.Reports = SanitizeReports(log.Reports);
-                                }
-                            }
-                        }
-
-                        sessions.Add(session);
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.LogWarningEvent("Failed while loading session", ex);
+                        await LoadSingleSessionAsync(isDetailed, sessions, sessionFile);
                     }
                 }
             }
+            catch (Exception ex)
+            {
+                Logger.LogWarningEvent($"Failed while loading sessions", ex);
+            }
 
             return sessions;
+        }
+
+        private async Task LoadSingleSessionAsync(bool isDetailed, List<Session> sessions, string sessionFile)
+        {
+            try
+            {
+                var session = await FromJsonFileAsync<Session>(sessionFile);
+                if (IncludeSasUri)
+                {
+                    UpdateRelativePathForLogs(session);
+                }
+
+                //
+                // For Active session, populate Collector and Analyzer detailed status
+                //
+
+                if (isDetailed && session.ActiveInstances != null)
+                {
+                    if (session.Status == Status.Active)
+                    {
+                        UpdateCollectorStatus(session);
+                        UpdateAnalyzerStatus(session);
+                    }
+
+                    foreach (var activeInstance in session.ActiveInstances)
+                    {
+                        foreach (var log in activeInstance.Logs)
+                        {
+                            log.Reports = SanitizeReports(log.Reports);
+                        }
+                    }
+                }
+
+                sessions.Add(session);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarningEvent($"Failed while loading session - {Path.GetFileName(sessionFile)}", ex);
+            }
         }
 
         private List<Report> SanitizeReports(List<Report> reports)

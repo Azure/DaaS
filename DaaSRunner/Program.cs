@@ -78,7 +78,7 @@ namespace DaaSRunner
             Thread.Sleep(TimeSpan.FromSeconds(20));
 
             // Start a timer to validate SAS URI's are configured correctly
-            m_SasUriTimer = new Timer(new TimerCallback(ValidateSasAccounts), null, (int)TimeSpan.FromMinutes(1).TotalMilliseconds, (int)TimeSpan.FromHours(1).TotalMilliseconds);
+            m_SasUriTimer = new Timer(new TimerCallback(ValidateStorageConfiguration), null, (int)TimeSpan.FromMinutes(1).TotalMilliseconds, (int)TimeSpan.FromHours(1).TotalMilliseconds);
 
             // Start a timer to cleanup completed sessions
             m_CompletedSessionsCleanupTimer = new Timer(new TimerCallback(CompletedSessionCleanup), null, (int)TimeSpan.FromMinutes(1).TotalMilliseconds, (int)TimeSpan.FromMinutes(30).TotalMilliseconds);
@@ -91,24 +91,30 @@ namespace DaaSRunner
             StartSessionRunner();
         }
 
-        private static bool ValidateSasUri(string sasUri)
+        private static void ValidateSasUri()
         {
+            var sasUri = _DaaS.BlobStorageSasUri;
+            if (string.IsNullOrWhiteSpace(sasUri))
+            {
+                return;
+            }
+
             var result = DaaS.Storage.BlobController.ValidateBlobSasUri(sasUri, out Exception _);
             Logger.LogVerboseEvent($"BlobStorageSasUri is Valid={result}");
-            return result;
         }
 
-        private static void ValidateSasAccounts(object state)
+        private static void ValidateStorageConfiguration(object state)
         {
             try
             {
-                var sasUriEnvironment = _DaaS.BlobStorageSasUri;
-                if (!string.IsNullOrWhiteSpace(sasUriEnvironment))
+                string connectionString = _DaaS.StorageConnectionString;
+                if (!string.IsNullOrWhiteSpace(connectionString))
                 {
-                    if (ValidateSasUri(sasUriEnvironment))
-                    {
-                        return;
-                    }
+                    ValidateConnectionString();
+                }
+                else
+                {
+                    ValidateSasUri();
                 }
             }
             catch (Exception ex)
@@ -116,6 +122,12 @@ namespace DaaSRunner
                 Logger.LogErrorEvent("Encountered exception while validating SAS keys", ex);
             }
 
+        }
+
+        private static void ValidateConnectionString()
+        {
+            bool isValid = _DaaS.IsValidStorageConnectionString(out string storageException);
+            Logger.LogVerboseEvent($"StorageConnectionString is Valid={isValid}", storageException);
         }
 
         private static void CheckAnalysisForCpuMonitoring()
