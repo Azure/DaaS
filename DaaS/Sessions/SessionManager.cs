@@ -378,7 +378,7 @@ namespace DaaS.Sessions
                 }
 
                 return latestSessionFromDisk;
-            }, activeSession.SessionId);
+            }, activeSession.SessionId, callerMethodName: "CancelOrphanedInstancesIfNeeded");
         }
 
         public bool IncludeSasUri { get; set; }
@@ -444,7 +444,7 @@ namespace DaaS.Sessions
                 }
 
                 return latestSessionFromDisk;
-            }, activeSession.SessionId);
+            }, activeSession.SessionId, callerMethodName: "AnalyzeAndUpdateSessionAsync");
         }
 
         private List<string> GetAnalyzerErrors(Session activeSession)
@@ -641,7 +641,7 @@ namespace DaaS.Sessions
                     }
 
                     return latestSessionFromDisk;
-                }, activeSession.SessionId);
+                }, activeSession.SessionId, callerMethodName: "AppendCollectorResponseToSessionAsync");
             }
             catch (Exception ex)
             {
@@ -649,7 +649,7 @@ namespace DaaS.Sessions
             }
         }
 
-        private async Task UpdateActiveSessionAsync(Func<Session, Session> updateSession, string sessionId, [CallerMemberName] string callerMethodName = "")
+        private async Task UpdateActiveSessionAsync(Func<Session, Session> updateSession, string sessionId, string callerMethodName)
         {
             try
             {
@@ -997,7 +997,7 @@ namespace DaaS.Sessions
 
                     activeInstance.Status = sessionStatus;
                     return latestSessionFromDisk;
-                }, activeSession.SessionId);
+                }, activeSession.SessionId, callerMethodName: "SetCurrentInstanceStatusAsync:" + sessionStatus.ToString());
             }
             catch (Exception ex)
             {
@@ -1064,7 +1064,7 @@ namespace DaaS.Sessions
                 latestSessionFromDisk.EndTime = DateTime.UtcNow;
                 return latestSessionFromDisk;
 
-            }, sessionId);
+            }, sessionId, callerMethodName: "MarkSessionAsCompleteAsync");
 
             string activeSessionFile = Path.Combine(SessionDirectories.ActiveSessionsDir, sessionId + ".json");
             string completedSessionFile = Path.Combine(SessionDirectories.CompletedSessionsDir, sessionId + ".json");
