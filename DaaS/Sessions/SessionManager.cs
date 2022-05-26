@@ -317,23 +317,35 @@ namespace DaaS.Sessions
             return Settings.Instance.IsSandBoxAvailable();
         }
 
-        public async Task CancelOrphanedInstancesIfNeeded(Session activeSession)
+        public async Task CancelOrphanedInstancesIfNeeded()
         {
+            var activeSession = await GetActiveSessionAsync();
+            if (activeSession == null)
+            {
+                return;
+            }
+
             // If none of the instances picked up the session
 
             var orphanedInstanceNames = new List<string>();
             if (activeSession.ActiveInstances == null || activeSession.ActiveInstances.Count == 0)
             {
+                Logger.LogSessionVerboseEvent("activeSession.ActiveInstances is NULL or count is 0", activeSession.SessionId);
                 orphanedInstanceNames = activeSession.Instances;
             }
             else
             {
                 var activeInstances = activeSession.ActiveInstances.Select(x => x.Name);
                 orphanedInstanceNames = activeSession.Instances.Where(x => !activeInstances.Contains(x)).ToList();
+                if (orphanedInstanceNames != null)
+                {
+                    Logger.LogSessionVerboseEvent($"orphanedInstanceNames = {string.Join(",", orphanedInstanceNames)}", activeSession.SessionId);
+                }
             }
 
             if (orphanedInstanceNames == null || !orphanedInstanceNames.Any())
             {
+                Logger.LogSessionVerboseEvent($"Returning as we found no orphaned instances", activeSession.SessionId);
                 return;
             }
 

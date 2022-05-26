@@ -497,7 +497,7 @@ namespace DaaSRunner
 
                 if (DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes > Settings.Instance.OrphanInstanceTimeoutInMinutes)
                 {
-                    _sessionManager.CancelOrphanedInstancesIfNeeded(activeSession).Wait();
+                    _sessionManager.CancelOrphanedInstancesIfNeeded().Wait();
                 }
 
                 if (DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes > Settings.Instance.MaxSessionTimeInMinutes)

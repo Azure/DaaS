@@ -94,9 +94,8 @@ namespace DaaS.Sessions
         /// <summary>
         /// Used to Cancel all those instances that have not picked up the session within the desired timeout
         /// </summary>
-        /// <param name="activeSession"></param>
         /// <returns></returns>
-        Task CancelOrphanedInstancesIfNeeded(Session activeSession);
+        Task CancelOrphanedInstancesIfNeeded();
 
         /// <summary>
         /// Get all diagnosers from the DaaS configuration
