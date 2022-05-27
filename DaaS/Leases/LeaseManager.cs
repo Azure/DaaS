@@ -1,4 +1,4 @@
-// -----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="LeaseManager.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
@@ -11,14 +11,15 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using DaaS.Configuration;
 using DaaS.Storage;
 
 namespace DaaS.Leases
 {
     internal interface ILeaseManager
     {
-        Lease TryGetLease(string pathToFile, string blobSasUri);
-        Lease GetLease(string pathToFile, string blobSasUri);
+        Lease TryGetLease(string pathToFile);
+        Lease GetLease(string pathToFile);
     }
 
     class LeaseManager : ILeaseManager
@@ -36,13 +37,14 @@ namespace DaaS.Leases
             }
         }
 
-        public Lease TryGetLease(string pathToFile, string blobSasUri)
+        public Lease TryGetLease(string pathToFile)
         {
             try
             {
+                string blobSasUri = Settings.Instance.BlobSasUri;
                 if (!string.IsNullOrWhiteSpace(blobSasUri))
                 {
-                    return BlobLease.TryGetLease(pathToFile, blobSasUri);
+                    return BlobLease.TryGetLease(pathToFile);
                 }
                 else
                 {
@@ -58,8 +60,9 @@ namespace DaaS.Leases
             }
         }
 
-        public Lease GetLease(string pathToFile, string blobSasUri)
+        public Lease GetLease(string pathToFile)
         {
+            string blobSasUri = Settings.Instance.BlobSasUri;
             if (!string.IsNullOrWhiteSpace(blobSasUri))
             {
                 return BlobLease.GetLease(pathToFile, blobSasUri);

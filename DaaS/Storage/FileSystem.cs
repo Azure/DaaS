@@ -1,4 +1,4 @@
-// -----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="FileSystem.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
@@ -11,9 +11,9 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using DaaS.Configuration;
 using Newtonsoft.Json;
 using System.IO.Abstractions;
+using DaaS.Configuration;
 
 namespace DaaS
 {
@@ -575,7 +575,7 @@ namespace DaaS
             string fullDirPath = directoryPath;
             if (isRelativePath)
             {
-                string rootPath = Settings.UserSiteStorageDirectory;
+                string rootPath = Settings.Instance.UserSiteStorageDirectory;
                 fullDirPath = Path.Combine(rootPath, directoryPath).ConvertForwardSlashesToBackSlashes();
             }
 

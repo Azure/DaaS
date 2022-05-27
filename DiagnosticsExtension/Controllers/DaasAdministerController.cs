@@ -22,7 +22,7 @@ namespace DiagnosticsExtension.Controllers
         {
             try
             {
-                SessionController sessionController = new SessionController();
+                var sessionController = new DaaS.Sessions.SessionController();
                 sessionController.StartSessionRunner();
             }
             catch (Exception ex)

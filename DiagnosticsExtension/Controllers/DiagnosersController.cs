@@ -6,36 +6,36 @@
 // -----------------------------------------------------------------------
 
 using System;
-using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
 using System.Web.Http;
-using DiagnosticsExtension.Models;
-using DaaS.Diagnostics;
 using DaaS.Sessions;
 
 namespace DiagnosticsExtension.Controllers
 {
+    [RoutePrefix("diagnosers")]
     public class DiagnosersController : ApiController
     {
         private const string RelayPartySuiteErrorMessage = "Azure App Service sandbox component is disabled. This can happen if the App is running on ILB ASE with Relay Party suite service enabled. For this configuration, none of the diagnostic tools work.";
+        private readonly ISessionManager _sessionManager;
 
+        public DiagnosersController(ISessionManager sessionManager)
+        {
+            _sessionManager = sessionManager;
+        }
+
+        [HttpGet]
+        [Route("")]
         public HttpResponseMessage Get()
         {
             try
             {
-                SessionController sessionController = new SessionController();
-                if (!sessionController.IsSandboxAvailable())
+                if (!_sessionManager.IsSandboxAvailable())
                 {
                     return Request.CreateErrorResponse(HttpStatusCode.BadRequest, RelayPartySuiteErrorMessage);
                 }
 
-                List<DiagnoserDetails> retVal = new List<DiagnoserDetails>();
-                foreach (Diagnoser diagnoser in sessionController.GetAllDiagnosers())
-                {
-                    retVal.Add(new DiagnoserDetails(diagnoser));
-                }
-
+                var retVal = _sessionManager.GetDiagnosers();
                 return Request.CreateResponse(HttpStatusCode.OK, retVal);
             }
             catch (Exception ex)

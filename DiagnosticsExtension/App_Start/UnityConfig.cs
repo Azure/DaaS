@@ -1,12 +1,12 @@
-// -----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="UnityConfig.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
 // </copyright>
 // -----------------------------------------------------------------------
 
-using DaaS.V2;
 using System.Web.Http;
+using DaaS.Sessions;
 using Unity;
 using Unity.WebApi;
 

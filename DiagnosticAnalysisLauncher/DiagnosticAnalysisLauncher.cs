@@ -201,12 +201,17 @@ namespace DiagnosticAnalysisLauncher
             // created in the session.
             //
 
+            Logger.LogDiagnoserVerboseEvent("Inside CreateDiagCliJson method");
+
             string machineName = GetMachineNameFromDumpFileName(dumpFileName);
             string directoryName = Path.Combine(_outputFolder, machineName);
             FileSystemHelpers.EnsureDirectory(directoryName);
             
             var diagCliOutputFileName = Path.Combine(directoryName, "DiagCli.json");
             FileSystemHelpers.WriteAllText(diagCliOutputFileName, diagCliOutput);
+
+            Logger.LogDiagnoserVerboseEvent($"Created {diagCliOutputFileName}");
+
             return diagCliOutputFileName;
         }
 
@@ -223,6 +228,7 @@ namespace DiagnosticAnalysisLauncher
 
         private void CreatePlaceHolderHtml(string jsonFilePath, string outputFileName)
         {
+            Logger.LogDiagnoserVerboseEvent("Creating Placeholder file");
             string redirectUrl = GetRedirectUrlFromFileName(jsonFilePath);
             string placeHolderhtml = $@"<!DOCTYPE HTML>
             <html lang='en - US'>
@@ -241,6 +247,7 @@ namespace DiagnosticAnalysisLauncher
 
             string outputFile = Path.Combine(_outputFolder, $"DiagnosticAnalysis-{outputFileName}");
             File.WriteAllText(outputFile, placeHolderhtml);
+            Logger.LogDiagnoserVerboseEvent($"Created placeholder file at {outputFile}");
         }
 
         private string GetRedirectUrlFromFileName(string jsonFilePath)

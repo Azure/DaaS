@@ -12,24 +12,18 @@ using System.Linq;
 using System.Management.Instrumentation;
 using DaaS.Configuration;
 using DaaS.Leases;
-using DaaS.Storage;
 
 namespace DaaS
 {
     internal class Infrastructure
     {
         private static Settings _settings;
+        private static string _instanceId;
+
         internal static Settings Settings
         {
             get { return _settings ?? (_settings = Settings.Instance); }
             set { _settings = value; }
-        }
-
-        private static IStorageController _storage;
-        internal static IStorageController Storage
-        {
-            get { return _storage ?? (_storage = StorageController.Instance); }
-            set { _storage = value; }
         }
 
         private static ILeaseManager _leaseManager;
@@ -39,7 +33,17 @@ namespace DaaS
             set { _leaseManager = value; }
         }
 
-        internal static string GetDaasInstalationPath()
+        internal static string GetInstanceId()
+        {
+            if (string.IsNullOrWhiteSpace(_instanceId))
+            {
+                _instanceId = Environment.MachineName;
+            }
+
+            return _instanceId;
+        }
+
+        internal static string GetDaasInstallationPath()
         {
             var latestDaasDir = string.Empty;
             bool foundDaasAsPrivateExtension = false;

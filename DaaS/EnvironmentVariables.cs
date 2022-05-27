@@ -86,6 +86,14 @@ namespace DaaS
             }
         }
 
+        public static string DaasDirectory
+        {
+            get
+            {
+                return Environment.ExpandEnvironmentVariables(@"%HOME%\data\DaaS");
+            }
+        }
+
         public static string DaasRunner
         {
             get

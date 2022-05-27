@@ -9,20 +9,16 @@ using System;
 using System.Linq;
 using System.Threading;
 using DaaS;
-using DaaS.HeartBeats;
 using DaaS.Sessions;
 using System.Reflection;
 using System.Diagnostics;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
-using DaaS.V2;
-
-using Session = DaaS.Sessions.Session;
-using SessionV2 = DaaS.V2.Session;
-using SettingsV2 = DaaS.V2.Settings;
 using System.Collections.Concurrent;
 using System.Net;
+using DaaS.HeartBeats;
+using DaaS.Configuration;
 
 namespace DaaSRunner
 {
@@ -39,21 +35,18 @@ namespace DaaSRunner
         private static double sleepIntervalForHeartbeatCheck = 0;
         private static DateTime _lastHeartbeatSent = DateTime.MinValue;
         private static DateTime _lastInstanceCountCheck = DateTime.MinValue;
-        private static int InstanceCountCheckFrequency = 30;
+        private static int _instanceCountCheckFrequency = 30;
         private static bool m_MonitoringEnabled = false;
         private static readonly CpuMonitoring m_CpuMonitoring = new CpuMonitoring();
         private static ICpuMonitoringRule m_CpuMonitoringRule = null;
         private static bool m_FailedStoppingSession = false;
-        private static bool m_SecretsCleared;
         private static Timer m_SasUriTimer;
         private static Timer m_CompletedSessionsCleanupTimer;
-
-        // DaaS V2 related
 
         private static DateTime _lastSessionCleanupTime = DateTime.UtcNow;
 
         private static readonly ISessionManager _sessionManager = new SessionManager();
-        private static readonly ConcurrentDictionary<string, TaskAndCancellationTokenV2> _runningSessions = new ConcurrentDictionary<string, TaskAndCancellationTokenV2>();
+        private static readonly ConcurrentDictionary<string, TaskAndCancellationToken> _runningSessions = new ConcurrentDictionary<string, TaskAndCancellationToken>();
         private static readonly CancellationTokenSource _cts = new CancellationTokenSource();
 
         static void Main(string[] args)
@@ -84,7 +77,7 @@ namespace DaaSRunner
             Thread.Sleep(TimeSpan.FromSeconds(20));
 
             // Start a timer to validate SAS URI's are configured correctly
-            m_SasUriTimer = new Timer(new TimerCallback(ValidateSasAccounts), null, (int)TimeSpan.FromMinutes(1).TotalMilliseconds, (int)TimeSpan.FromHours(1).TotalMilliseconds);
+            m_SasUriTimer = new Timer(new TimerCallback(ValidateStorageConfiguration), null, (int)TimeSpan.FromMinutes(1).TotalMilliseconds, (int)TimeSpan.FromHours(1).TotalMilliseconds);
 
             // Start a timer to cleanup completed sessions
             m_CompletedSessionsCleanupTimer = new Timer(new TimerCallback(CompletedSessionCleanup), null, (int)TimeSpan.FromMinutes(1).TotalMilliseconds, (int)TimeSpan.FromMinutes(30).TotalMilliseconds);
@@ -97,56 +90,30 @@ namespace DaaSRunner
             StartSessionRunner();
         }
 
-        private static bool ValidateSasUri(string sasUri, bool isdefinedInEnvironmentVariable)
+        private static void ValidateSasUri()
         {
-            var result = DaaS.Storage.BlobController.ValidateBlobSasUri(sasUri, out Exception _);
-            Logger.LogVerboseEvent($"BlobStorageSasUri at EnvironmentVariable={isdefinedInEnvironmentVariable} is Valid={result}");
-            return result;
-        }
-
-        private static void ClearSecretIfNeeded(string sasUriPrivateSettings, bool secretInvalid)
-        {
-            if (!m_SecretsCleared && !string.IsNullOrWhiteSpace(sasUriPrivateSettings))
+            var sasUri = _DaaS.BlobStorageSasUri;
+            if (string.IsNullOrWhiteSpace(sasUri))
             {
-                _DaaS.BlobStorageSasUri = string.Empty;
-                if (secretInvalid)
-                {
-                    Logger.LogVerboseEvent("Cleared SAS URI from PrivateSettings.xml as it is invalid");
-                }
-                else
-                {
-                    Logger.LogVerboseEvent("Cleared SAS URI from PrivateSettings.xml as a valid SAS URI exists as an Environment variable");
-                }
-                m_SecretsCleared = true;
+                return;
             }
+
+            var result = DaaS.Storage.BlobController.ValidateBlobSasUri(sasUri, out Exception _);
+            Logger.LogVerboseEvent($"BlobStorageSasUri is Valid={result}");
         }
 
-        private static void ValidateSasAccounts(object state)
+        private static void ValidateStorageConfiguration(object state)
         {
             try
             {
-                string sasUriPrivateSettings = _DaaS.BlobStorageSasUri;
-                var sasUriEnvironment = _DaaS.GetBlobSasUriFromEnvironment(out bool sasUriInEnvironmentVariable);
-
-                if (!string.IsNullOrWhiteSpace(sasUriEnvironment) && sasUriInEnvironmentVariable)
+                string connectionString = _DaaS.StorageConnectionString;
+                if (!string.IsNullOrWhiteSpace(connectionString))
                 {
-                    if (ValidateSasUri(sasUriEnvironment, isdefinedInEnvironmentVariable: true))
-                    {
-                        ClearSecretIfNeeded(sasUriPrivateSettings, secretInvalid: false);
-                        return;
-                    }
+                    ValidateConnectionString();
                 }
-
-                //
-                // We reach here only if SAS URI in environment is not defined or is not valid
-                //
-
-                if (!string.IsNullOrWhiteSpace(sasUriPrivateSettings))
+                else
                 {
-                    if (!ValidateSasUri(sasUriPrivateSettings, isdefinedInEnvironmentVariable: false))
-                    {
-                        ClearSecretIfNeeded(sasUriPrivateSettings, secretInvalid: true);
-                    }
+                    ValidateSasUri();
                 }
             }
             catch (Exception ex)
@@ -154,6 +121,12 @@ namespace DaaSRunner
                 Logger.LogErrorEvent("Encountered exception while validating SAS keys", ex);
             }
 
+        }
+
+        private static void ValidateConnectionString()
+        {
+            bool isValid = _DaaS.IsValidStorageConnectionString(out string storageException);
+            Logger.LogVerboseEvent($"StorageConnectionString is Valid={isValid}", storageException);
         }
 
         private static void CheckAnalysisForCpuMonitoring()
@@ -168,30 +141,15 @@ namespace DaaSRunner
 
         private static void CompletedSessionCleanup(object state)
         {
-            int maxSessionsToKeep = _DaaS.MaxDiagnosticSessionsToKeep;
-            int numberOfDays = _DaaS.MaxNumberOfDaysForSessions;
-            var completedSessions = _DaaS.GetAllInActiveSessions().OrderByDescending(s => s.StartTime).ToList();
+            int maxSessionsToKeep = Settings.Instance.MaxSessionsToKeep;
+            int numberOfDays = Settings.Instance.MaxSessionAgeInDays;
             MonitoringSessionController controllerMonitoring = new MonitoringSessionController();
             var completedMonitoringSessions = controllerMonitoring.GetAllCompletedSessions().OrderByDescending(s => s.StartDate).ToList();
 
             Logger.LogVerboseEvent($"Starting cleanup for Completed Sessions MaxDiagnosticSessionsToKeep = [{maxSessionsToKeep}] MaxNumberOfDaysForSessions= [{numberOfDays}]");
-            List<Session> sessionsToRemove = completedSessions.Skip(maxSessionsToKeep).ToList();
-            string logMessage = $"[MaxDiagnosticSessionsToKeep] Found {sessionsToRemove.Count()} sessions to remove as we have {completedSessions.Count()} completed sessions";
-            DeleteSessions(sessionsToRemove, async (session) => { await _DaaS.Delete(session); }, logMessage);
-
-            completedSessions = _DaaS.GetAllInActiveSessions().OrderByDescending(s => s.StartTime).ToList();
-
-            if (CheckIfTimeToCleanupSymbols(completedSessions))
-            {
-                CleanupSymbolsDirectory();
-            }
-
-            List<Session> olderSessions = completedSessions.Where(x => x.StartTime < DateTime.UtcNow.AddDays(-1 * numberOfDays)).ToList();
-            logMessage = $"[MaxNumberOfDaysForSessions] Found {olderSessions.Count()} older sessions to remove";
-            DeleteSessions(olderSessions, async (session) => { await _DaaS.Delete(session); }, logMessage);
-
+            
             List<MonitoringSession> monitoringSessionsToRemove = completedMonitoringSessions.Skip(maxSessionsToKeep).ToList();
-            logMessage = $"[MaxDiagnosticSessionsToKeep] Found {monitoringSessionsToRemove.Count()} monitoring sessions to remove as we have {completedMonitoringSessions.Count()} completed sessions";
+            string logMessage = $"[MaxDiagnosticSessionsToKeep] Found {monitoringSessionsToRemove.Count()} monitoring sessions to remove as we have {completedMonitoringSessions.Count()} completed sessions";
             DeleteSessions(monitoringSessionsToRemove, (session) => { controllerMonitoring.DeleteSession(session.SessionId); }, logMessage);
 
             completedMonitoringSessions = controllerMonitoring.GetAllCompletedSessions().OrderByDescending(s => s.StartDate).ToList();
@@ -201,26 +159,36 @@ namespace DaaSRunner
 
         }
 
-        private static bool CheckIfTimeToCleanupSymbols(List<Session> completedSessions)
+        private static bool CheckIfTimeToCleanupSymbols()
         {
-            if (_DaaS.GetAllActiveSessions().Count() != 0)
+            try
             {
-                return false;
-            }
-            var cleanupSymbols = false;
-            var lastCompletedSession = completedSessions.FirstOrDefault();
-            if (lastCompletedSession != null)
-            {
-                if (DateTime.UtcNow.Subtract(lastCompletedSession.StartTime).TotalDays > 1)
+                var activeSession = _sessionManager.GetActiveSessionAsync().Result;
+                if (activeSession != null)
                 {
-                    cleanupSymbols = true;
+                    return false;
                 }
+
+                var completedSessions = _sessionManager.GetCompletedSessionsAsync().Result;
+                var cleanupSymbols = false;
+                var lastCompletedSession = completedSessions.FirstOrDefault();
+
+                if (lastCompletedSession != null)
+                {
+                    if (DateTime.UtcNow.Subtract(lastCompletedSession.StartTime).TotalDays > 1)
+                    {
+                        cleanupSymbols = true;
+                    }
+                }
+
+                return cleanupSymbols;
             }
-            else
+            catch (Exception ex)
             {
-                cleanupSymbols = true;
+                Logger.LogWarningEvent("Unhandled exception while cleanup up ", ex);
             }
-            return cleanupSymbols;
+
+            return false;
         }
 
         private static void CleanupSymbolsDirectory()
@@ -326,10 +294,12 @@ namespace DaaSRunner
 
         private static void StopMonitoringSession()
         {
+            bool analysisNeeded = false;
             string sessionId = "";
             if (m_CpuMonitoringRule != null)
             {
                 sessionId = m_CpuMonitoringRule.SessionId;
+                analysisNeeded = m_CpuMonitoringRule.ShouldAnalyze();
             }
             Logger.LogCpuMonitoringVerboseEvent($"Stopping a monitoring session", sessionId);
 
@@ -347,10 +317,10 @@ namespace DaaSRunner
                 m_FailedStoppingSession = false;
                 
                 if (!string.IsNullOrWhiteSpace(sessionId) 
-                    && m_CpuMonitoringRule.ShouldAnalyze(out string blobSasUri))
+                    && analysisNeeded)
                 {
                     MonitoringSessionController controller = new MonitoringSessionController();
-                    controller.AnalyzeSession(sessionId, blobSasUri);
+                    controller.AnalyzeSession(sessionId);
                 }
             }
         }
@@ -398,94 +368,36 @@ namespace DaaSRunner
             try
             {
                 Exception ex = (Exception)e.ExceptionObject;
-                Logger.LogErrorEvent($"DaasRunner with version {Assembly.GetExecutingAssembly().GetName().Version.ToString() } terminating with unhandled exception", ex);
+                Logger.LogErrorEvent($"DaasRunner with version {Assembly.GetExecutingAssembly().GetName().Version} terminating with unhandled exception", ex);
             }
             catch
             {
                 var strException = new ApplicationException();
-                Logger.LogErrorEvent($"DaasRunner with version {Assembly.GetExecutingAssembly().GetName().Version.ToString() } terminating with unhandled exception object", strException);
+                Logger.LogErrorEvent($"DaasRunner with version {Assembly.GetExecutingAssembly().GetName().Version } terminating with unhandled exception object", strException);
             }
 
         }
 
         private static void DaasRunnerTerminationHandler(object sender, EventArgs e)
         {
-            Logger.LogVerboseEvent($"DaasRunner with version {Assembly.GetExecutingAssembly().GetName().Version.ToString() } terminated gracefully");
+            Logger.LogVerboseEvent($"DaasRunner with version {Assembly.GetExecutingAssembly().GetName().Version} terminated gracefully");
         }
 
         private static void StartSessionRunner()
         {
             int logCounter = 0;
-            sleepIntervalForHeartbeatCheck = (sleepIntervalForHeartbeatCheck < _DaaS.FrequencyToCheckForNewSessionsAt.TotalSeconds) ? _DaaS.FrequencyToCheckForNewSessionsAt.TotalSeconds : sleepIntervalForHeartbeatCheck;
+            sleepIntervalForHeartbeatCheck = (sleepIntervalForHeartbeatCheck < Settings.Instance.FrequencyToCheckForNewSessionsAtInSeconds) ? Settings.Instance.FrequencyToCheckForNewSessionsAtInSeconds: sleepIntervalForHeartbeatCheck;
             _lastInstanceCountCheck = DateTime.UtcNow;
 
             while (true)
             {
-                //Logger.LogDiagnostic("Checking for active sessions...");
-                var activeSessions = _DaaS.GetAllActiveSessions().ToList();
-                if (activeSessions.Count == 0)
+                if (DateTime.UtcNow.Subtract(_lastHeartbeatSent).TotalSeconds > sleepIntervalForHeartbeatCheck)
                 {
-                    Logger.LogDiagnostic("No active sessions");
-
-                    var cancelledInstances = _DaaS.GetCancelledInstances();
-                    if (cancelledInstances != null && cancelledInstances.Count > 0)
-                    {
-                        Logger.LogDiagnostic($"Found {cancelledInstances.Count} cancelled instances with instance names = { string.Join(",", cancelledInstances.Select(x => x.Name)) }");
-                        var anyInstanceToCancel = cancelledInstances.FirstOrDefault();
-                        if (anyInstanceToCancel != null)
-                        {
-                            _DaaS.CancelActiveSessionOnThisInstance(anyInstanceToCancel.SessionId);
-                        }
-
-                        RemoveOldCancelledFiles(cancelledInstances);
-                        KillChildProcessesIfAnyForCancelledInstances(cancelledInstances);
-                    }
-
-                }
-                else
-                {
-                    // ensure that we don't end up submitting too many sessions
-                    // This can happen if AutoHealing has generated too many files
-                    int activeSessionCount = activeSessions.Count;
-                    if (activeSessionCount > 5)
-                    {
-                        foreach (var session in activeSessions.Skip(5))
-                        {
-                            Logger.LogSessionVerboseEvent($"Deleting Session [{ session.SessionId }] because there are more than { activeSessionCount } sessions active", session.SessionId.ToString());
-                            try
-                            {
-                                var task = Task.Run(async () => { await _DaaS.Delete(session, true); });
-                                task.Wait();
-                            }
-                            catch (Exception ex)
-                            {
-
-                                Logger.LogSessionErrorEvent("Failed while deleting Session", ex, session.SessionId.ToString());
-                            }
-                        }
-                    }
+                    _lastHeartbeatSent = DateTime.UtcNow;
+                    SendHeartBeat();
                 }
 
-                foreach (var session in activeSessions)
-                {
-                    Logger.LogInfo("  Session " + session.SessionId + " - Status: " + session.Status);
-                    Logger.LogInfo("      " + session.FullPermanentStoragePath);
-                }
-                try
-                {
-                    _DaaS.RunActiveSessions();
-                    if (DateTime.UtcNow.Subtract(_lastHeartbeatSent).TotalSeconds > sleepIntervalForHeartbeatCheck)
-                    {
-                        _lastHeartbeatSent = DateTime.UtcNow;
-                        SendHeartBeat();
-                    }
-                }
-                catch (Exception e)
-                {
-                    Logger.LogErrorEvent("Encountered unhandled exception while running sessions", e);
-                }
-
-                if (DateTime.UtcNow.Subtract(_lastInstanceCountCheck).TotalMinutes > InstanceCountCheckFrequency)
+                if (DateTime.UtcNow.Subtract(_lastInstanceCountCheck).TotalMinutes > _instanceCountCheckFrequency)
                 {
                     _lastInstanceCountCheck = DateTime.UtcNow;
                     try
@@ -496,7 +408,7 @@ namespace DaaSRunner
 
                         // Treat sleepInterval as minutes for InstanceCountCheckFrequency 
                         // to avoid making this call every 30 minutes
-                        InstanceCountCheckFrequency = Convert.ToInt32(sleepIntervalForHeartbeatCheck);
+                        _instanceCountCheckFrequency = Convert.ToInt32(sleepIntervalForHeartbeatCheck);
                         if (logCounter == 5)
                         {
                             logCounter = 0;
@@ -509,14 +421,14 @@ namespace DaaSRunner
                     }
                 }
 
-                RunActiveSessionV2(_cts.Token);
+                RunActiveSession(_cts.Token);
                 RemoveOlderSessionsIfNeeded();
 
-                Thread.Sleep(_DaaS.FrequencyToCheckForNewSessionsAt);
+                Thread.Sleep(Settings.Instance.FrequencyToCheckForNewSessionsAtInSeconds * 1000);
             }
         }
 
-        private static void DeleteSessionSafe(SessionV2 session)
+        private static void DeleteSessionSafe(Session session)
         {
             try
             {
@@ -529,10 +441,10 @@ namespace DaaSRunner
 
         private static void RemoveOlderSessionsIfNeeded()
         {
-            if (DateTime.UtcNow.Subtract(_lastSessionCleanupTime).TotalHours > SettingsV2.Instance.HoursBetweenOldSessionsCleanup)
+            if (DateTime.UtcNow.Subtract(_lastSessionCleanupTime).TotalHours > Settings.Instance.HoursBetweenOldSessionsCleanup)
             {
                 _lastSessionCleanupTime = DateTime.UtcNow;
-                var allSessions = new List<SessionV2>();
+                var allSessions = new List<Session>();
 
                 try
                 {
@@ -540,29 +452,34 @@ namespace DaaSRunner
                 }
                 catch (Exception ex)
                 {
-                    Logger.LogWarningEvent("Failed while getting V2 sessions", ex);
+                    Logger.LogWarningEvent("Failed while getting sessions", ex);
                 }
 
                 if (allSessions.Any())
                 {
                     // Leave the last 'MaxSessionsToKeep' sessions and delete the older sessions
-                    var olderSessions = allSessions.OrderBy(x => x.StartTime).Take(Math.Max(0, allSessions.Count() - SettingsV2.Instance.MaxSessionsToKeep));
+                    var olderSessions = allSessions.OrderBy(x => x.StartTime).Take(Math.Max(0, allSessions.Count() - Settings.Instance.MaxSessionsToKeep));
                     foreach (var session in olderSessions)
                     {
                         DeleteSessionSafe(session);
                     }
 
                     // Delete all the sessions older than 'MaxSessionAgeInDays' days
-                    olderSessions = allSessions.Where(x => DateTime.UtcNow.Subtract(x.StartTime).TotalDays > SettingsV2.Instance.MaxSessionAgeInDays);
+                    olderSessions = allSessions.Where(x => DateTime.UtcNow.Subtract(x.StartTime).TotalDays > Settings.Instance.MaxSessionAgeInDays);
                     foreach (var session in olderSessions)
                     {
                         DeleteSessionSafe(session);
                     }
                 }
+
+                if (CheckIfTimeToCleanupSymbols())
+                {
+                    CleanupSymbolsDirectory();
+                }
             }
         }
 
-        private static void RunActiveSessionV2(CancellationToken stoppingToken)
+        private static void RunActiveSession(CancellationToken stoppingToken)
         {
             try
             {
@@ -572,18 +489,24 @@ namespace DaaSRunner
                     return;
                 }
 
+                Logger.LogSessionVerboseEvent("Found an active session", activeSession.SessionId);
+
+                //
                 // Check if all instances are finished with log collection
+                //
+
                 if (_sessionManager.CheckandCompleteSessionIfNeededAsync().Result)
                 {
                     return;
                 }
 
-                if (DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes > SettingsV2.Instance.OrphanInstanceTimeoutInMinutes)
+                if (DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes > Settings.Instance.OrphanInstanceTimeoutInMinutes)
                 {
-                    _sessionManager.CancelOrphanedInstancesIfNeeded(activeSession).Wait();
+                    _sessionManager.CancelOrphanedInstancesIfNeeded().Wait();
                 }
 
-                if (DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes > SettingsV2.Instance.MaxSessionTimeInMinutes)
+                var totalSessionRunningTimeInMinutes = DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes;
+                if (DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes > Settings.Instance.MaxSessionTimeInMinutes)
                 {
                     if (_runningSessions.ContainsKey(activeSession.SessionId))
                     {
@@ -593,14 +516,20 @@ namespace DaaSRunner
                     else
                     {
                         //
-                        // If the current instance is not running the session, mark the session as Complete
-                        // when MaxSessionTimeInMinutes is hit. This will ensure any long running sessions will
-                        // get completed and they will not hang indefinitely
+                        // Allow 5 minutes additional for the instance to gracefully terminate the session and cancel the task
                         //
 
-                        Logger.LogSessionVerboseEvent("Forcefully marking the session as TimedOut as MaxSessionTimeInMinutes limit reached", activeSession.SessionId);
+                        if (totalSessionRunningTimeInMinutes > (Settings.Instance.MaxSessionTimeInMinutes + 5))
+                        {
+                            //
+                            // If the current instance is not running the session, mark the session as Complete
+                            // when MaxSessionTimeInMinutes is hit. This will ensure any long running sessions will
+                            // get completed and they will not hang indefinitely
+                            //
 
-                        _ = _sessionManager.CheckandCompleteSessionIfNeededAsync(forceCompletion: true).Result;
+                            Logger.LogSessionVerboseEvent("Forcefully marking the session as TimedOut as MaxSessionTimeInMinutes limit reached", activeSession.SessionId);
+                            _ = _sessionManager.CheckandCompleteSessionIfNeededAsync(forceCompletion: true).Result;
+                        }
                     }
                 }
 
@@ -621,7 +550,7 @@ namespace DaaSRunner
                     var cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
                     var sessionTask = _sessionManager.RunToolForSessionAsync(activeSession, cts.Token);
 
-                    var t = new TaskAndCancellationTokenV2
+                    var t = new TaskAndCancellationToken
                     {
                         UnderlyingTask = sessionTask,
                         CancellationTokenSource = cts
@@ -633,7 +562,7 @@ namespace DaaSRunner
             }
             catch (Exception ex)
             {
-                Logger.LogErrorEvent("Failed in RunActiveSessionV2", ex);
+                Logger.LogErrorEvent("Failed in RunActiveSession", ex);
             }
         }
 
@@ -673,79 +602,6 @@ namespace DaaSRunner
             interval = Math.Max(30, interval);
             interval = Math.Min(180, interval);
             return Convert.ToDouble(interval);
-        }
-
-        private static void RemoveOldCancelledFiles(List<CancelledInstance> cancelledInstances)
-        {
-            try
-            {
-                foreach (var item in cancelledInstances)
-                {
-                    if (DateTime.UtcNow.Subtract(item.CancellationTime).TotalMinutes > 15)
-                    {
-                        item.DeleteFile().Wait();
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.LogErrorEvent("Failed while deleting old cancelled file", ex);
-            }
-        }
-
-        private static void KillChildProcessesIfAnyForCancelledInstances(List<CancelledInstance> cancelledInstances)
-        {
-            try
-            {
-                var instance = cancelledInstances.FirstOrDefault(x => x.Name == Environment.MachineName);
-                if (instance == null)
-                {
-                    // Not this instance so return
-                    return;
-                }
-
-                // Even if we succeed or not, lets try killing processes again
-                instance.DeleteFile().Wait();
-
-                var currentProcess = Process.GetCurrentProcess();
-
-                if (instance.ProcessCleanupOnCancel == null)
-                {
-                    Logger.LogVerboseEvent($"ProcessCleanupOnCancel is NULL so it is probably an older session ");
-                    return;
-                }
-
-                Logger.LogVerboseEvent($"Found ProcessCleanupOnCancel = {instance.ProcessCleanupOnCancel} ");
-                List<string> processToKill = instance.ProcessCleanupOnCancel.ToLower().Split(',').ToList();
-
-                foreach (var runningProcess in Process.GetProcesses())
-                {
-                    // this should never be the case but let's not kill any w3wp.exe process
-                    if (runningProcess.ProcessName.Equals("w3wp", StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
-
-                    try
-                    {
-                        if (processToKill.Contains(runningProcess.ProcessName.ToLower()))
-                        {
-                            runningProcess.Kill();
-                            Logger.LogVerboseEvent($"Successfully killed process {runningProcess.ProcessName.ToLower()} with ID - {runningProcess.Id}");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.LogErrorEvent($"Failed while killing process {runningProcess.ProcessName.ToLower()} with ID - {runningProcess.Id}", ex);
-                    }
-                }
-
-            }
-            catch (Exception ex)
-            {
-                Logger.LogErrorEvent("Failed while killing child processes for cancelled sessions", ex);
-            }
-
         }
 
         private static void SendHeartBeat()

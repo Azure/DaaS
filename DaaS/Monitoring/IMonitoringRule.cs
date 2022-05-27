@@ -14,7 +14,7 @@ namespace DaaS
         void LogStartup(Action<string, bool> appendToMonitoringLog);
         bool TakeActionOnHighCpu(int processId, string processName, DateTime monitoringStartTime, Action<string, bool> appendToMonitoringLog);
         bool ShouldTerminateRule(Action<string, bool> appendToMonitoringLog);
-        bool ShouldAnalyze(out string blobSasUri);
+        bool ShouldAnalyze();
 
         bool MonitorScmProcesses { get; }
         int MonitorDuration { get; }

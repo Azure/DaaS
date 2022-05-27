@@ -5,14 +5,11 @@
 // </copyright>
 // -----------------------------------------------------------------------
 
-using DaaS.Configuration;
 using DaaS.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace DaaS
@@ -25,40 +22,38 @@ namespace DaaS
         public async Task<List<CrashMonitoringFile>> GetCrashDumpsAsync(bool includeFullUri = false)
         {
             var filesCollected = new List<CrashMonitoringFile>();
-            string blobSasUri = Settings.IsBlobSasUriConfiguredAsEnvironmentVariable() ? Settings.WebSiteDaasStorageSasUri : Settings.Instance.BlobStorageSas;
-
-            if (!string.IsNullOrWhiteSpace(blobSasUri))
+            var dir = BlobController.GetBlobDirectory(DirectoryPath);
+            BlobContinuationToken blobContinuationToken = null;
+            do
             {
-                var dir = BlobController.GetBlobDirectory(DirectoryPath, blobSasUri);
-                BlobContinuationToken blobContinuationToken = null;
-                do
+                var resultSegment = await dir.ListBlobsSegmentedAsync(
+                    useFlatBlobListing: true,
+                    blobListingDetails: BlobListingDetails.None,
+                    maxResults: null,
+                    currentToken: blobContinuationToken,
+                    options: null,
+                    operationContext: null
+                );
+
+                //
+                // Get the value of the continuation token returned by the listing call.
+                //
+
+                blobContinuationToken = resultSegment.ContinuationToken;
+                foreach (var item in resultSegment.Results.Cast<CloudBlockBlob>())
                 {
-                    var resultSegment = await dir.ListBlobsSegmentedAsync(
-                        useFlatBlobListing: true,
-                        blobListingDetails: BlobListingDetails.None,
-                        maxResults: null,
-                        currentToken: blobContinuationToken,
-                        options: null,
-                        operationContext: null
-                    );
-
-                    // Get the value of the continuation token returned by the listing call.
-                    blobContinuationToken = resultSegment.ContinuationToken;
-                    foreach (var item in resultSegment.Results.Cast<CloudBlockBlob>())
+                    if (!item.Uri.Segments.Contains(_siteName + "/", StringComparer.OrdinalIgnoreCase))
                     {
-                        if (!item.Uri.Segments.Contains(_siteName + "/", StringComparer.OrdinalIgnoreCase))
-                        {
-                            continue;
-                        }
-                        var relativePath = item.Uri.ToString().Replace(item.Container.Uri.ToString() + "/", "");
-                        string fileName = item.Uri.Segments.Last();
-                        DateTime created = item.Properties.Created.HasValue ? item.Properties.Created.Value.UtcDateTime : DateTime.MinValue;
-                        filesCollected.Add(new CrashMonitoringFile(fileName, relativePath, includeFullUri ? item.Uri : null, created));
+                        continue;
                     }
-                } while (blobContinuationToken != null); // Loop while the continuation token is not null.
-            }
-            return filesCollected;
+                    var relativePath = item.Uri.ToString().Replace(item.Container.Uri.ToString() + "/", "");
+                    string fileName = item.Uri.Segments.Last();
+                    DateTime created = item.Properties.Created.HasValue ? item.Properties.Created.Value.UtcDateTime : DateTime.MinValue;
+                    filesCollected.Add(new CrashMonitoringFile(fileName, relativePath, includeFullUri ? item.Uri : null, created));
+                }
+            } while (blobContinuationToken != null); // Loop while the continuation token is not null.
 
+            return filesCollected;
         }
     }
 }
