@@ -489,7 +489,12 @@ namespace DaaSRunner
                     return;
                 }
 
+                Logger.LogSessionVerboseEvent("Found an active session", activeSession.SessionId);
+
+                //
                 // Check if all instances are finished with log collection
+                //
+
                 if (_sessionManager.CheckandCompleteSessionIfNeededAsync().Result)
                 {
                     return;
@@ -500,6 +505,7 @@ namespace DaaSRunner
                     _sessionManager.CancelOrphanedInstancesIfNeeded().Wait();
                 }
 
+                var totalSessionRunningTimeInMinutes = DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes;
                 if (DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes > Settings.Instance.MaxSessionTimeInMinutes)
                 {
                     if (_runningSessions.ContainsKey(activeSession.SessionId))
@@ -510,14 +516,20 @@ namespace DaaSRunner
                     else
                     {
                         //
-                        // If the current instance is not running the session, mark the session as Complete
-                        // when MaxSessionTimeInMinutes is hit. This will ensure any long running sessions will
-                        // get completed and they will not hang indefinitely
+                        // Allow 5 minutes additional for the instance to gracefully terminate the session and cancel the task
                         //
 
-                        Logger.LogSessionVerboseEvent("Forcefully marking the session as TimedOut as MaxSessionTimeInMinutes limit reached", activeSession.SessionId);
+                        if (totalSessionRunningTimeInMinutes > (Settings.Instance.MaxSessionTimeInMinutes + 5))
+                        {
+                            //
+                            // If the current instance is not running the session, mark the session as Complete
+                            // when MaxSessionTimeInMinutes is hit. This will ensure any long running sessions will
+                            // get completed and they will not hang indefinitely
+                            //
 
-                        _ = _sessionManager.CheckandCompleteSessionIfNeededAsync(forceCompletion: true).Result;
+                            Logger.LogSessionVerboseEvent("Forcefully marking the session as TimedOut as MaxSessionTimeInMinutes limit reached", activeSession.SessionId);
+                            _ = _sessionManager.CheckandCompleteSessionIfNeededAsync(forceCompletion: true).Result;
+                        }
                     }
                 }
 

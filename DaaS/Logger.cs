@@ -260,6 +260,12 @@ namespace DaaS
             LogDiagnostic("Session [ERR] - {0} {1} {2} {3} {4}", sessionId, message, ex.GetType().ToString(), ex.Message, ex.StackTrace);
         }
 
+        public static void LogSessionErrorEvent(string message, string error, string sessionId, string details = "")
+        {
+            DaasEventSource.Instance.LogSessionErrorEvent(SiteName, _assemblyVersion, sessionId, message,ExceptionType:"", error, ExceptionStackTrace:"", Details:details);
+            LogDiagnostic("Session [ERR] - {0} {1} {2} {3}", sessionId, message, error, details);
+        }
+
         public static void LogSessionWarningEvent(string message, Exception ex, string sessionId)
         {
             var details = GetExceptionDetails(ex);

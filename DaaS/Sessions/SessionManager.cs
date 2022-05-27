@@ -150,6 +150,7 @@ namespace DaaS.Sessions
         {
             try
             {
+                string sessionId = activeSession.SessionId;
                 var activeInstance = activeSession.GetCurrentInstance();
 
                 //
@@ -183,7 +184,7 @@ namespace DaaS.Sessions
                     await AppendCollectorResponseToSessionAsync(activeSession, resp);
                 }
 
-                await AnalyzeAndUpdateSessionAsync(token);
+                await AnalyzeAndUpdateSessionAsync(token, sessionId);
 
                 //
                 // Mark current instance as Complete
@@ -222,6 +223,11 @@ namespace DaaS.Sessions
 
         public bool ShouldCollectOnCurrentInstance(Session activeSession)
         {
+            if (activeSession == null)
+            {
+                return false;
+            }
+
             return activeSession.Instances != null &&
                 activeSession.Instances.Any(x => x.Equals(Infrastructure.GetInstanceId(), StringComparison.OrdinalIgnoreCase));
         }
@@ -350,7 +356,7 @@ namespace DaaS.Sessions
             }
 
             Logger.LogSessionErrorEvent("Identified orphaned instances for session",
-                new OperationCanceledException($"Orphaning instance(s) {string.Join(",", orphanedInstanceNames)} as they haven't picked up the session"),
+                $"Orphaning instance(s) {string.Join(",", orphanedInstanceNames)} as they haven't picked up the session",
                 activeSession.SessionId);
 
             var orphanedInstances = new List<ActiveInstance>();
@@ -407,22 +413,31 @@ namespace DaaS.Sessions
             return Infrastructure.Settings.Diagnosers.FirstOrDefault(x => x.Name == toolName);
         }
 
-        private async Task AnalyzeAndUpdateSessionAsync(CancellationToken token)
+        private async Task AnalyzeAndUpdateSessionAsync(CancellationToken token, string sessionId)
         {
             var activeSession = await GetActiveSessionAsync();
+            if (activeSession == null)
+            {
+                Logger.LogSessionErrorEvent("Failed while analyzing the session", "ActiveSession is NULL. Another instance might have completed the session", sessionId);
+            }
+
             if (activeSession.Mode == Mode.Collect)
             {
                 return;
             }
 
+            Logger.LogSessionVerboseEvent("Getting collected logs for session", sessionId);
             var collectedLogs = GetCurrentInstanceLogs(activeSession);
             if (collectedLogs.Count > 0)
             {
+                Logger.LogSessionVerboseEvent($"Identified {collectedLogs.Count} logs to analyze", sessionId);
                 var analyzer = GetAnalyzerForSession(activeSession.Tool);
+                Logger.LogSessionVerboseEvent("Issuing analysis for session", sessionId);
                 await analyzer.AnalyzeLogsAsync(collectedLogs, activeSession, token);
             }
 
             var analyzerErrors = GetAnalyzerErrors(activeSession);
+            Logger.LogSessionVerboseEvent($"Analysis completed. Analysis errors = {string.Join(",", analyzerErrors)}", sessionId);
 
             await UpdateActiveSessionAsync((latestSessionFromDisk) =>
             {
@@ -1080,6 +1095,15 @@ namespace DaaS.Sessions
 
             string activeSessionFile = Path.Combine(SessionDirectories.ActiveSessionsDir, sessionId + ".json");
             string completedSessionFile = Path.Combine(SessionDirectories.CompletedSessionsDir, sessionId + ".json");
+
+            if (!File.Exists(activeSessionFile))
+            {
+                //
+                // Another instance might have moved the file already
+                //
+
+                return;
+            }
 
             try
             {
