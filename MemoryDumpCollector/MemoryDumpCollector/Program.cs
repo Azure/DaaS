@@ -35,7 +35,7 @@ namespace MemoryDumpCollector
         private static string _cdbFolder;
 
         private static List<int> _processesToIgnore = new List<int>();
-        private static readonly string[] _additionalProcesses = new string[] { "java" };
+        private static readonly string[] _additionalProcesses = new string[] { "java", "javaw" };
 
         static void Main(string[] args)
         {
