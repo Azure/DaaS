@@ -7,7 +7,7 @@ Add-Type -Path $daasDllPath
 
 [DaaS.Logger]::LogDiagnoserVerboseEvent("Checking running java.exe process")
 
-$javaProcesses = Get-Process | Where { $_.Name -eq "java" or $_.Name -eq "javaw" } |select -expand id
+$javaProcesses = Get-Process | Where { $_.Name -eq "java" -or $_.Name -eq "javaw" } |select -expand id
 $jcmdProcess = [io.path]::combine($env:JAVA_HOME, 'bin', 'jcmd.exe')
 $jcmdExists = Test-Path $jcmdProcess
 $machineName = hostname

@@ -7,7 +7,7 @@ Add-Type -Path $daasDllPath
 
 [DaaS.Logger]::LogDiagnoserVerboseEvent("Checking running java.exe process")
 
-$javaProcesses = Get-Process | Where { $_.Name -eq "java" or $_.Name -eq "javaw" } | select -expand id
+$javaProcesses = Get-Process | Where { $_.Name -eq "java" -or $_.Name -eq "javaw" } | select -expand id
 $jstackProcess = [io.path]::combine($env:JAVA_HOME, 'bin', 'jstack.exe')
 $jstackExists = Test-Path $jstackProcess
 $machineName = hostname
