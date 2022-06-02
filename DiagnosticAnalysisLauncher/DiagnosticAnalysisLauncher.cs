@@ -148,7 +148,7 @@ namespace DiagnosticAnalysisLauncher
                     {
                         Logger.LogDiagnoserWarningEvent(
                             "Killing DiagnosticAnalysis.exe due to high resource consumption",
-                            new InvalidOperationException($"{TotalProcessorTime} seconds of CPU time and {PrivateMemorySize64 / (1024 * 1024)} MB of memory"));
+                            $"{TotalProcessorTime} seconds of CPU time and {PrivateMemorySize64 / (1024 * 1024)} MB of memory");
                         diagnosticsAnalysis.SafeKillProcess();
                         break;
                     }
