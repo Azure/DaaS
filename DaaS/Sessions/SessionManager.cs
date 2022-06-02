@@ -1080,33 +1080,34 @@ namespace DaaS.Sessions
             }
 
             string sessionId = activeSession.SessionId;
-            await UpdateActiveSessionAsync((latestSessionFromDisk) =>
-            {
-                if (latestSessionFromDisk == null)
-                {
-                    return null;
-                }
-
-                latestSessionFromDisk.Status = forceCompletion ? Status.TimedOut : Status.Complete;
-                latestSessionFromDisk.EndTime = DateTime.UtcNow;
-                return latestSessionFromDisk;
-
-            }, sessionId, callerMethodName: "MarkSessionAsCompleteAsync");
-
-            string activeSessionFile = Path.Combine(SessionDirectories.ActiveSessionsDir, sessionId + ".json");
-            string completedSessionFile = Path.Combine(SessionDirectories.CompletedSessionsDir, sessionId + ".json");
-
-            if (!File.Exists(activeSessionFile))
-            {
-                //
-                // Another instance might have moved the file already
-                //
-
-                return;
-            }
 
             try
             {
+                await UpdateActiveSessionAsync((latestSessionFromDisk) =>
+                {
+                    if (latestSessionFromDisk == null)
+                    {
+                        return null;
+                    }
+
+                    latestSessionFromDisk.Status = forceCompletion ? Status.TimedOut : Status.Complete;
+                    latestSessionFromDisk.EndTime = DateTime.UtcNow;
+                    return latestSessionFromDisk;
+
+                }, sessionId, callerMethodName: "MarkSessionAsCompleteAsync");
+
+                string activeSessionFile = Path.Combine(SessionDirectories.ActiveSessionsDir, sessionId + ".json");
+                string completedSessionFile = Path.Combine(SessionDirectories.CompletedSessionsDir, sessionId + ".json");
+
+                if (!File.Exists(activeSessionFile))
+                {
+                    //
+                    // Another instance might have moved the file already
+                    //
+
+                    return;
+                }
+
                 //
                 // Move the session file from Active to Complete folder
                 //
