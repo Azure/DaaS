@@ -16,6 +16,8 @@ app.controller('Ctrl', function Ctrl($scope, $http, $filter) {
 
     $scope.state = new Object();
     $scope.state['BLOCKED'] = { class: "danger", Icon: "fa-lock", desc: 'Blocked in vm' };
+    $scope.state['WAITING'] = { class: "warning", Icon: "fa-lock", desc: 'Waiting for another thread' };
+    $scope.state['TIMED_WAITING'] = { class: "warning", Icon: "fa-lock", desc: 'Waiting for another thread for a specified waiting time' };
     $scope.state['IN_NATIVE'] = { class: "warning", Icon: "fa-file", desc: 'Running in native code' };
     $scope.state['IN_NATIVE_TRANS '] = { class: "info", Icon: "fa-unlock-alt", desc: 'Corresponding transition state' };
     $scope.state['IN_VM'] = { class: "success", Icon: "fa-unlock", desc: 'Running in VM' };
@@ -24,6 +26,7 @@ app.controller('Ctrl', function Ctrl($scope, $http, $filter) {
     $scope.state['BLOCKED_TRANS'] = { class: "info", Icon: "fa-fire", desc: 'Corresponding transition state' };
     $scope.state['UNINITIALIZED'] = { class: "success", Icon: "fa-ban", desc: 'Should never happen (missing initialization)' };
     $scope.state['NEW'] = { class: "success", Icon: "fa-plus", desc: 'Just starting up, i.e., in process of being initialized' };
+    $scope.state['RUNNABLE'] = { class: "danger", Icon: "fa-fire", desc: 'Runnable thread' };
 
     $scope.by_State = '';
 

@@ -102,6 +102,11 @@ namespace DaaS.Diagnostics
             var javaProcess = Process.GetProcessesByName("java").FirstOrDefault();
             if (javaProcess == null)
             {
+                javaProcess = Process.GetProcessesByName("javaw").FirstOrDefault();
+            }
+
+            if (javaProcess == null)
+            {
                 return false;
             }
 

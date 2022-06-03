@@ -43,9 +43,9 @@ if ($jstackExists -eq $true)
     foreach ($javaProcess in $javaProcesses)
     {
        $outFile = [io.path]::combine($outputPath, $machineName + "_" + $javaProcess.ToString() + "_jstack.log")
-       $cmdToExecute = "Executing: " + $jstackProcess + " -F " + $javaProcess + ">" + $outFile 
+       $cmdToExecute = "Executing: " + $jstackProcess + " -l " + $javaProcess + ">" + $outFile 
 		[DaaS.Logger]::LogDiagnoserVerboseEvent($cmdToExecute)
-       &$jstackProcess -F $javaProcess > $outFile
+       &$jstackProcess -l $javaProcess > $outFile
 	   [DaaS.Logger]::LogDiagnoserVerboseEvent("jStack collected stacks for the process $javaProcess")
     
     }
