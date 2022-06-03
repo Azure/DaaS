@@ -6,6 +6,7 @@
 // -----------------------------------------------------------------------
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -63,16 +64,22 @@ namespace DaaS
                     throw new InstanceNotFoundException("What happened to Program Files?");
                 }
                 var rootDaasDir = Path.Combine(programFiles, @"SiteExtensions\DaaS");
-
                 if (!Directory.Exists(rootDaasDir))
                 {
                     // Must be in test mode. Assume the current directory has everything needed
                     return @".\";
                 }
 
-                var daasVersions = Directory.EnumerateDirectories(rootDaasDir).ToList();
-                daasVersions.Sort();
-                latestDaasDir = daasVersions.Last();
+                var daasSiteExtensionDirectories = Directory.EnumerateDirectories(rootDaasDir).ToList();
+                var versions = new Dictionary<Version, string>();
+                foreach (var daasSiteExtensionDirectory in daasSiteExtensionDirectories)
+                {
+                    var directoryName = new DirectoryInfo(daasSiteExtensionDirectory).Name;
+                    versions.Add(new Version(directoryName), daasSiteExtensionDirectory);
+                }
+                
+                var highestVersion = versions.OrderByDescending(x => x.Key).FirstOrDefault();
+                latestDaasDir = highestVersion.Value;
             }
             
             return latestDaasDir;
