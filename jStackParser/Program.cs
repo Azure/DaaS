@@ -1,4 +1,4 @@
-// -----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="Program.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
@@ -38,7 +38,6 @@ namespace jStackParser
                 ActivityId = DaaS.Logger.ActivityId,
                 SiteName = DaaS.Logger.SiteName,
                 TraceFileName = m_jStackLog,
-
             };
 
             try
@@ -47,7 +46,6 @@ namespace jStackParser
                 stopWatch.Start();
 
                 DaaS.Logger.LogDiagnoserEvent($"Opening JStack LogFile {m_jStackLog} and outputPath is { m_OutputPath}");
-
 
                 m_InstanceName = GetMachineName(m_jStackLog);
                 stats.InstanceName = m_InstanceName;

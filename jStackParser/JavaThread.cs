@@ -1,4 +1,4 @@
-// -----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="JavaThread.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
@@ -8,6 +8,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace jStackParser
 {
@@ -27,32 +28,58 @@ namespace jStackParser
         public int Id;
         public List<string> CallStack;
         public int CallStackHash;
+        public string AdditionalStateInfo;
 
-        public static int GetThreadIdandState(string line, out string state)
+        //
+        // Gets ThreadId from output string like below
+        // "http-nio-127.0.0.1-30053-ClientPoller" #26 daemon prio=5 os_prio=0 tid=0x00000000169d2000 nid=0x36a4 runnable [0x000000001851e000]
+        //
+        public static int GetThreadId(string line)
         {
-            int intThreadId = -1;
-            state = string.Empty;
-            var lineParts = line.Split(':');
-            if (lineParts.Length > 0)
+            string threadId = "";
+            foreach (var token in line.Split(' '))
             {
-                var threadId = lineParts[0].Replace("Thread ", "");
-                if (Int32.TryParse(threadId, out intThreadId))
+                if (token.StartsWith("#"))
                 {
-                    state = GetThreadState(lineParts[1]);
+                    threadId = token.Substring(1);
+                    break;
                 }
             }
 
-            return intThreadId;
+            if (int.TryParse(threadId, out int tid))
+            {
+                return tid;
+            }
+
+            return -1;
         }
 
-        public static string GetThreadState(string v)
+        //
+        // Gets State from a string like below
+        //    java.lang.Thread.State: RUNNABLE
+        //
+
+        private static string GetState(string[] fileContents, int i, out string additionalStateInformation)
         {
-            var state = v.Replace(" ", "");
-            if (state.StartsWith("(state="))
+            string state = "";
+            additionalStateInformation = "";
+            int nextLineIndex = i + 1;
+            if (nextLineIndex + 1 < fileContents.Length)
             {
-                state = state.Substring(7);
-                state = state.TrimEnd(')');
+                string nextLineContent = fileContents[nextLineIndex];
+                if (nextLineContent.Contains("java.lang.Thread.State"))
+                {
+                    nextLineContent = nextLineContent.Replace(" ", "");
+                    state = nextLineContent.Replace("java.lang.Thread.State:", "");
+                    int intBracketIndex = state.IndexOf("(");
+                    if (intBracketIndex > 0 && intBracketIndex < state.Length - 1) 
+                    {
+                        additionalStateInformation = state.Substring(intBracketIndex);
+                        state = state.Substring(0,intBracketIndex);
+                    }
+                }
             }
+
             return state;
         }
 
@@ -65,16 +92,25 @@ namespace jStackParser
 
             JavaThread currentThread = null;
 
-            foreach (var line in File.ReadAllLines(log))
+            var fileContents = File.ReadAllLines(log);
+
+            for (int i = 0; i < fileContents.Length; i++)
             {
-                if (line.StartsWith("Thread "))
+                string line = fileContents[i];
+                if (line.Contains("tid=0x") && line.Contains("nid=0x"))
                 {
-                    string state = string.Empty;
-                    int threadId = JavaThread.GetThreadIdandState(line, out state);
+                    int threadId = GetThreadId(line);
+                    if (threadId == -1)
+                    {
+                        continue;
+                    }
+
+                    var state = GetState(fileContents, i, out string addtionalStateInfo);
                     JavaThread j = new JavaThread
                     {
                         Id = threadId,
                         State = state,
+                        AdditionalStateInfo = addtionalStateInfo,
                         CallStack = new List<string>()
                     };
 
@@ -104,9 +140,9 @@ namespace jStackParser
                     }
                     else
                     {
-                        if (line.StartsWith(" - "))
+                        if (line.StartsWith("\tat ") || line.StartsWith("\t-"))
                         {
-                            currentThread.CallStack.Add(line.Replace(" - ", ""));
+                            currentThread.CallStack.Add(line.Replace("\t", ""));
                         }
 
                     }
