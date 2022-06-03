@@ -95,7 +95,7 @@ if ($jcmdExists -eq $true)
 		}
         else
         {
-            [DaaS.Logger]::LogDiagnoserWarningEvent("JAVA Flight Recorder failed to run. jCmd Command Output = $jcmdOutput")
+            [DaaS.Logger]::LogDiagnoserWarningEvent("JAVA Flight Recorder failed to run. Check detailed jcmd output in Message column", $jcmdOutput)
 
             $jfrErrorFileName = $machineName + "_" + $javaProcess.ToString() + "_jcmd.error.log"
             $outFile = [io.path]::combine($outputPath, $jfrErrorFileName)

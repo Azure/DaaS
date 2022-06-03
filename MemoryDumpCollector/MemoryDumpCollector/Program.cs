@@ -203,7 +203,7 @@ namespace MemoryDumpCollector
         {
             if (mainSiteWorkerProcessId == -1)
             {
-                Logger.LogDiagnoserWarningEvent("Failed to determine main site worker process", new ApplicationException("w3wp process for the main site not found"));
+                Logger.LogDiagnoserWarningEvent("Failed to determine main site worker process", "w3wp process for the main site not found");
                 return;
             }
 
