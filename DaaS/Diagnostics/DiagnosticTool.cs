@@ -18,7 +18,6 @@ namespace DaaS.Diagnostics
     abstract class DiagnosticTool
     {
         public virtual string Name { get; internal set; }
-        public string Warning { get; internal set; }
 
         protected static string ExpandVariables(string input, Dictionary<string, string> variables = null)
         {

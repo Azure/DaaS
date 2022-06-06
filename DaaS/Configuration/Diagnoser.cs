@@ -24,18 +24,11 @@ namespace DaaS
         {
             var warnings = new List<string>();
             var collector = new Collector(this);
-            if (!string.IsNullOrWhiteSpace(collector.Warning))
+            if (!collector.PreValidationSucceeded(sessionId: string.Empty, out string additionalInfo))
             {
-                if (!collector.PreValidationSucceeded(out string additionalInfo))
+                if (!string.IsNullOrWhiteSpace(additionalInfo))
                 {
-                    if (!string.IsNullOrWhiteSpace(additionalInfo))
-                    {
-                        warnings.Add(additionalInfo);
-                    }
-                    else
-                    {
-                        warnings.Add(collector.Warning);
-                    }
+                    warnings.Add(additionalInfo);
                 }
             }
 

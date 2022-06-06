@@ -38,7 +38,6 @@ namespace DaaS.Diagnostics
             PreValidationMethod = diagnoser.Collector.PreValidationMethod;
             PreValidationCommand = diagnoser.Collector.PreValidationCommand;
             PreValidationArguments = diagnoser.Collector.PreValidationArguments;
-            Warning = diagnoser.Collector.Warning;
             RequiresStorageAccount = diagnoser.RequiresStorageAccount;
         }
 
@@ -58,7 +57,8 @@ namespace DaaS.Diagnostics
             if (!logs.Any())
             {
                 var additionalError = string.Empty;
-                if (PreValidationSucceeded(out additionalError))
+                var prevalSucceeded = PreValidationSucceeded(session.SessionId, out additionalError);
+                if (prevalSucceeded)
                 {
                     bool collectorWasRun = await RunCollectorCommandAsync(session, tempOutputDir, ct);
                     if (!collectorWasRun)
@@ -66,6 +66,13 @@ namespace DaaS.Diagnostics
                         return resp;
                     }
                 }
+                else
+                {
+                    Logger.LogSessionWarningEvent($"Prevalidation failed for Collector: {session.Tool}", additionalError, session.SessionId);
+                    resp.Errors.Add($"Prevalidation failed for '{session.Tool}'. {additionalError}");
+                    return resp;
+                }
+                
                 logs = GetLogsForSession(tempOutputDir);
                 Logger.LogSessionVerboseEvent($"Collected {logs.Count} log files for session", session.SessionId);
             }
@@ -83,7 +90,7 @@ namespace DaaS.Diagnostics
                     }
                 }
 
-                throw new Diagnostics.DiagnosticToolHasNoOutputException(Name, collectorException);
+                throw new DiagnosticToolHasNoOutputException(Name, collectorException);
             }
 
             resp.Logs = logs.Where(x => !x.Name.EndsWith(".diaglog")).ToList();
@@ -124,7 +131,7 @@ namespace DaaS.Diagnostics
             return new FileInfo(path).Length;
         }
 
-        public bool PreValidationSucceeded(out string additionalErrorInfo)
+        public bool PreValidationSucceeded(string sessionId, out string additionalErrorInfo)
         {
             bool ret = true;
             additionalErrorInfo = string.Empty;
@@ -136,11 +143,11 @@ namespace DaaS.Diagnostics
                     MethodInfo validatorMethod = validators.GetType().GetMethod(PreValidationMethod);
                     if (validatorMethod != null)
                     {
-                        object[] parameters = new object[] { null };
+                        object[] parameters = new object[] { sessionId, null };
                         bool validationSucceeded = (bool)validatorMethod.Invoke(validators, parameters);
                         if (!validationSucceeded)
                         {
-                            additionalErrorInfo = (string)parameters[0];
+                            additionalErrorInfo = (string)parameters[1];
                         }
 
                         return validationSucceeded;
@@ -167,9 +174,9 @@ namespace DaaS.Diagnostics
                 {
                     num++;
                     Logger.LogDiagnostic("Checking if process exits: num = {0} ", num);
-                    Thread.Sleep(100);
+                    Thread.Sleep(1000);
 
-                    if (num >= 100)
+                    if (num >= 2)
                     {
                         break;
                     }

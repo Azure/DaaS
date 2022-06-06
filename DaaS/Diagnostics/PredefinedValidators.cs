@@ -19,6 +19,7 @@ namespace DaaS.Diagnostics
 {
     class PredefinedValidators
     {
+        const string JavaProcessNotRunningMessage = "This tool collects data for Web App using Java and we found that java.exe (or javaw.exe) was not running so this tool cannot run. If this is a Java based Web App, make sure that the java process is running by browsing the app and then execute the tool again.";
         const string JavaToolsMissingMessage = "We identified the JDK tools required to collect diagnostics information are missing for the current version of JAVA runtime used for the app. Please download the JAVA SDK for the correct version for Java and run the tools manually via KUDU console.";
         const string JavaToolsUseFlightRecorder = "Your app is using a Java version that supports Java Flight Recorder tool (jcmd.exe). It is strongly recommended to use Java Flight recorder to debug Java issues.";
         private const string MemoryCacheKey = "JarFilePath";
@@ -35,25 +36,25 @@ namespace DaaS.Diagnostics
             string strEventLogXmlPath = Path.Combine(homePath, "LogFiles", fileName);
             return File.Exists(strEventLogXmlPath);
         }
-        
-        public bool JavaMemoryDumpValidator(out string AdditionalError)
+
+        public bool JavaMemoryDumpValidator(string sessionId, out string AdditionalError)
         {
-            return CheckJavaProcessAndTools("jmap.exe", out AdditionalError);
+            return CheckJavaProcessAndTools(sessionId, "jmap.exe", out AdditionalError);
         }
 
-        public bool JavaMemoryStatisticsValidator(out string AdditionalError)
+        public bool JavaMemoryStatisticsValidator(string sessionId, out string AdditionalError)
         {
-            return CheckJavaProcessAndTools("jmap.exe", out AdditionalError);
+            return CheckJavaProcessAndTools(sessionId, "jmap.exe", out AdditionalError);
         }
 
-        public bool JavaThreadDumpValidator(out string AdditionalError)
+        public bool JavaThreadDumpValidator(string sessionId, out string AdditionalError)
         {
-            return CheckJavaProcessAndTools("jstack.exe", out AdditionalError);
+            return CheckJavaProcessAndTools(sessionId, "jstack.exe", out AdditionalError);
         }
 
-        public bool JavaFlightRecorderValidator(out string AdditionalError)
+        public bool JavaFlightRecorderValidator(string sessionId, out string AdditionalError)
         {
-            return CheckJavaProcessAndTools("jcmd.exe", out AdditionalError);
+            return CheckJavaProcessAndTools(sessionId, "jcmd.exe", out AdditionalError);
         }
 
         private string GetJavaFolderPathFromConfig(out bool pathInConfigNotJavaExe)
@@ -96,9 +97,8 @@ namespace DaaS.Diagnostics
             return false;
         }
 
-        private bool CheckJavaProcessAndTools(string toolName, out string AdditionalError)
+        private bool CheckJavaProcessAndTools(string sessionId, string toolName, out string additionalError)
         {
-            AdditionalError = string.Empty;
             var javaProcess = Process.GetProcessesByName("java").FirstOrDefault();
             if (javaProcess == null)
             {
@@ -107,14 +107,24 @@ namespace DaaS.Diagnostics
 
             if (javaProcess == null)
             {
+                additionalError = JavaProcessNotRunningMessage;
+                LogSessionWarningIfNeeded("Prevalidation failed in CheckJavaProcessAndTools", additionalError, sessionId);
                 return false;
             }
+
+            LogSessionInfoIfNeeded($"Found valid JAVA process with name {javaProcess.ProcessName} and Id {javaProcess.Id}", sessionId);
 
             var javaFolderPath = GetJavaFolderPathFromConfig(out bool pathInConfigNotJavaExe);
             if (!string.IsNullOrWhiteSpace(javaFolderPath))
             {
+                LogSessionInfoIfNeeded($"JavaFolderPathFromConfig = {javaFolderPath}", sessionId);
+                bool toolExists = CheckToolExists(javaFolderPath, toolName, out additionalError);
+                if (!toolExists)
+                {
+                    LogSessionWarningIfNeeded($"Prevalidation failed while getting tool folder path from javaFolderPathFromConfig = {javaFolderPath}", additionalError, sessionId);
+                }
 
-                return CheckToolExists(javaFolderPath, toolName, out AdditionalError);
+                return toolExists;
             }
             else
             {
@@ -123,11 +133,19 @@ namespace DaaS.Diagnostics
                 //
 
                 var rtJarHandle = GetJarFileHandle(javaProcess.Id);
+                LogSessionInfoIfNeeded($"rtJarHandle = {rtJarHandle}", sessionId);
                 if (!string.IsNullOrWhiteSpace(rtJarHandle) && rtJarHandle.Length > 0)
                 {
                     var parentPath = rtJarHandle.Replace(@"\jre\lib\rt.jar", "").Replace("c:", GetOsDrive());
                     var javaToolPath = Path.Combine(parentPath, "bin");
-                    return CheckToolExists(javaToolPath, toolName, out AdditionalError);
+                    LogSessionInfoIfNeeded($"javaToolPath from rt.jar file Handle = '{javaFolderPath}'", sessionId);
+                    bool toolExists = CheckToolExists(javaToolPath, toolName, out additionalError);
+                    if (!toolExists)
+                    {
+                        LogSessionWarningIfNeeded($"Prevalidation failed while getting tool folder path from javaToolPath = {javaToolPath}", additionalError, sessionId);
+                    }
+
+                    return toolExists;
                 }
                 else
                 {
@@ -137,17 +155,41 @@ namespace DaaS.Diagnostics
                     //
 
                     var javaHome = Environment.GetEnvironmentVariable("JAVA_HOME");
-                    if (javaHome == null)
+                    if (string.IsNullOrWhiteSpace(javaHome))
                     {
-                        AdditionalError = JavaToolsMissingMessage;
+                        additionalError = JavaToolsMissingMessage;
+                        LogSessionWarningIfNeeded($"Prevalidation failed while getting JAVA_HOME environment variable", additionalError, sessionId);
                         return false;
                     }
                     else
                     {
                         var javaToolPath = Path.Combine(javaHome, "bin");
-                        return CheckToolExists(javaToolPath, toolName, out AdditionalError);
+                        LogSessionInfoIfNeeded($"javaToolPath from JAVA_HOME environment variable = '{javaFolderPath}'", sessionId);
+                        bool toolExists = CheckToolExists(javaToolPath, toolName, out additionalError);
+                        if (!toolExists)
+                        {
+                            LogSessionWarningIfNeeded($"Prevalidation failed while getting tool folder path from bin = {javaToolPath}", additionalError, sessionId);
+                        }
+
+                        return toolExists;
                     }
                 }
+            }
+        }
+
+        private void LogSessionInfoIfNeeded(string message, string sessionId)
+        {
+            if (!string.IsNullOrWhiteSpace(sessionId))
+            {
+                Logger.LogSessionVerboseEvent(message, sessionId);
+            }
+        }
+
+        private void LogSessionWarningIfNeeded(string message, string error, string sessionId)
+        {
+            if (!string.IsNullOrWhiteSpace(sessionId))
+            {
+                Logger.LogSessionWarningEvent(message, error, sessionId);
             }
         }
 

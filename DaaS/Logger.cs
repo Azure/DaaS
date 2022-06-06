@@ -273,6 +273,12 @@ namespace DaaS
             LogDiagnostic("Session [WARN] - {0} {1} {2} {3} {4}", sessionId, message, ex.GetType().ToString(), ex.Message, ex.StackTrace);
         }
 
+        public static void LogSessionWarningEvent(string message, string error, string sessionId)
+        {
+            DaasEventSource.Instance.LogSessionWarningEvent(SiteName, _assemblyVersion, sessionId, message, string.Empty, error, string.Empty, string.Empty);
+            LogDiagnostic("Session [WARN] - {0} {1} {2}", sessionId, message, error);
+        }
+
         public static void LogNewSession(string sessionId, string mode, string diagnosers, object details)
         {
             DaasEventSource.Instance.LogNewSession(SiteName, _assemblyVersion, sessionId, mode, diagnosers, JsonConvert.SerializeObject(details));

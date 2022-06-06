@@ -14,6 +14,5 @@ namespace DaaS.Configuration
         public string PreValidationMethod { get; set; }
         public string PreValidationCommand { get; set; }
         public string PreValidationArguments { get; set; }
-        public string Warning { get; set; }
     }
 }
