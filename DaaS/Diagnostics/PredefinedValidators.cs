@@ -138,7 +138,7 @@ namespace DaaS.Diagnostics
                 {
                     var parentPath = rtJarHandle.Replace(@"\jre\lib\rt.jar", "").Replace("c:", GetOsDrive());
                     var javaToolPath = Path.Combine(parentPath, "bin");
-                    LogSessionInfoIfNeeded($"javaToolPath from rt.jar file Handle = '{javaFolderPath}'", sessionId);
+                    LogSessionInfoIfNeeded($"javaToolPath from rt.jar file Handle = '{javaToolPath}'", sessionId);
                     bool toolExists = CheckToolExists(javaToolPath, toolName, out additionalError);
                     if (!toolExists)
                     {
@@ -164,7 +164,7 @@ namespace DaaS.Diagnostics
                     else
                     {
                         var javaToolPath = Path.Combine(javaHome, "bin");
-                        LogSessionInfoIfNeeded($"javaToolPath from JAVA_HOME environment variable = '{javaFolderPath}'", sessionId);
+                        LogSessionInfoIfNeeded($"javaToolPath from JAVA_HOME environment variable = '{javaToolPath}'", sessionId);
                         bool toolExists = CheckToolExists(javaToolPath, toolName, out additionalError);
                         if (!toolExists)
                         {
