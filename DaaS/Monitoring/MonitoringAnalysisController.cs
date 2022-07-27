@@ -25,7 +25,7 @@ namespace DaaS
         public static string GetAnalysisFolderPath(out bool errorEncountered)
         {
             errorEncountered = false;
-            string path = Path.Combine(Settings.UserSiteStorageDirectory, MonitoringSessionController.GetCpuMonitoringPath(), MonitoringSessionDirectories.Analysis);
+            string path = Path.Combine(Settings.Instance.UserSiteStorageDirectory, MonitoringSessionController.GetCpuMonitoringPath(), MonitoringSessionDirectories.Analysis);
             try
             {
                 FileSystemHelpers.CreateDirectoryIfNotExists(path);
@@ -127,8 +127,6 @@ namespace DaaS
 
         private static string AnalyzeDumpFile(AnalysisRequest analysisRequest, string inprogressFile, CancellationToken token)
         {
-            var blobSasUri = analysisRequest.BlobSasUri;
-
             string cpuMonitorPath = MonitoringSessionController.GetCpuMonitoringPath(MonitoringSessionDirectories.Logs);
             var diagnosticToolsPath = Infrastructure.Settings.GetDiagnosticToolsPath();
             string outputPath = Path.Combine(cpuMonitorPath, analysisRequest.SessionId);
@@ -197,15 +195,7 @@ namespace DaaS
             if (!FileSystemHelpers.FileExists(dumpFileInTempDirectory))
             {
                 Logger.LogCpuMonitoringVerboseEvent($"File {dumpFileInTempDirectory} does not exist. Copying it locally", request.SessionId);
-                if (!string.IsNullOrWhiteSpace(request.BlobSasUri))
-                {
-                    CacheFileFromPath(request, dumpFileInTempDirectory, MonitoringSessionController.GetRelativePathForSession(request.DefaultHostName, request.SessionId));
-                }
-                else
-                {
-                    FileSystemHelpers.CopyFile(request.LogFileName, dumpFileInTempDirectory);
-                    Logger.LogCpuMonitoringVerboseEvent($"Copied file from {request.LogFileName} to {dumpFileInTempDirectory} ", request.SessionId);
-                }
+                CacheFileFromPath(request, dumpFileInTempDirectory, MonitoringSessionController.GetRelativePathForSession(request.DefaultHostName, request.SessionId));
             }
             return dumpFileInTempDirectory;
         }
@@ -215,7 +205,7 @@ namespace DaaS
             try
             {
                 string filePath = Path.Combine(path, Path.GetFileName(request.LogFileName));
-                var blob = BlobController.GetBlobForFile(filePath, request.BlobSasUri);
+                var blob = BlobController.GetBlobForFile(filePath);
                 blob.DownloadToFile(dumpFileInTempDirectory, FileMode.Append);
                 Logger.LogCpuMonitoringVerboseEvent($"Copied file from {request.LogFileName} to {dumpFileInTempDirectory} ", request.SessionId);
             }
@@ -225,7 +215,7 @@ namespace DaaS
             }
         }
 
-        public static void QueueAnalysisRequest(string sessionId, string logFileName, string blobSasUri, bool isActiveSession = false)
+        public static void QueueAnalysisRequest(string sessionId, string logFileName, bool isActiveSession = false)
         {
             try
             {
@@ -255,7 +245,6 @@ namespace DaaS
                         SessionId = sessionId,
                         LogFileName = logFileName,
                         ExpirationTime = DateTime.MaxValue,
-                        BlobSasUri = blobSasUri,
                         RetryCount = 0,
                         IsActiveSession = isActiveSession
                     };

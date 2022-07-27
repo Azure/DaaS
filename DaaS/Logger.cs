@@ -118,8 +118,7 @@ namespace DaaS
                 monitoringSession.MaxActions,
                 monitoringSession.MaximumNumberOfHours,
                 monitoringSession.BlobStorageHostName,
-                monitoringSession.RuleType,
-                SasUriEnvironmentVariableExists = Configuration.Settings.IsBlobSasUriConfiguredAsEnvironmentVariable()
+                monitoringSession.RuleType
             };
 
             DaasEventSource.Instance.LogNewCpuMonitoringSession(SiteName, _assemblyVersion, monitoringSession.SessionId, monitoringSession.Mode.ToString(), JsonConvert.SerializeObject(details));
@@ -261,11 +260,23 @@ namespace DaaS
             LogDiagnostic("Session [ERR] - {0} {1} {2} {3} {4}", sessionId, message, ex.GetType().ToString(), ex.Message, ex.StackTrace);
         }
 
+        public static void LogSessionErrorEvent(string message, string error, string sessionId, string details = "")
+        {
+            DaasEventSource.Instance.LogSessionErrorEvent(SiteName, _assemblyVersion, sessionId, message,ExceptionType:"", error, ExceptionStackTrace:"", Details:details);
+            LogDiagnostic("Session [ERR] - {0} {1} {2} {3}", sessionId, message, error, details);
+        }
+
         public static void LogSessionWarningEvent(string message, Exception ex, string sessionId)
         {
             var details = GetExceptionDetails(ex);
             DaasEventSource.Instance.LogSessionWarningEvent(SiteName, _assemblyVersion, sessionId, message, ex.GetType().ToString(), ex.Message, ex.StackTrace, details);
             LogDiagnostic("Session [WARN] - {0} {1} {2} {3} {4}", sessionId, message, ex.GetType().ToString(), ex.Message, ex.StackTrace);
+        }
+
+        public static void LogSessionWarningEvent(string message, string error, string sessionId)
+        {
+            DaasEventSource.Instance.LogSessionWarningEvent(SiteName, _assemblyVersion, sessionId, message, string.Empty, error, string.Empty, string.Empty);
+            LogDiagnostic("Session [WARN] - {0} {1} {2}", sessionId, message, error);
         }
 
         public static void LogNewSession(string sessionId, string mode, string diagnosers, object details)

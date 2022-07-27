@@ -1,11 +1,13 @@
 ﻿param([string] $outputPath)
 
-Add-Type -Path "DAAS.dll"
+$daasDllPath = [io.path]::combine($PSScriptRoot, "DAAS.dll")
+Add-Type -Path $daasDllPath
+
 [DaaS.Logger]::Init("",$outputPath, "jCmdCollector", $true) 
 
 [DaaS.Logger]::LogDiagnoserVerboseEvent("Checking running java.exe process")
 
-$javaProcesses = Get-Process -Name java |select -expand id
+$javaProcesses = Get-Process | Where { $_.Name -eq "java" -or $_.Name -eq "javaw" } |select -expand id
 $jcmdProcess = [io.path]::combine($env:JAVA_HOME, 'bin', 'jcmd.exe')
 $jcmdExists = Test-Path $jcmdProcess
 $machineName = hostname
@@ -91,6 +93,39 @@ if ($jcmdExists -eq $true)
 		   }
 		   move-item -path $jfrFilePath $outFile
 		}
+        else
+        {
+            [DaaS.Logger]::LogDiagnoserWarningEvent("JAVA Flight Recorder failed to run. Check jcmd output in Message column", $jcmdOutput)
+
+            $jfrErrorFileName = $machineName + "_" + $javaProcess.ToString() + "_jcmd.error.log"
+            $outFile = [io.path]::combine($outputPath, $jfrErrorFileName)
+            if (test-path $outFile)
+            {
+                del $outFile
+            }
+
+            $sb = [System.Text.StringBuilder]::new()
+            [void]$sb.AppendLine("------------------------------------")
+            [void]$sb.AppendLine("Failed to Run Java Flight Recorder")
+            [void]$sb.AppendLine("------------------------------------")
+            [void]$sb.AppendLine("Either Java Flight Recorder failed to run or the JDK tools required to collect diagnostics information are missing for the current version of JAVA runtime used for the app." )
+            [void]$sb.AppendLine("")
+            [void]$sb.AppendLine("")
+            
+            [void]$sb.AppendLine("------------------------------------")
+            [void]$sb.AppendLine("jCMD command executed")
+            [void]$sb.AppendLine("------------------------------------")
+            [void]$sb.AppendLine( $cmdToExecute)
+            [void]$sb.AppendLine("")
+            [void]$sb.AppendLine("")
+
+            [void]$sb.AppendLine("------------------------------------")
+            [void]$sb.AppendLine("jCMD command output")
+            [void]$sb.AppendLine("------------------------------------")
+            [void]$sb.AppendLine($jcmdOutput)
+
+            $sb.ToString() >> $outFile
+        }
 
         [DaaS.Logger]::LogStatus("Java Flight Recorder finished, cleaning up temporary files")
 		if (test-path $dirPath)

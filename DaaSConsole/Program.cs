@@ -10,24 +10,17 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
-using DaaS.Configuration;
-using DaaS.Diagnostics;
-using DaaS.HeartBeats;
-using DaaS.Sessions;
-using DaaS;
 using Newtonsoft.Json;
 
-using SessionManagerV2 = DaaS.V2.SessionManager;
-using SessionV2 = DaaS.V2.Session;
-using System.IO;
 using System.Net;
+using DaaS;
+using DaaS.Sessions;
 
 namespace DaaSConsole
 {
     class Program
     {
-        static readonly SessionController SessionController = new SessionController();
-        static readonly SessionManagerV2 SessionManager = new SessionManagerV2()
+        static readonly SessionManager SessionManager = new SessionManager()
         {
             InvokedViaAutomation = true
         };
@@ -36,17 +29,12 @@ namespace DaaSConsole
         {
             CollectLogs,
             Troubleshoot,
-            AnalyzeSession,
-            CancelSession,
             CollectKillAnalyze,
             ListSessions,
             ListDiagnosers,
             GetSasUri,
-            SetSasUri,
             Setup,
             GetSetting,
-            SetSetting,
-            ListInstances,
             Help,
             AllInstances,
             BlobSasUri
@@ -58,8 +46,6 @@ namespace DaaSConsole
             public string Usage;
             public string Description;
         }
-
-        static readonly Settings settings = new Settings();
 
         static void Main(string[] args)
         {
@@ -95,36 +81,9 @@ namespace DaaSConsole
                 switch (option)
                 {
                     case (Options.ListSessions):
-                        var allSessions = SessionController.GetAllSessions();
-                        Console.WriteLine("All Sessions:");
-                        foreach (var session in allSessions)
-                        {
-                            Console.WriteLine("  Session log path: " + session.FullPermanentStoragePath);
-                        }
                         break;
                     case (Options.ListDiagnosers):
-                        {
-                            var diagnosers = SessionController.GetAllDiagnosers().ToList();
-                            ListDiagnosers(diagnosers);
-                            break;
-                        }
-                    case (Options.AnalyzeSession):
-                        {
-                            Logger.LogVerboseEvent($"DaasConsole AnalyzeSession started with {string.Join(" ", args)} parameters");
-                            argNum = ModifySession(args, argNum, SessionController.Analyze);
-                            break;
-                        }
-                    case (Options.CancelSession):
-                        {
-                            Logger.LogVerboseEvent($"DaasConsole CancelSession started with {string.Join(" ", args)} parameters");
-                            argNum = ModifySession(args, argNum, SessionController.Cancel);
-                            break;
-                        }
-                    case (Options.Setup):
-                        {
-                            SessionController.StartSessionRunner();
-                            break;
-                        }
+                        break;
                     case (Options.Help):
                         ShowUsage();
                         break;
@@ -135,97 +94,12 @@ namespace DaaSConsole
                             CollectLogsAndTakeActions(option, args, ref argNum);
                             break;
                         }
-                    case (Options.GetSasUri):
-                        Console.WriteLine("Sas Uri:");
-                        Console.WriteLine(SessionController.BlobStorageSasUri);
-                        break;
-                    case (Options.SetSasUri):
-                        string uri = args[argNum];
-                        argNum++;
-                        SessionController.BlobStorageSasUri = uri;
-                        Console.WriteLine("Sas Uri is now:");
-                        Console.WriteLine(SessionController.BlobStorageSasUri);
-                        break;
-                    case (Options.GetSetting):
-                        {
-                            string settingName;
-                            try
-                            {
-                                settingName = args[argNum];
-                                argNum++;
-                            }
-                            catch
-                            {
-                                Console.WriteLine("GetSetting options not correctly specified");
-                                ShowUsage();
-                                return;
-                            }
-                            var settingValue = settings.GetSetting(settingName);
-                            Console.WriteLine("Got {0} = {1}", settingName, settingValue);
-                            break;
-                        }
-                    case (Options.SetSetting):
-                        {
-                            string settingName;
-                            string settingValue;
-                            try
-                            {
-                                settingName = args[argNum];
-                                argNum++;
-                                settingValue = args[argNum];
-                                argNum++;
-                            }
-                            catch
-                            {
-                                Console.WriteLine("SetSetting options not correctly specified");
-                                ShowUsage();
-                                return;
-                            }
-                            settings.SaveSetting(settingName, settingValue);
-                            settingValue = settings.GetSetting(settingName);
-                            Console.WriteLine("Set {0} = {1}", settingName, settingValue);
-                            break;
-                        }
-                    case (Options.ListInstances):
-                        {
-                            Console.WriteLine("Current Instances:");
-                            foreach (var instance in HeartBeatController.GetLiveInstances())
-                            {
-                                Console.WriteLine(instance);
-                            }
-                            break;
-                        }
                     default:
                         break;
                 }
 
                 Console.WriteLine();
             }
-        }
-
-        private static int ModifySession(string[] args, int argNum, Func<Session, Session> modifySessionFunc)
-        {
-            string sessionId;
-            try
-            {
-                sessionId = args[argNum];
-            }
-            catch (Exception)
-            {
-                Console.WriteLine("Session Id not specified");
-                return argNum;
-            }
-            argNum++;
-            try
-            {
-                var session = SessionController.GetSessionWithId(new SessionId(sessionId));
-                modifySessionFunc(session);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.Message);
-            }
-            return argNum;
         }
 
         private static string GetToolToRun(string[] args, ref int argNum)
@@ -262,19 +136,20 @@ namespace DaaSConsole
         private static string GetV2ToolName(string diagnoserName)
         {
             string retval = diagnoserName;
-            switch (diagnoserName)
+            string toolNameToMatch = diagnoserName.ToLower();
+            switch (toolNameToMatch)
             {
-                case "Memory Dump":
-                case "MemoryDump":
+                case "memory dump":
+                case "memorydump":
                     retval = "MemoryDump";
                     break;
-                case "CLR Profiler":
+                case "clr profiler":
                     retval = "Profiler";
                     break;
-                case "CLR Profiler with Thread Stacks":
+                case "clr profiler with thread stacks":
                     retval = "Profiler with Thread Stacks";
                     break;
-                case "CLR Profiler CPUStacks":
+                case "clr profiler cpustacks":
                     retval = "Profiler with CPU Stacks";
                     break;
             }
@@ -286,99 +161,11 @@ namespace DaaSConsole
         {
             try
             {
-                if (ShouldSubmitV2Session()  && IsSessionOption(options))
+                if (IsSessionOption(options))
                 {
                     var toolName = GetToolToRun(args, ref argNum);
-                    SubmitAndWaitForV2Session(toolName, string.Empty, options);
+                    SubmitAndWaitForSession(toolName, string.Empty, options);
                     return;
-                }
-
-                var diagnosersToRun = GetDiagnosersToRun(args, ref argNum);
-                TimeSpan timeToRunFor = GetTimeSpanFromArg(args, ref argNum);
-                string blobSasUri = GetBlobSasUriFromArg(args, ref argNum);
-                bool runOnAllInstances = GetRunAllInstancesFromArg(args, ref argNum);
-
-                var currentInstance = Instance.GetCurrentInstance();
-
-                List<Instance> Instances = new List<Instance>();
-                if (!runOnAllInstances)
-                {
-                    Instances.Add(currentInstance);
-                    Console.WriteLine($"Running Diagnosers on {currentInstance.Name} instance only");
-                }
-                else
-                {
-                    // An empty diagnoser list means runs DaaS on all instances.
-                    Console.WriteLine("Running Diagnosers on all instances");
-                }
-
-                Console.WriteLine($"BlobSaUri for the session is '{blobSasUri}'");
-
-                if (!string.IsNullOrWhiteSpace(blobSasUri))
-                {
-                    if (!DaaS.Storage.BlobController.ValidateBlobSasUri(blobSasUri, out Exception exStorage))
-                    {
-                        throw new ApplicationException($"BlobSasUri specified is invalid. Failed with error - {exStorage.Message}");
-                    }
-                }
-
-                var details = new
-                {
-                    Diagnoser = string.Join(",", diagnosersToRun.Select(x => x.Name)),
-                    TimeSpanToRunFor = timeToRunFor.TotalSeconds.ToString("0"),
-                    HasBlobSasUri = !string.IsNullOrWhiteSpace(blobSasUri),
-                    AllInstances = runOnAllInstances,
-                    InstancesSelected = string.Join(",", Instances.Select(x => x.Name)),
-                    Options = options.ToString()
-                };
-
-                var detailsString = JsonConvert.SerializeObject(details);
-                Logger.LogDaasConsoleEvent("DaasConsole started a new Session", detailsString);
-                EventLog.WriteEntry("Application", $"DaasConsole started with {detailsString} ", EventLogEntryType.Information);
-
-                // Collect the logs for just the current instance
-                Console.WriteLine("Starting data collection");
-                Session session = null;
-
-                if (options == Options.CollectKillAnalyze || options == Options.CollectLogs)
-                {
-                    session = SessionController.CollectLiveDataLogs(
-                        timeToRunFor,
-                        diagnosersToRun,
-                        true,
-                        Instances, null, blobSasUri);
-                }
-                else if (options == Options.Troubleshoot)
-                {
-                    session = SessionController.TroubleshootLiveData(
-                        timeToRunFor,
-                        diagnosersToRun,
-                        true, Instances, null, blobSasUri);
-                }
-                Console.WriteLine($"Waiting for collection to complete. Going to sleep for {timeToRunFor} seconds...");
-                Thread.Sleep(timeToRunFor);
-                Console.WriteLine("done sleeping");
-
-                do
-                {
-                    Thread.Sleep(TimeSpan.FromSeconds(10));
-                    Console.Write(".");
-                    session = SessionController.GetSessionWithId(session.SessionId);
-                } while (session.Status == SessionStatus.Active);
-                Console.WriteLine("Completed");
-
-                if (options == Options.CollectKillAnalyze)
-                {
-                    Console.WriteLine("Analyzing collected logs");
-                    // Say we want the logs analyzed
-                    SessionController.Analyze(session);
-
-                    // Kill the regular site's w3wp process.  The logs can be analyzed by another instance or by this same instance when it is in a healtheir state
-                    Process mainSiteW3wpProcess = GetMainSiteW3wpProcess();
-                    Console.WriteLine("Killing process {0} with pid {1}", mainSiteW3wpProcess.ProcessName, mainSiteW3wpProcess.Id);
-                    mainSiteW3wpProcess.Kill();
-                    string sessionId = session != null ? session.SessionId.ToString() : string.Empty;
-                    Logger.LogSessionVerboseEvent($"DaasConsole killed process {mainSiteW3wpProcess.ProcessName} with pid {mainSiteW3wpProcess.Id}", sessionId);
                 }
             }
             catch (Exception ex)
@@ -390,30 +177,6 @@ namespace DaaSConsole
             }
         }
 
-        private static bool ShouldSubmitV2Session()
-        {
-            try
-            {
-                var scmHostingConfigPath = Environment.ExpandEnvironmentVariables("%ProgramFiles(x86)%\\SiteExtensions\\kudu\\ScmHostingConfigurations.txt");
-                if (!File.Exists(scmHostingConfigPath))
-                {
-                    return false;
-                }
-
-                string fileContents = File.ReadAllText(scmHostingConfigPath);
-                if (!string.IsNullOrWhiteSpace(fileContents) && fileContents.Contains("UseV2ForDaaS=1"))
-                {
-                    return true;
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.LogWarningEvent("Exception while checking ShouldSubmitV2Session", ex);
-            }
-
-            return false;
-        }
-
         private static bool IsSessionOption(Options options)
         {
             return options == Options.Troubleshoot
@@ -421,16 +184,17 @@ namespace DaaSConsole
                 || options == Options.CollectLogs;
         }
 
-        private static void SubmitAndWaitForV2Session(string toolName, string toolParams, Options options)
+        private static void SubmitAndWaitForSession(string toolName, string toolParams, Options options)
         {
             Console.WriteLine($"Running Diagnosers on { Environment.MachineName}");
 
-            var session = new SessionV2()
+            var session = new Session()
             {
                 Instances = new List<string>() { Environment.MachineName },
                 Tool = toolName,
                 ToolParams = toolParams,
-                Mode = GetModeFromOptions(options)
+                Mode = GetModeFromOptions(options),
+                Description = GetSessionDescription()
             };
 
             //
@@ -441,6 +205,18 @@ namespace DaaSConsole
             var sessionId = SessionManager.SubmitNewSessionAsync(session, invokedViaDaasConsole: true).Result;
             Console.WriteLine($"Session submitted for '{toolName}' with Id - {sessionId}");
             Console.Write("Waiting...");
+
+            var details = new
+            {
+                Diagnoser = toolName,
+                InstancesSelected = Environment.MachineName,
+                Options = options.ToString()
+            };
+
+            var detailsString = JsonConvert.SerializeObject(details);
+            Logger.LogDaasConsoleEvent("DaasConsole started a new Session", detailsString);
+            EventLog.WriteEntry("Application", $"DaasConsole started with {detailsString} ", EventLogEntryType.Information);
+
             while (true)
             {
                 Thread.Sleep(10000);
@@ -477,7 +253,7 @@ namespace DaaSConsole
                     continue;
                 }
 
-                if (currentInstance.Status == DaaS.V2.Status.Analyzing)
+                if (currentInstance.Status == Status.Analyzing)
                 {
                     //
                     // Exit the loop once data has been collected and Analyzer
@@ -496,15 +272,32 @@ namespace DaaSConsole
             }
         }
 
-        private static DaaS.V2.Mode GetModeFromOptions(Options options)
+        private static string GetSessionDescription()
+        {
+            //
+            // Starting ANT98 AutoHealing will inject the environment variable
+            // WEBSITE_AUTOHEAL_REASON whenever it is launching a custom action
+            //
+
+            string reason = "InvokedViaDaasConsole";
+            string val = Environment.GetEnvironmentVariable("WEBSITE_AUTOHEAL_REASON");
+            if (!string.IsNullOrWhiteSpace(val))
+            {
+                reason += $"-{val}";
+            }
+
+            return reason;
+        }
+
+        private static Mode GetModeFromOptions(Options options)
         {
             if (options == Options.CollectLogs)
             {
-                return DaaS.V2.Mode.Collect;
+                return Mode.Collect;
             }
             else if (options == Options.CollectKillAnalyze || options == Options.Troubleshoot)
             {
-                return DaaS.V2.Mode.CollectAndAnalyze;
+                return Mode.CollectAndAnalyze;
             }
 
             throw new ArgumentException("Invalid diagnostic mode specified");
@@ -637,77 +430,6 @@ namespace DaaSConsole
             return currentArgument[0].Equals('-') || currentArgument[0].Equals('/');
         }
 
-        private static List<Diagnoser> GetDiagnosersToRun(string[] args, ref int argNum)
-        {
-            var diagnosers = SessionController.GetAllDiagnosers().ToList();
-
-            var diagnosersToRun = new List<Diagnoser>();
-            while (argNum < args.Length)
-            {
-                if (ArgumentIsAParameter(args[argNum]))
-                {
-                    // Done parsing all diagnosers
-                    break;
-                }
-
-                int timeSpan;
-                if (int.TryParse(args[argNum], out timeSpan))
-                {
-                    // Done parsing all diagnosers, we've reached the timespan now
-                    break;
-                }
-
-                var diagnoserName = args[argNum];
-                argNum++;
-
-                Diagnoser diagnoser = null;
-                try
-                {
-                    diagnoser = diagnosers.First(d => d.Name.Equals(diagnoserName, StringComparison.OrdinalIgnoreCase));
-                }
-                catch
-                {
-                    Console.WriteLine("There is no diagnoser called {0}. Valid names are below.", diagnoserName);
-                    ListDiagnosers(diagnosers);
-                    Environment.Exit(-1);
-                }
-
-                diagnosersToRun.Add(diagnoser);
-            }
-
-            if (diagnosersToRun.Count == 0)
-            {
-                Console.WriteLine("You must specify at least one diagnoser to run. Valid diagnosers are:");
-                ListDiagnosers(diagnosers);
-                Environment.Exit(-1);
-            }
-
-            Console.WriteLine("Will use the following diagnosers:");
-            foreach (var diagnoser in diagnosersToRun)
-            {
-                Console.WriteLine("  " + diagnoser.Name);
-            }
-
-            return diagnosersToRun;
-        }
-
-        private static void ListDiagnosers(IEnumerable<Diagnoser> diagnosers)
-        {
-            Console.WriteLine("Diagnosers:");
-            foreach (var diagnoser in diagnosers)
-            {
-                Console.WriteLine("   " + diagnoser.Name);
-                if (!string.IsNullOrEmpty(diagnoser.Description))
-                {
-                    Console.WriteLine("        Description: " + diagnoser.Description);
-                }
-                foreach (string warning in diagnoser.GetWarnings())
-                {
-                    Console.WriteLine("        Warning: " + warning);
-                }
-            }
-        }
-
         private static void ShowUsage()
         {
             var optionDescriptions = new List<Argument>()
@@ -718,13 +440,8 @@ namespace DaaSConsole
                 new Argument() {Command = Options.ListDiagnosers, Usage = "", Description = "List all available diagnosers"},
                 new Argument() {Command = Options.ListSessions, Usage = "", Description = "List all sessions"},
                 new Argument() {Command = Options.GetSasUri, Usage = "", Description = "Get the blob storage Sas Uri"},
-                new Argument() {Command = Options.SetSasUri, Usage = "<SasUri>", Description = "Set the blob storage Sas Uri"},
                 new Argument() {Command = Options.Setup, Usage = "", Description = "Start the continuous webjob runner (if it's already started this does nothing)"},
                 new Argument() {Command = Options.GetSetting, Usage = "<SettingName>", Description = "The the value of the given setting"},
-                new Argument() {Command = Options.SetSetting, Usage = "<SettingName> <SettingValue>", Description = "Save new value for the given setting"},
-                new Argument() {Command = Options.ListInstances, Usage = "", Description = "List all live instances"},
-                new Argument() {Command = Options.AnalyzeSession, Usage = "<SessionId>", Description = "Begin analysis for session with the specified ID"},
-                new Argument() {Command = Options.CancelSession, Usage = "<SessionId>", Description = "Cancel session with the specified ID"},
             };
 
             Console.WriteLine("\n Usage: DaasConsole.exe -<parameter1> [param1 args] [-parameter2 ...]\n");

@@ -148,7 +148,7 @@ namespace DiagnosticAnalysisLauncher
                     {
                         Logger.LogDiagnoserWarningEvent(
                             "Killing DiagnosticAnalysis.exe due to high resource consumption",
-                            new InvalidOperationException($"{TotalProcessorTime} seconds of CPU time and {PrivateMemorySize64 / (1024 * 1024)} MB of memory"));
+                            $"{TotalProcessorTime} seconds of CPU time and {PrivateMemorySize64 / (1024 * 1024)} MB of memory");
                         diagnosticsAnalysis.SafeKillProcess();
                         break;
                     }
@@ -173,7 +173,7 @@ namespace DiagnosticAnalysisLauncher
                 }
 
                 var analysis = JsonConvert.DeserializeObject<DiagnosticAnalysis>(diagCliJsonOutput);
-                Logger.LogDiagnoserEvent(JsonConvert.SerializeObject(new { Dump = dumpName, Analysis = analysis }));
+                Logger.LogDiagnoserEvent(JsonConvert.SerializeObject(new { Dump = dumpName, Analysis = analysis, JsonOutputLength = diagCliJsonOutput.Length }));
             }
             catch (Exception ex)
             {
@@ -201,12 +201,17 @@ namespace DiagnosticAnalysisLauncher
             // created in the session.
             //
 
+            Logger.LogDiagnoserVerboseEvent("Inside CreateDiagCliJson method");
+
             string machineName = GetMachineNameFromDumpFileName(dumpFileName);
             string directoryName = Path.Combine(_outputFolder, machineName);
             FileSystemHelpers.EnsureDirectory(directoryName);
             
             var diagCliOutputFileName = Path.Combine(directoryName, "DiagCli.json");
             FileSystemHelpers.WriteAllText(diagCliOutputFileName, diagCliOutput);
+
+            Logger.LogDiagnoserVerboseEvent($"Created {diagCliOutputFileName}");
+
             return diagCliOutputFileName;
         }
 
@@ -223,6 +228,7 @@ namespace DiagnosticAnalysisLauncher
 
         private void CreatePlaceHolderHtml(string jsonFilePath, string outputFileName)
         {
+            Logger.LogDiagnoserVerboseEvent("Creating Placeholder file");
             string redirectUrl = GetRedirectUrlFromFileName(jsonFilePath);
             string placeHolderhtml = $@"<!DOCTYPE HTML>
             <html lang='en - US'>
@@ -241,6 +247,7 @@ namespace DiagnosticAnalysisLauncher
 
             string outputFile = Path.Combine(_outputFolder, $"DiagnosticAnalysis-{outputFileName}");
             File.WriteAllText(outputFile, placeHolderhtml);
+            Logger.LogDiagnoserVerboseEvent($"Created placeholder file at {outputFile}");
         }
 
         private string GetRedirectUrlFromFileName(string jsonFilePath)

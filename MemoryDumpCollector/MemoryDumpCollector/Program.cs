@@ -35,7 +35,7 @@ namespace MemoryDumpCollector
         private static string _cdbFolder;
 
         private static List<int> _processesToIgnore = new List<int>();
-        private static readonly string[] _additionalProcesses = new string[] { "java" };
+        private static readonly string[] _additionalProcesses = new string[] { "java", "javaw" };
 
         static void Main(string[] args)
         {
@@ -203,7 +203,7 @@ namespace MemoryDumpCollector
         {
             if (mainSiteWorkerProcessId == -1)
             {
-                Logger.LogDiagnoserWarningEvent("Failed to determine main site worker process", new ApplicationException("w3wp process for the main site not found"));
+                Logger.LogDiagnoserWarningEvent("Failed to determine main site worker process", "w3wp process for the main site not found");
                 return;
             }
 
@@ -302,12 +302,19 @@ namespace MemoryDumpCollector
 
         private static void GetMemoryDumpProcDump(Process process, string outputDir)
         {
-            string command = Path.Combine(_cdbFolder, "procdump.exe");
+            string command = EnvironmentVariables.ProcdumpPath;
             try
             {
+                string debuggerComment = "DaaS";
+                var sessionDescription = Environment.GetEnvironmentVariable("DAAS_SESSION_DESCRIPTION");
+                if (!string.IsNullOrWhiteSpace(sessionDescription))
+                {
+                    debuggerComment = $"\"{ sessionDescription }\"";
+                }
+
                 var cancellationTokenSource = new CancellationTokenSource();
                 Console.WriteLine(process.ProcessName + " is " + (process.IsWin64() ? "64" : "32") + "-bit");
-                string arguments = $" -accepteula -r -ma {process.Id} {outputDir}\\{Environment.MachineName}_{process.ProcessName}_{process.Id}_{DateTime.UtcNow:yyyyMMdd-HHmmss}.dmp";
+                string arguments = $" -accepteula -r -dc {debuggerComment} -ma {process.Id} {outputDir}\\{Environment.MachineName}_{process.ProcessName}_{process.Id}_{DateTime.UtcNow:yyyyMMdd-HHmmss}.dmp";
                 Console.WriteLine("Comand:");
                 Console.WriteLine(command + " " + arguments);
 

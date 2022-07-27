@@ -1,11 +1,13 @@
 ﻿param([string] $outputPath)
 
-Add-Type -Path "DAAS.dll"
+$daasDllPath = [io.path]::combine($PSScriptRoot, "DAAS.dll")
+Add-Type -Path $daasDllPath
+
 [DaaS.Logger]::Init("",$outputPath, "jStackCollector", $true) 
 
 [DaaS.Logger]::LogDiagnoserVerboseEvent("Checking running java.exe process")
 
-$javaProcesses = Get-Process -Name java |select -expand id
+$javaProcesses = Get-Process | Where { $_.Name -eq "java" -or $_.Name -eq "javaw" } | select -expand id
 $jstackProcess = [io.path]::combine($env:JAVA_HOME, 'bin', 'jstack.exe')
 $jstackExists = Test-Path $jstackProcess
 $machineName = hostname
@@ -41,9 +43,9 @@ if ($jstackExists -eq $true)
     foreach ($javaProcess in $javaProcesses)
     {
        $outFile = [io.path]::combine($outputPath, $machineName + "_" + $javaProcess.ToString() + "_jstack.log")
-       $cmdToExecute = "Executing: " + $jstackProcess + " -F " + $javaProcess + ">" + $outFile 
+       $cmdToExecute = "Executing: " + $jstackProcess + " -l " + $javaProcess + ">" + $outFile 
 		[DaaS.Logger]::LogDiagnoserVerboseEvent($cmdToExecute)
-       &$jstackProcess -F $javaProcess > $outFile
+       &$jstackProcess -l $javaProcess > $outFile
 	   [DaaS.Logger]::LogDiagnoserVerboseEvent("jStack collected stacks for the process $javaProcess")
     
     }

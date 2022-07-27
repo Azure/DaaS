@@ -1,4 +1,4 @@
-// -----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="DaaSVersionController.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
@@ -6,8 +6,8 @@
 // -----------------------------------------------------------------------
 
 using DaaS;
-using DaaS.Configuration;
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -23,6 +23,8 @@ namespace DiagnosticsExtension.Controllers
         public bool DaasWebJobDisabled { get; set; }
         public DateTime DaasRunnerStartDate { get; set; }
         public string Instance { get; set; }
+        public string DaasConsoleVersion { get; set; }
+        public string DaasRunnerVersion { get; set; }
     }
     public class DaaSVersionController : ApiController
     {
@@ -36,9 +38,25 @@ namespace DiagnosticsExtension.Controllers
                 DaasRunnerStartDate = (daasRunner != null) ? daasRunner.StartTime : DateTime.MaxValue,
                 Instance = Environment.MachineName,
                 DaasWebJobDisabled = CheckWebjobDisabledSetting(),
-                DaasWebJobStoppped = CheckWebjobStopped()
+                DaasWebJobStoppped = CheckWebjobStopped(),
+                DaasRunnerVersion = GetFileVersion(@"%HOME%\Site\jobs\continuous\Daas\DaasRunner.exe"),
+                DaasConsoleVersion = GetFileVersion(@"%HOME%\data\DaaS\bin\DaasConsole.exe")
             };
             return config;
+        }
+
+        private string GetFileVersion(string filePath)
+        {
+            Version ver = new Version(0, 0, 0, 0);
+            var fileVersion = FileVersionInfo.GetVersionInfo(Environment.ExpandEnvironmentVariables(filePath)).FileVersion;
+            try
+            {
+                ver = Version.Parse(fileVersion);
+            }
+            catch (Exception)
+            {
+            }
+            return ver.ToString();
         }
 
         private bool CheckWebjobStopped()
@@ -73,7 +91,7 @@ namespace DiagnosticsExtension.Controllers
         {
             get
             {
-                var version = String.Empty;
+                var version = string.Empty;
                 if (Directory.Exists(EnvironmentVariables.PrivateSiteExtensionPath)
                     && Directory.Exists(Path.Combine(EnvironmentVariables.PrivateSiteExtensionPath, "bin")))
                 {
@@ -84,15 +102,16 @@ namespace DiagnosticsExtension.Controllers
                     try
                     {
                         var dir = AppDomain.CurrentDomain.BaseDirectory;
-                        //Presuming path format is: C:\Program Files (x86)\SiteExtensions\DaaS\0.7.151022.01
-                        version = dir.Split('\\')[4];
+                        version = Directory.GetParent(dir).Name;
                     }
                     catch (Exception)
                     {
                         // ignored
                     }
                 }
-                return version;
+
+                var v = new Version(version);
+                return v.ToString();
             }
         }
     }

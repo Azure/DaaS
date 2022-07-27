@@ -65,6 +65,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		.editorconfig = .editorconfig
 	EndProjectSection
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Daas.Tests", "Daas.Tests\Daas.Tests.csproj", "{1B45806E-34A5-488B-9F2F-E047CB2540F0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -119,6 +121,10 @@ Global
 		{906659C0-743D-41F5-97A0-4D7B4354C22A}.Debug|x64.Build.0 = Debug|Any CPU
 		{906659C0-743D-41F5-97A0-4D7B4354C22A}.Release|x64.ActiveCfg = Release|Any CPU
 		{906659C0-743D-41F5-97A0-4D7B4354C22A}.Release|x64.Build.0 = Release|Any CPU
+		{1B45806E-34A5-488B-9F2F-E047CB2540F0}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{1B45806E-34A5-488B-9F2F-E047CB2540F0}.Debug|x64.Build.0 = Debug|Any CPU
+		{1B45806E-34A5-488B-9F2F-E047CB2540F0}.Release|x64.ActiveCfg = Release|Any CPU
+		{1B45806E-34A5-488B-9F2F-E047CB2540F0}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

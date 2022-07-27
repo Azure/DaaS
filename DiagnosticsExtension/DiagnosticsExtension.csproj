@@ -33,7 +33,6 @@
     <NuGetPackageImportStamp>
     </NuGetPackageImportStamp>
     <TargetFrameworkProfile />
-    <RestoreAdditionalProjectSources>https://pkgs.dev.azure.com/devdiv/DevDiv/_packaging/Microsoft.ProductionDiagnostics.DiagnosticAnalysis/nuget/v3/index.json</RestoreAdditionalProjectSources>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -351,34 +350,25 @@
     <Compile Include="App_Start\UnityConfig.cs" />
     <Compile Include="App_Start\WebApiConfig.cs" />
     <Compile Include="Controllers\AppInfoController.cs" />
-    <Compile Include="Controllers\BlobInfoController.cs" />
     <Compile Include="Controllers\CertificateTestController.cs" />
     <Compile Include="Controllers\CpuMonitoringController.cs" />
     <Compile Include="Controllers\CrashMonitoringController.cs" />
     <Compile Include="Controllers\DaasAdministerController.cs" />
     <Compile Include="Controllers\ConnectionStringValidationController.cs" />
-    <Compile Include="Controllers\DiagnosersV2Controller.cs" />
-    <Compile Include="Controllers\SessionV2Controller.cs" />
+    <Compile Include="Controllers\DiagnosersController.cs" />
+    <Compile Include="Controllers\SessionController.cs" />
+    <Compile Include="Models\Settings.cs" />
+    <Compile Include="Controllers\SettingsController.cs" />
     <Compile Include="Controllers\SettingsV2Controller.cs" />
     <Compile Include="Controllers\NameResolverController.cs" />
     <Compile Include="Controllers\UdpEchoTestController.cs" />
     <Compile Include="Controllers\DatabaseTestController.cs" />
-    <Compile Include="Controllers\DownloadFileController.cs" />
     <Compile Include="Controllers\DaaSVersionController.cs" />
     <Compile Include="Controllers\EventsController.cs" />
     <Compile Include="Controllers\FrebLogsController.cs" />
     <Compile Include="Controllers\InstancesController.cs" />
     <Compile Include="Controllers\MsiValidatorController.cs" />
-    <Compile Include="Controllers\PrivateSettingsController.cs" />
-    <Compile Include="Controllers\SessionDiagnoserController.cs" />
-    <Compile Include="Controllers\SessionErrorsController.cs" />
-    <Compile Include="Controllers\SettingsController.cs" />
-    <Compile Include="Controllers\DownloadFilesListController.cs" />
-    <Compile Include="Controllers\SingleSessionController.cs" />
     <Compile Include="Controllers\HomeController.cs" />
-    <Compile Include="Controllers\DiagnosersController.cs" />
-    <Compile Include="Controllers\SessionDiagnosersController.cs" />
-    <Compile Include="Controllers\SessionsController.cs" />
     <Compile Include="Controllers\StdoutLogsController.cs" />
     <Compile Include="LoggingHandler.cs" />
     <Compile Include="Models\ConnectionStringValidator\ConnectionStringRequestBody.cs" />
@@ -413,7 +403,6 @@
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
-    <Compile Include="Models\Models.cs" />
     <Compile Include="Parsers\LogFile.cs" />
     <Compile Include="Parsers\LogsParser.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -456,13 +445,34 @@
     <Content Include="Content\img\warningWhite.png" />
     <Content Include="Content\Site.css" />
     <Content Include="Content\themes\base\jquery-ui.css" />
+    <Content Include="DiagnosticTools\procdump.exe">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="favicon.ico" />
     <Content Include="Global.asax" />
-    <Content Include="..\packages\Microsoft.VisualStudio.DiagnosticAnalysis.ResultsViewer.1.0.1852.46\content\**\*">
+    <Content Include="..\packages\Microsoft.VisualStudio.DiagnosticAnalysis.ResultsViewer.1.0.1949.72\content\prod\**\*" Exclude="**\*.js.map">
       <Link>DiagnosticAnalysis\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="scmApplicationHost.xdt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="DiagnosticTools\DumpAnalyzer.ps1">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="DiagnosticTools\JavaValidator.ps1">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="DiagnosticTools\mockAnalyzer.ps1">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="DiagnosticTools\mockCollector.ps1">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="DiagnosticTools\TestAnalyzer.pl">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Configuration\DiagnosticSettings.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <None Include="packages.config" />
@@ -514,6 +524,7 @@
     <Folder Include="Views\DiagnosersV2\" />
     <Folder Include="Views\ResultsViewer\" />
     <Folder Include="Views\SettingsV2\" />
+    <Folder Include="Views\Settings\" />
   </ItemGroup>
   <ItemGroup>
     <WCFMetadata Include="Service References\" />

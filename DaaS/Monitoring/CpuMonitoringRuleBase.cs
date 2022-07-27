@@ -10,6 +10,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using DaaS.Configuration;
 using DaaS.Leases;
 using DaaS.Storage;
 using Microsoft.WindowsAzure.Storage;
@@ -32,7 +33,6 @@ namespace DaaS
         protected readonly int _thresholdSeconds;
         protected readonly int _maxActions;
         protected readonly string _sessionId;
-        protected readonly string _blobSasUri;
         protected readonly string _actionToExecute;
         protected readonly string _arguments;
         protected readonly bool _monitorScmProcess;
@@ -58,16 +58,16 @@ namespace DaaS
             _cpuThreshold = session.CpuThreshold;
             _maxActions = session.MaxActions;
             _sessionId = session.SessionId;
-            _blobSasUri = session.BlobSasUri;
             _defaultHostName = session.DefaultHostName;
             _actionToExecute = string.IsNullOrWhiteSpace(session.ActionToExecute) ? EnvironmentVariables.ProcdumpPath : session.ActionToExecute;
-            _arguments = string.IsNullOrWhiteSpace(session.ArgumentsToAction) ? " -accepteula -ma {PROCESSID} {OUTPUTPATH}" : session.ArgumentsToAction;
+            _arguments = string.IsNullOrWhiteSpace(session.ArgumentsToAction) ? " -accepteula -dc \"{MEMORYDUMPCOMMENT}\" -ma {PROCESSID} {OUTPUTPATH}" : session.ArgumentsToAction;
         }
 
         protected void ExecuteAction(string dumpFileName, int processId, Action<string, bool> appendToMonitoringLog)
         {
             var arguments = _arguments.Replace("{PROCESSID}", processId.ToString());
             arguments = arguments.Replace("{OUTPUTPATH}", dumpFileName);
+            arguments = arguments.Replace("{MEMORYDUMPCOMMENT}", $"CPU above {_cpuThreshold}% for {_thresholdSeconds}s");
             appendToMonitoringLog($"Creating dump file with path {dumpFileName}", true);
 
             var process = new Process()
@@ -131,7 +131,7 @@ namespace DaaS
             {
                 Category = "CpuMonitoring",
                 TimeStampUtc = DateTime.UtcNow,
-                SiteName = Configuration.Settings.GetDefaultHostName(fullHostName: true),
+                SiteName = Settings.Instance.DefaultHostName,
                 SessionId = _sessionId,
                 FileName = fileName,
                 BlobFileName = fileNameOnBlob
@@ -153,16 +153,8 @@ namespace DaaS
         {
             try
             {
-                string blobSasUri = BlobController.GetActualBlobSasUri(_blobSasUri);
-
-                if (string.IsNullOrWhiteSpace(blobSasUri))
-                {
-                    Logger.LogCpuMonitoringVerboseEvent("Incorrect value for BlobSasUri in MoveToPermanentStorage method", _sessionId);
-                    return;
-                }
-
                 string relativeFilePath = Path.Combine(MonitoringSessionController.GetRelativePathForSession(_defaultHostName, _sessionId), fileName);
-                Lease lease = Infrastructure.LeaseManager.TryGetLease(relativeFilePath, blobSasUri);
+                Lease lease = Infrastructure.LeaseManager.TryGetLease(relativeFilePath);
                 if (lease == null)
                 {
                     // This instance is already running this collector
@@ -173,7 +165,7 @@ namespace DaaS
                 var accessCondition = AccessCondition.GenerateLeaseCondition(lease.Id);
                 var taskToUpload = Task.Run(() =>
                 {
-                    var blockBlob = BlobController.GetBlobForFile(relativeFilePath, blobSasUri);
+                    var blockBlob = BlobController.GetBlobForFile(relativeFilePath);
                     blockBlob.UploadFromFile(sourceFile, accessCondition);
                     if (EnqueueEventToAzureQueue(fileName, blockBlob.Uri.ToString()))
                     {

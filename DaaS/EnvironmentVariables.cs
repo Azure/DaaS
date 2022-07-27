@@ -12,6 +12,8 @@ namespace DaaS
 {
     public static class EnvironmentVariables
     {
+        private static string _procDumpPath = string.Empty;
+
         public static string HomePath 
         {
             get
@@ -84,6 +86,14 @@ namespace DaaS
             }
         }
 
+        public static string DaasDirectory
+        {
+            get
+            {
+                return Environment.ExpandEnvironmentVariables(@"%HOME%\data\DaaS");
+            }
+        }
+
         public static string DaasRunner
         {
             get
@@ -136,7 +146,13 @@ namespace DaaS
         {
             get
             {
-                return Environment.ExpandEnvironmentVariables(@"%SystemDrive%\devtools\sysinternals\procdump.exe");
+                if (string.IsNullOrWhiteSpace(_procDumpPath))
+                {
+                    var diagnosticToolsPath = Infrastructure.Settings.GetDiagnosticToolsPath();
+                    _procDumpPath = Path.Combine(diagnosticToolsPath, "procdump.exe");
+                }
+
+                return _procDumpPath;
             }
         }
 

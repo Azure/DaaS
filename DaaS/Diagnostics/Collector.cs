@@ -7,199 +7,156 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
-using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using DaaS.Configuration;
-using DaaS.Diagnostics;
-using DaaS.Leases;
-using DaaS.Storage;
+using DaaS.Sessions;
+using Microsoft.WindowsAzure.Storage.Blob;
 
 namespace DaaS.Diagnostics
 {
-    abstract class Collector : DiagnosticTool
+
+    internal class Collector : DiagnosticTool
     {
         public override string Name { get; internal set; }
         public string Command { get; set; }
         public string Arguments { get; set; }
+        public string PreValidationCommand { get; set; } = string.Empty;
+        public string PreValidationArguments { get; set; } = string.Empty;
+        public string PreValidationMethod { get; set; } = string.Empty;
 
-        public string PredefinedValidator { get; set; }
-        public string PreValidationCommand { get; set; }
-        public string PreValidationArguments { get; set; }
+        public bool RequiresStorageAccount { get; set; }
 
-        internal async Task<List<Log>> CollectLogs(DateTime utcStartTime, DateTime utcEndTime, string sessionId, string blobSasUri, string defaultHostName, CancellationToken ct)
+        internal Collector(Diagnoser diagnoser)
         {
-            if (DateTime.UtcNow < utcStartTime)
-            {
-                // Don't bother running collectors until the time range to collect has started
-                Logger.LogDiagnostic($"It's not yet time to run this collector, utcStartTime = { utcStartTime.ToString() } and UtcNow = {DateTime.UtcNow.ToString()}");
-                return null;
-            }
+            Name = diagnoser.Name;
+            Command = diagnoser.Collector.Command;
+            Arguments = diagnoser.Collector.Arguments;
+            PreValidationMethod = diagnoser.Collector.PreValidationMethod;
+            PreValidationCommand = diagnoser.Collector.PreValidationCommand;
+            PreValidationArguments = diagnoser.Collector.PreValidationArguments;
+            RequiresStorageAccount = diagnoser.RequiresStorageAccount;
+        }
 
-            // Get a lease to run the collector on this instance
-            var pathToLogs = GetRelativeStoragePath(utcStartTime, utcEndTime, defaultHostName);
-            var logCollectionLease = Infrastructure.LeaseManager.TryGetLease(pathToLogs, blobSasUri);
-            if (logCollectionLease == null)
-            {
-                // This instance is already running this collector
-                Logger.LogDiagnostic("Could not get lease to log collection");
-                return null;
-            }
+        internal async Task<DiagnosticToolResponse> CollectLogsAsync(Session session, CancellationToken ct)
+        {
+            var resp = new DiagnosticToolResponse();
 
-            // Check to see if logs for this time period already exists
-            // (another collector session could have run with overlapping time fields or
-            //   we have already run the collector but the results have not been saved to the session log yet)
-            var logs = GetLogsForTimePeriod(utcStartTime, utcEndTime);
-            if (logs == null || !logs.Any())
-            {
-                var outputDir = CreateTemporaryLogDestinationFolder(utcStartTime, utcEndTime, defaultHostName);
+            string tempOutputDir = session.LogsTempDirectory;
+            FileSystemHelpers.EnsureDirectory(tempOutputDir);
 
+            //
+            // Check to see if logs exists (another collector session could have run). This
+            // will happen if DaasRunner restarts in the middle of a session collection
+            //
+
+            var logs = GetLogsForSession(tempOutputDir);
+            if (!logs.Any())
+            {
                 var additionalError = string.Empty;
-                //  Run the collector command & store logs to blob storage
-                if (PreValidationSucceeded(out additionalError))
+                var prevalSucceeded = PreValidationSucceeded(session.SessionId, out additionalError);
+                if (prevalSucceeded)
                 {
-                    bool collectorWasRun = await RunCollectorCommandAsync(utcStartTime, utcEndTime, outputDir, sessionId, logCollectionLease, ct);
+                    bool collectorWasRun = await RunCollectorCommandAsync(session, tempOutputDir, ct);
                     if (!collectorWasRun)
                     {
-                        return null;
+                        return resp;
                     }
                 }
                 else
                 {
-                    CreateCollectorWarningFile(outputDir, additionalError);
+                    Logger.LogSessionWarningEvent($"Prevalidation failed for Collector: {session.Tool}", additionalError, session.SessionId);
+                    resp.Errors.Add($"Prevalidation failed for '{session.Tool}'. {additionalError}");
+                    return resp;
                 }
-                logs = MoveLogsToPermanentStorage(utcStartTime, utcEndTime, pathToLogs, blobSasUri, sessionId, defaultHostName);
+                
+                logs = GetLogsForSession(tempOutputDir);
+                Logger.LogSessionVerboseEvent($"Collected {logs.Count} log files for session", session.SessionId);
             }
 
-            if (logs == null || !logs.Any(x => !x.RelativePath.EndsWith(".diaglog")))
+            if (!logs.Any(x => !x.TempPath.EndsWith(".diaglog")))
             {
                 string collectorException = string.Empty;
-                if (logs.Any(x => x.RelativePath.EndsWith(".err.diaglog")))
+                if (logs.Any(x => x.TempPath.EndsWith(".err.diaglog")))
                 {
-                    var log = logs.FirstOrDefault(x => x.RelativePath.EndsWith(".err.diaglog"));
-                    string errorFileName = Path.Combine(Infrastructure.Settings.TempDir, log.RelativePath.ConvertForwardSlashesToBackSlashes());
-                    if (System.IO.File.Exists(errorFileName))
+                    var errorFile = logs.FirstOrDefault(x => x.TempPath.EndsWith(".err.diaglog"));
+                    if (errorFile != null)
                     {
-                        collectorException = System.IO.File.ReadAllText(errorFileName);
+                        collectorException = File.ReadAllText(errorFile.TempPath);
+                        resp.Errors.Add(collectorException);
                     }
                 }
+
                 throw new DiagnosticToolHasNoOutputException(Name, collectorException);
             }
 
-            // Mark this instance as having collected the logs
-            logCollectionLease.Release();
+            resp.Logs = logs.Where(x => !x.Name.EndsWith(".diaglog")).ToList();
 
-            return logs.Where(x => !x.FileName.EndsWith(".diaglog")).ToList();
-        }
-
-        protected abstract Task<bool> RunCollectorCommandAsync(DateTime utcStartTime, DateTime utcEndTime, string outputDir, string sessionId, Lease lease, CancellationToken ct);
-
-        private string GetRelativeStoragePath(DateTime utcStartTime, DateTime utcEndTime, string defaultHostName)
-        {
-            var path = Log.GetRelativeDirectory(utcStartTime, utcEndTime, this, defaultHostName);
-            return path;
-        }
-
-        internal string CreateTemporaryLogDestinationFolder(DateTime utcStartTime, DateTime utcEndTime, string defaultHostName)
-        {
-            var relativeDirectoryPath = GetRelativeStoragePath(utcStartTime, utcEndTime, defaultHostName);
-            var outputDir = Infrastructure.Storage.GetNewTempFolder(relativeDirectoryPath);
-            return outputDir;
-        }
-
-        protected List<Log> MoveLogsToPermanentStorage(DateTime startTime, DateTime endTime, string outputDir, string blobSasUri, string sessionId, string defaultHostName)
-        {
-            // Once collector finishes executing, move log to permanent storage
-            List<string> logFilesCollected = Infrastructure.Storage.GetFilesInDirectory(outputDir, StorageLocation.TempStorage, string.Empty);
-            List<Log> logs = new List<Log>();
-            List<Task> saveLogTasks = new List<Task>();
-            foreach (var logFile in logFilesCollected.Where(x => !x.ToLower().EndsWith("diagstatus.diaglog")))
+            foreach (var log in resp.Logs)
             {
-                var fileSize = Infrastructure.Storage.GetFileSize(outputDir, logFile, StorageLocation.TempStorage);
-                if (fileSize > 0)
-                {
-                    Logger.LogSessionVerboseEvent($"Adding log file {logFile} of size {fileSize} to list of logs", sessionId);
-                }
-                var filePath = logFile.Replace(Infrastructure.Settings.TempDir, "");
-                var log = Log.GetLog(startTime, endTime, filePath, this, fileSize, blobSasUri, defaultHostName);
-                logs.Add(log);
-                Logger.LogSessionVerboseEvent($"Firing task to save the log file to permanent storage for {logFile}", sessionId);
-
-                Task saveTask = null;
-                if(!string.IsNullOrWhiteSpace(blobSasUri))
-                {
-                    saveTask = Infrastructure.Storage.UploadFileToBlobAsync(log.RelativePath, StorageLocation.TempStorage, blobSasUri, sessionId);
-                }
-                else
-                {
-                    saveTask = Infrastructure.Storage.SaveFileAsync(log, log.StorageLocation, blobSasUri);
-                }
-                saveLogTasks.Add(saveTask);
+                log.Size = GetFileSize(log.TempPath);
+                log.Name = Path.GetFileName(log.TempPath);
             }
 
-            Logger.LogSessionVerboseEvent($"Waiting for all tasks to move files to permanent storage", sessionId);
-            Task.WaitAll(saveLogTasks.ToArray());
-            Logger.LogSessionVerboseEvent($"All Tasks to move files completed successfully", sessionId);
+            await CopyLogsToPermanentLocationAsync(resp, session);
 
-            Infrastructure.Storage.RemoveAllFilesInDirectory(outputDir, StorageLocation.TempStorage);
+            Logger.LogSessionVerboseEvent($"Copied {resp.Logs.Count()} logs to permanent storage", session.SessionId);
 
-            return logs;
+            return resp;
         }
 
-        protected string ExpandVariablesInArgument(DateTime startTime, DateTime endTime, string outputDir)
+        private List<LogFile> GetLogsForSession(string tempOutputDir)
         {
-            var variables = new Dictionary<string, string>()
+            var logFiles = new List<LogFile>();
+            var logsDirectory = new DirectoryInfo(tempOutputDir);
+
+            foreach (var file in logsDirectory.GetFiles())
             {
-                {"startTime", startTime.ToString("s")},
-                {"endTime", endTime.ToString("s")},
-                {"outputDir", outputDir}
-            };
-            var args = ExpandVariables(Arguments, variables);
-            return args;
+                logFiles.Add(new LogFile()
+                {
+                    TempPath = file.FullName,
+                    Name = Path.GetFileName(file.FullName),
+                    Size = GetFileSize(file.FullName),
+                    StartTime = file.LastWriteTimeUtc
+                });
+            }
+            return logFiles;
         }
 
-        private List<Log> GetLogsForTimePeriod(DateTime utcStartTime, DateTime utcEndTime)
+        private long GetFileSize(string path)
         {
-            // TODO: Future feature - Add ability to pull logs previously stored for a given time period
-            return null;
+            return new FileInfo(path).Length;
         }
 
-        public bool PreValidationSucceeded(out string additionalErrorInfo)
+        public bool PreValidationSucceeded(string sessionId, out string additionalErrorInfo)
         {
             bool ret = true;
             additionalErrorInfo = string.Empty;
-            // if the PrevlidationForWarningCommand or PreValidationArguments is not specified for this colletor, we will
-            // return true assuming warning is not needed
             try
             {
-                PredefinedValidators validators = new PredefinedValidators();
-
-                string predefinedValidator = Name + "Validator";
-                MethodInfo validatorMethod = validators.GetType().GetMethod(predefinedValidator);
-                if (validatorMethod != null)
+                if (!string.IsNullOrWhiteSpace(PreValidationMethod))
                 {
-                    object[] parameters = new object[] { null };
-                    bool validationSucceeded = (bool)validatorMethod.Invoke(validators, parameters);
-                    if (!validationSucceeded)
+                    PredefinedValidators validators = new PredefinedValidators();
+                    MethodInfo validatorMethod = validators.GetType().GetMethod(PreValidationMethod);
+                    if (validatorMethod != null)
                     {
-                        additionalErrorInfo = (string)parameters[0];
+                        object[] parameters = new object[] { sessionId, null };
+                        bool validationSucceeded = (bool)validatorMethod.Invoke(validators, parameters);
+                        if (!validationSucceeded)
+                        {
+                            additionalErrorInfo = (string)parameters[1];
+                        }
+
+                        return validationSucceeded;
                     }
-                    return validationSucceeded;
                 }
 
                 if (string.IsNullOrWhiteSpace(PreValidationCommand))
-                {                    
-                    return true;
-                }
-
-                if (PreValidationArguments == null)
                 {
-                    PreValidationArguments = string.Empty;
+                    return true;
                 }
 
                 var command = ExpandVariables(PreValidationCommand);
@@ -208,7 +165,7 @@ namespace DaaS.Diagnostics
                 Logger.LogDiagnostic("Calling {0}: {1} {2}", Name, command, args);
 
                 // Call process using  RunProcess
-                var toolProcess = Infrastructure.RunProcess(command, args,"");
+                var toolProcess = DaaS.Infrastructure.RunProcess(command, args, "");
 
                 int num = 0;
 
@@ -217,16 +174,16 @@ namespace DaaS.Diagnostics
                 {
                     num++;
                     Logger.LogDiagnostic("Checking if process exits: num = {0} ", num);
-                    Thread.Sleep(100);
+                    Thread.Sleep(1000);
 
-                    if (num >= 100)
+                    if (num >= 2)
                     {
                         break;
                     }
                 }
 
-                //if for some reason, the prevalidation command is not completed in 2 sec, we will assume that the prevalidation failed  so users
-                //cannot enable the collector.  
+                // if for some reason, the prevalidation command is not completed in 2 sec, we will assume that the prevalidation failed  so users
+                // cannot enable the collector.  
                 if (!toolProcess.HasExited)
                 {
                     ret = false;
@@ -246,23 +203,103 @@ namespace DaaS.Diagnostics
             return ret;
         }
 
-        protected void CreateCollectorWarningFile(string outputDir, string additionalError)
+        async Task<bool> RunCollectorCommandAsync(Session session, string outputDir, CancellationToken ct)
         {
-            try
+            var args = ExpandVariablesInArgument(session.StartTime, outputDir);
+            await RunProcessAsync(Command, args, session.SessionId, session.Description, ct);
+            return true;
+        }
+
+        protected string ExpandVariablesInArgument(DateTime startTime, string outputDir)
+        {
+            var variables = new Dictionary<string, string>()
             {
-                //warning file is constructed using Collector name
-                string WarningFilename = Path.Combine(outputDir, string.Format("{0}_NotEnabled.log", Name));
-                string[] text = { Warning };
-                if (!string.IsNullOrWhiteSpace(additionalError))
+                {"startTime", startTime.ToString("s")},
+                {"outputDir", outputDir}
+            };
+            var args = ExpandVariables(Arguments, variables);
+            return args;
+        }
+
+        private async Task CopyLogsToPermanentLocationAsync(DiagnosticToolResponse resp, Session activeSession)
+        {
+            if (RequiresStorageAccount)
+            {
+                await CopyLogsToBlobStorage(resp, activeSession); 
+            }
+            else
+            {
+                await CopyLogsToFileSystem(resp, activeSession);
+            }
+        }
+
+        private async Task CopyLogsToBlobStorage(DiagnosticToolResponse resp, Session activeSession)
+        {
+            if (resp.Logs == null || !resp.Logs.Any())
+            {
+                return;
+            }
+
+            foreach (var log in resp.Logs)
+            {
+                string logPath = Path.Combine(
+                    Settings.Instance.DefaultHostName,
+                    activeSession.SessionId,
+                    GetInstanceId(),
+                    Path.GetFileName(log.TempPath));
+
+                try
                 {
-                    text = new string[] { additionalError };
+                    var blob = Storage.BlobController.GetBlobForFile(logPath);
+                    BlobRequestOptions blobRequestOptions = new BlobRequestOptions()
+                    {
+                        ServerTimeout = TimeSpan.FromMinutes(10)
+                    };
+
+                    await blob.UploadFromFileAsync(log.TempPath, null, blobRequestOptions, null);
+                    log.PartialPath = ConvertBackSlashesToForwardSlashes(logPath);
+                    Logger.LogSessionVerboseEvent($"Uploaded {logPath} to blob storage", activeSession.SessionId);
                 }
-                System.IO.File.WriteAllLines(WarningFilename, text);
+                catch (Exception ex)
+                {
+                    resp.Errors.Add($"Error '{ex.GetType()}:{ex.Message}' while copying {log.Name} to blob storage");
+                    Logger.LogSessionErrorEvent($"Failed while copying {logPath} to Blob storage", ex, activeSession.SessionId);
+                }
             }
-            catch (AggregateException e)
+        }
+
+        private async Task CopyLogsToFileSystem(DiagnosticToolResponse resp, Session activeSession)
+        {
+            if (resp.Logs == null || !resp.Logs.Any())
             {
-                Logger.LogErrorEvent("Unexpected error occurred when running CreateCollectorWarningFile", e);
+                return;
             }
+            
+            foreach (var log in resp.Logs)
+            {
+                string logPath = Path.Combine(
+                    activeSession.SessionId,
+                    GetInstanceId(),
+                    Path.GetFileName(log.TempPath));
+
+                log.PartialPath = ConvertBackSlashesToForwardSlashes(logPath, DaasDirectory.LogsDirRelativePath);
+                string destination = Path.Combine(DaasDirectory.LogsDir, logPath);
+
+                try
+                {
+                    await MoveFileAsync(log.TempPath, destination, activeSession.SessionId, deleteAfterCopy: activeSession.Mode == Mode.Collect);
+                }
+                catch (Exception ex)
+                {
+                    resp.Errors.Add($"Error '{ex.GetType()}:{ex.Message}' while copying {log.Name} to file system");
+                    Logger.LogSessionErrorEvent($"Failed while copying {logPath} to file system", ex, activeSession.SessionId);
+                }
+            }
+        }
+
+        private string GetInstanceId()
+        {
+            return Environment.MachineName;
         }
     }
 }

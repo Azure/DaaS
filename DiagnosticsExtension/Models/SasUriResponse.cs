@@ -5,20 +5,19 @@
 // </copyright>
 // -----------------------------------------------------------------------
 
-using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Web;
 
 namespace DiagnosticsExtension.Models
 {
     public class SasUriResponse
     {
-        public ExtendedError ExtendedError { get; set; }
-        public string StorageAccount { get; set; }
-        public string Exception { get; set; }
-        public bool IsValid { get; set; }
-        public string SpecifiedAt { get; set; }
+        public ExtendedError ExtendedError { get; internal set; }
+        public string StorageAccount { get; internal set; }
+        public string Exception { get; internal set; }
+        public bool IsValid { get; internal set; }
+        public bool StorageConnectionStringSpecified { get; internal set; }
+        public bool IsValidStorageConnectionString { get; internal set; }
+        public string StorageConnectionStringException { get; internal set; }
     }
 
     public class ExtendedError

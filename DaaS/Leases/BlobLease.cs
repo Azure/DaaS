@@ -1,4 +1,4 @@
-// -----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="BlobLease.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
@@ -8,7 +8,6 @@
 using System;
 using System.Net;
 using System.Threading;
-using DaaS.Configuration;
 using DaaS.Storage;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
@@ -21,14 +20,14 @@ namespace DaaS.Leases
 
         private BlobLease() { }
 
-        public static BlobLease TryGetLease(string pathToFile, string blobSasUri, string leaseId = null)
+        public static BlobLease TryGetLease(string pathToFile, string leaseId = null)
         {
             BlobLease lease = null;
 
             try
             {
                 Logger.LogInfo($"Inside TryGetLease method with {pathToFile} and lease {leaseId == null}");
-                var blob = BlobController.GetBlobForFile(pathToFile, blobSasUri);
+                var blob = BlobController.GetBlobForFile(pathToFile);
                 if (!blob.Exists())
                 {
                     // This was a path blob. We want to create a new blob to hold the lease
@@ -68,7 +67,7 @@ namespace DaaS.Leases
         {
             while (true)
             {
-                var lease = TryGetLease(pathToFile, blobSasUri);
+                var lease = TryGetLease(pathToFile);
                 if (lease != null && lease.IsValid())
                 {
                     return lease;

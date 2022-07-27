@@ -37,8 +37,6 @@ namespace DaaS
 
     public class MonitoringSessionResponse : MonitoringSession
     {
-        private readonly string _blobSasUri = string.Empty;
-
         public MonitoringSessionResponse(MonitoringSession s)
         {
             Mode = s.Mode;
@@ -58,22 +56,20 @@ namespace DaaS
             BlobStorageHostName = s.BlobStorageHostName;
             IntervalDays = s.IntervalDays;
             ActionsInInterval = s.ActionsInInterval;
-            _blobSasUri = s.BlobSasUri;
             DefaultHostName = s.DefaultHostName;
-    }
-        public new string BlobSasUri
+        }
+
+        public string BlobSasUri
         {
             get
             {
-                return BlobController.GetActualBlobSasUri(_blobSasUri);
+                return Settings.Instance.BlobSasUri;
             }
         }
     }
 
     public class MonitoringSession
     {
-        private string _blobSasUri = string.Empty;
-
         [JsonConverter(typeof(StringEnumConverter))]
         public RuleType RuleType { get; set; } = RuleType.Diagnostics;
 
@@ -102,35 +98,12 @@ namespace DaaS
 
         public string DefaultHostName { get; set; }
         public string BlobStorageHostName { get; set; }
-        public string BlobSasUri
-        {
-            get
-            {
-                if (string.IsNullOrEmpty(_blobSasUri) && Settings.IsBlobSasUriConfiguredAsEnvironmentVariable())
-                {
-                    return Settings.WebSiteDaasStorageSasUri;
-                }
-                else
-                {
-                    return _blobSasUri;
-                }
-            }
-            set
-            {
-                _blobSasUri = value;
-            }
-        }
 
         [JsonConverter(typeof(StringEnumConverter))]
         public AnalysisStatus AnalysisStatus { get; set; }
 
         internal void SaveToDisk(string cpuMonitoringActive)
         {
-            if (Settings.IsBlobSasUriConfiguredAsEnvironmentVariable() && Settings.IsSandBoxAvailable())
-            {
-                BlobSasUri = Settings.WebSiteDaasStorageSasUri;
-            }
-
             this.ToJsonFile(cpuMonitoringActive);
         }
 
