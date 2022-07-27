@@ -1,4 +1,4 @@
-// -----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="ConnectionStringValidationController.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
@@ -37,6 +37,9 @@ namespace DiagnosticsExtension.Controllers
                 new MySqlValidator(),
                 new KeyVaultValidator(),
                 new StorageValidator(),
+                new BlobStorageValidator(),
+                new QueueStorageValidator(),
+                new FileShareStorageValidator(),
                 new ServiceBusValidator(),
                 new EventHubsValidator(),
                 new HttpValidator()
@@ -72,24 +75,30 @@ namespace DiagnosticsExtension.Controllers
             {
                 return Request.CreateErrorResponse(HttpStatusCode.BadRequest, "Type is not specified in the request body");
             }
-
             var result = await Validate(requestBody.ConnectionString, requestBody.Type);
             return result;
         }
 
+        /// <summary>
+        /// This method is used to validate connection information via appsetting.
+        /// </summary>
+        /// <param name="appSettingName">This should be the configured appsetting key/connection property of the function. </param>
+        /// <param name="type">This should be the type of Azure service being connected.</param>
+        /// <param name="entityName">This is valid only for servicebus and eventhub. Need not be passed for other azure services.</param>
+        /// <returns>ConnectionStringValidationResult</returns>
         [HttpGet]
-        [Route("validateappsetting")]
-        public async Task<HttpResponseMessage> ValidateAppSetting(string appSettingName, string type)
+        [Route("validateappsettingforfunctionapp")]
+        public async Task<HttpResponseMessage> ValidateAppSettingForFunctionApp(string appSettingName, string type, string entityName = null)
         {
-            var envDict = Environment.GetEnvironmentVariables();
-            if (envDict.Contains(appSettingName))
+            bool success = Enum.TryParse(type, out ConnectionStringType csType);
+            if (success && typeValidatorMap.ContainsKey(csType))
             {
-                var connectionString = (string)envDict[appSettingName];
-                return await Validate(connectionString, type);
+                var result = await typeValidatorMap[csType].ValidateViaAppsettingAsync(appSettingName, entityName);
+                return Request.CreateResponse(HttpStatusCode.OK, result);
             }
             else
             {
-                return Request.CreateErrorResponse(HttpStatusCode.NotFound, $"AppSetting {appSettingName} not found");
+                return Request.CreateErrorResponse(HttpStatusCode.BadRequest, $"Type '{type}' is not supported");
             }
         }
     }

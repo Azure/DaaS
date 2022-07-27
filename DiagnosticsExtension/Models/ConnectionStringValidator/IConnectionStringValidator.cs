@@ -19,7 +19,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
         Task<bool> IsValidAsync(string connStr);
 
         Task<ConnectionStringValidationResult> ValidateAsync(string connStr, string clientId = null);  // clientId used for Used Assigned Managed Identity
-
+        Task<ConnectionStringValidationResult> ValidateViaAppsettingAsync(string appSettingName, string entityName = null);
         string ProviderName { get; }
 
         ConnectionStringType Type { get; }

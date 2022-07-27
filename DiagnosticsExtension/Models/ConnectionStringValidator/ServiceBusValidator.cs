@@ -13,13 +13,13 @@ using Microsoft.Azure.ServiceBus.Management;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Azure.Messaging.ServiceBus;
 
 namespace DiagnosticsExtension.Models.ConnectionStringValidator
 {
     public class ServiceBusValidator : IConnectionStringValidator
     {
         public string ProviderName => "Microsoft.Azure.ServiceBus";
-
         public ConnectionStringType Type => ConnectionStringType.ServiceBus;
 
         public Task<bool> IsValidAsync(string connectionString)
@@ -37,7 +37,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
 
         async public Task<ConnectionStringValidationResult> ValidateAsync(string connectionString, string clientId = null)
         {
-            var response = new ConnectionStringValidationResult(Type);
+            ConnectionStringValidationResult response = new ConnectionStringValidationResult(Type);
 
             try
             {
@@ -53,41 +53,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             }
             catch (Exception e)
             {
-                if (e is MalformedConnectionStringException || e is ArgumentNullException)
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.MalformedConnectionString;
-                }
-                else if (e is EmptyConnectionStringException)
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.EmptyConnectionString;
-                }
-                else if ((e is ArgumentException && e.Message.Contains("Authentication ")) ||
-                         e.Message.Contains("claim is empty or token is invalid") ||
-                         e.Message.Contains("InvalidSignature"))
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.AuthFailure;
-                }
-                else if (e is ArgumentException && e.Message.Contains("entityPath is null") ||
-                         e.Message.Contains("HostNotFound") ||
-                         e.Message.Contains("could not be found") ||
-                         e.Message.Contains("The argument  is null or white space"))
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.MalformedConnectionString;
-                }
-                else if (e.InnerException != null && e.InnerException.InnerException != null &&
-                         e.InnerException.InnerException.Message.Contains("The remote name could not be resolved"))
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.DnsLookupFailed;
-                }
-                else if (e.Message.Contains("Ip has been prevented to connect to the endpoint"))
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.Forbidden;
-                }
-                else
-                {
-                    response.Status = ConnectionStringValidationResult.ResultStatus.UnknownError;
-                }
-                response.Exception = e;
+                ConnectionStringResponseUtility.EvaluateResponseStatus(e, Type, ref response);
             }
 
             return response;
@@ -119,6 +85,109 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             Message msg = await msgReceiver.PeekAsync();
 
             return data;
+        }
+        async public Task<ConnectionStringValidationResult> ValidateViaAppsettingAsync(string appSettingName, string entityName)
+        {
+            ConnectionStringValidationResult response = new ConnectionStringValidationResult(Type);
+            bool isManagedIdentityConnection = false;
+            try
+            {
+                string appSettingClientIdValue, appSettingClientCredValue = "";
+                ServiceBusClient client = null;
+                var envDict = Environment.GetEnvironmentVariables();
+
+                if (envDict.Contains(appSettingName))
+                {
+                    try
+                    {
+                        string connectionString = Environment.GetEnvironmentVariable(appSettingName);
+                        if (string.IsNullOrEmpty(connectionString))
+                        {
+                            throw new EmptyConnectionStringException();
+                        }
+                        connectionString += ";EntityPath=" + entityName;
+                        client = new ServiceBusClient(connectionString);
+                    }
+                    catch (EmptyConnectionStringException e)
+                    {
+                        throw new EmptyConnectionStringException(e.Message, e);
+                    }
+                    catch (Exception e)
+                    {
+                        throw new MalformedConnectionStringException(e.Message, e);
+                    }
+                }
+                else
+                {
+                    isManagedIdentityConnection = true;
+                    string serviceUriString = ManagedIdentityConnectionResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.fullyQualifiedNamespace);
+                    if (!string.IsNullOrEmpty(serviceUriString))
+                    {
+                        string clientIdAppSettingKey = Environment.GetEnvironmentVariables().Keys.Cast<string>().Where(k => k.StartsWith(appSettingName) && k.ToLower().EndsWith("clientid")).FirstOrDefault();
+                        appSettingClientIdValue = ManagedIdentityConnectionResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.clientId);
+                        appSettingClientCredValue = ManagedIdentityConnectionResponseUtility.ResolveManagedIdentityCommonProperty(appSettingName, ConnectionStringValidationResult.ManagedIdentityCommonProperty.credential);
+                        if (appSettingClientCredValue != null && appSettingClientCredValue != Constants.ValidCredentialValue)
+                        {
+                            throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityCredentialInvalidSummary, appSettingName));
+                        }
+                        // If the user has configured __credential with "managedidentity" and set an app setting for __clientId (even if its empty) we assume their intent is to use a user assigned managed identity
+                        if (appSettingClientCredValue != null && clientIdAppSettingKey != null)
+                        {
+                            if (string.IsNullOrEmpty(appSettingClientIdValue))
+                            {
+                                throw new ManagedIdentityException(String.Format(Constants.ManagedIdentityClientIdEmptySummary, clientIdAppSettingKey),
+                                                                   String.Format(Constants.ManagedIdentityClientIdEmptyDetails, appSettingName));
+                            }
+                            response.IdentityType = Constants.User;
+                            client = new ServiceBusClient(serviceUriString, ManagedIdentityCredentialTokenValidator.GetValidatedCredential(appSettingClientIdValue, appSettingName));
+                        }
+                        // Creating client using System assigned managed identity
+                        else
+                        {
+                            response.IdentityType = Constants.System;
+                            client = new ServiceBusClient(serviceUriString, new Azure.Identity.ManagedIdentityCredential());
+                        }
+                    }
+                    else
+                    {
+                        string fullyQualifiedNamespaceAppSettingName = Environment.GetEnvironmentVariables().Keys.Cast<string>().Where(k => k.StartsWith(appSettingName) && k.ToLower().EndsWith("fullyqualifiednamespace")).FirstOrDefault();
+                        if (fullyQualifiedNamespaceAppSettingName == null)
+                        {
+                            throw new ManagedIdentityException(Constants.ServiceBusFQMissingSummary);
+                        }
+                        throw new ManagedIdentityException(String.Format(Constants.ServiceBusFQNSEmptySummary, fullyQualifiedNamespaceAppSettingName));
+
+                    }
+                }
+                ServiceBusReceiverOptions opt = new ServiceBusReceiverOptions();
+                opt.ReceiveMode = ServiceBusReceiveMode.PeekLock;
+                opt.PrefetchCount = 1;
+                ServiceBusReceiver receiver = client.CreateReceiver(entityName, opt);
+                ServiceBusReceivedMessage receivedMessage = await receiver.PeekMessageAsync();
+
+                response.Status = ConnectionStringValidationResult.ResultStatus.Success;
+            }
+            catch (Exception e)
+            {
+                // TODO: Find out what exception class is thrown for the message below and add that to the set of conditions
+                if (e.Message.Contains("Put token failed") && e.Message.Contains("could not be found"))
+                {
+                    response.Status = ConnectionStringValidationResult.ResultStatus.EntityNotFound;
+                    response.Summary = String.Format(Constants.ServiceBusEntityNotFoundSummary, entityName);
+                    response.Details = Constants.ServiceBusEntityNotFoundDetails;
+                    response.Exception = e;
+                }
+                else if (isManagedIdentityConnection)
+                {
+                    ManagedIdentityConnectionResponseUtility.EvaluateResponseStatus(e, Type, ref response, appSettingName);
+                }
+                else
+                {
+                    ConnectionStringResponseUtility.EvaluateResponseStatus(e, Type, ref response, appSettingName);
+                }
+            }
+
+            return response;
         }
     }
 }
