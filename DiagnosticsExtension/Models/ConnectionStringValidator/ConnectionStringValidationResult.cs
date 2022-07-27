@@ -8,17 +8,28 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json.Serialization;
 using System.Web;
+using System.Web.UI.WebControls;
+using Newtonsoft.Json;
 
 namespace DiagnosticsExtension.Models.ConnectionStringValidator
 {
 
     public class ConnectionStringValidationResult
     {
+        [Newtonsoft.Json.JsonIgnore]
         public ResultStatus? Status;
+        [Newtonsoft.Json.JsonIgnore]
+        public string IdentityType;
+        public string Summary;
+        public string Details;
         public string StatusText => Status?.ToString();
         public Exception Exception;
+        public string ExceptionMessage => Exception?.Message;
+        [Newtonsoft.Json.JsonIgnore]
         public object Payload;
+        [Newtonsoft.Json.JsonIgnore]
         public string Type => type.ToString();
 
         private ConnectionStringType type;
@@ -40,9 +51,24 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             MsiFailure,
             EmptyConnectionString,
             MalformedConnectionString,
-            UnknownError
+            EntityNotFound,
+            FullyQualifiedNamespaceMissing,
+            ManagedIdentityNotConfigured,
+            ManagedIdentityAuthFailure,
+            ManagedIdentityConnectionFailed,
+            KeyVaultReferenceResolutionFailed,
+            UnknownError,
+        }
+        public enum ManagedIdentityCommonProperty
+        {
+            fullyQualifiedNamespace,
+            credential,
+            clientId,
+            serviceUri,
+            blobServiceUri,
+            queueServiceUri
         }
 
-        
+
     }
 }
