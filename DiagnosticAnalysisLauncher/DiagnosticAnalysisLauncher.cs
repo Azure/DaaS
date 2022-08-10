@@ -169,7 +169,7 @@ namespace DiagnosticAnalysisLauncher
                 if (!string.IsNullOrWhiteSpace(diagCliJsonOutput))
                 {
                     var diagCliOutputFileName = CreateDiagCliJson(dumpFileName, diagCliJsonOutput);
-                    CreatePlaceHolderHtml(diagCliOutputFileName, $"{Path.GetFileNameWithoutExtension(dumpFileName)}.html");
+                    CreateReportHtml(diagCliOutputFileName, $"{Path.GetFileNameWithoutExtension(dumpFileName)}.html");
                 }
 
                 var analysis = JsonConvert.DeserializeObject<DiagnosticAnalysis>(diagCliJsonOutput);
@@ -206,7 +206,7 @@ namespace DiagnosticAnalysisLauncher
             string machineName = GetMachineNameFromDumpFileName(dumpFileName);
             string directoryName = Path.Combine(_outputFolder, machineName);
             FileSystemHelpers.EnsureDirectory(directoryName);
-            
+
             var diagCliOutputFileName = Path.Combine(directoryName, "DiagCli.json");
             FileSystemHelpers.WriteAllText(diagCliOutputFileName, diagCliOutput);
 
@@ -226,55 +226,96 @@ namespace DiagnosticAnalysisLauncher
             return fileName;
         }
 
-        private void CreatePlaceHolderHtml(string jsonFilePath, string outputFileName)
+        private void CreateReportHtml(string jsonFilePath, string outputFileName)
         {
-            Logger.LogDiagnoserVerboseEvent("Creating Placeholder file");
-            string redirectUrl = GetRedirectUrlFromFileName(jsonFilePath);
-            string placeHolderhtml = $@"<!DOCTYPE HTML>
-            <html lang='en - US'>
-                <head>
-                    <meta charset = 'UTF-8'>
-                    <meta http - equiv = 'refresh' content = '1; url={redirectUrl}' >
-                    <script type = 'text/javascript' >
-                        window.location.href = '{redirectUrl}'
-                    </script >
-                    <title > Page Redirection </title >
-                </head>
-                <body>                          
-                    If you are not redirected automatically, follow this < a href = '{redirectUrl}' > link to example</a>.
-               </body>
-            </html>";
+            Logger.LogDiagnoserVerboseEvent("Creating report file");
 
+            string diagAnalysisDirectory = GetDiagnosticAnalysisDirectory();
+
+            string joinResultsViewerPath = Path.Combine(diagAnalysisDirectory, "scripts", "Join-ResultsViewer.ps1");
+            string resultsViewerPath = Path.Combine(diagAnalysisDirectory, "ResultsViewer.html");
             string outputFile = Path.Combine(_outputFolder, $"DiagnosticAnalysis-{outputFileName}");
-            File.WriteAllText(outputFile, placeHolderhtml);
-            Logger.LogDiagnoserVerboseEvent($"Created placeholder file at {outputFile}");
+
+            if (RunPowershellScript(
+                scriptPath: joinResultsViewerPath,
+                timeout: TimeSpan.FromSeconds(60),
+                $@"-ResultsViewHtml ""{resultsViewerPath}""",
+                $@"-ResultsJson ""{jsonFilePath}""",
+                $@"-OutputFile ""{outputFile}"""
+            ))
+            {
+                Logger.LogDiagnoserVerboseEvent($"Created report file at {outputFile}");
+            }
+            else
+            {
+                Logger.LogDiagnoserErrorEvent($"Failed to create report file at {outputFile}", string.Empty);
+            }
         }
 
-        private string GetRedirectUrlFromFileName(string jsonFilePath)
+        private static string GetDiagnosticAnalysisDirectory()
         {
-            var fileNameArray = jsonFilePath.Split(':');
-            if (fileNameArray.Length > 0)
+            // The app is in bin/DiagnosticTools/DiagnosticAnalysisLauncher.exe
+            // We need to return bin/DiagnosticAnalysis
+
+            var binDir = Path.GetDirectoryName(Path.GetDirectoryName(typeof(DiagnosticAnalysisLauncher).Assembly.Location));
+            return Path.Combine(binDir, "DiagnosticAnalysis");
+        }
+
+        private bool RunPowershellScript(string scriptPath, TimeSpan timeout, params string[] arguments)
+        {
+            using (var psProcess = new Process())
             {
-                string path = fileNameArray[1];
-                path = Helper.ConvertBackSlashesToForwardSlashes(path);
+                psProcess.StartInfo = new ProcessStartInfo("PowerShell.exe", $@"-ExecutionPolicy RemoteSigned -File ""{scriptPath}"" " + string.Join(" ", arguments))
+                {
+                    CreateNoWindow = true,
+                    UseShellExecute = false,
+                    RedirectStandardError = true,
+                    RedirectStandardOutput = true
+                };
 
-                //
-                // Convert '/local/Temp/Reports/220121_1030313072/220121_1030526864/diagclioutput.json'
-                // to '/api/vfs/data/DaaS/Reports/220121_1030313072/220121_1030526864/diagclioutput.json'
-                //
+                var outputBuilder = new StringBuilder();
+                var errorBuilder = new StringBuilder();
+                psProcess.OutputDataReceived += (o, a) =>
+                {
+                    outputBuilder.AppendLine(a.Data ?? string.Empty);
+                };
+                psProcess.ErrorDataReceived += (o, a) =>
+                {
+                    errorBuilder.AppendLine(a.Data ?? string.Empty);
+                };
 
-                path = path.ToLower().Replace("/local/temp", "/api/vfs/data/DaaS");
+                psProcess.Start();
 
-                //
-                // Append the path as querystring parameter to ResultsViewer.html
-                //
-                
-                path = $"/daas/diagnosticanalysis/resultsviewer.html?input={path}";
+                psProcess.BeginOutputReadLine();
+                psProcess.BeginErrorReadLine();
 
-                return path;
+                if (!psProcess.WaitForExit((int)timeout.TotalMilliseconds))
+                {
+                    Logger.LogDiagnoserErrorEvent("The script did not complete in the allotted time. The process will be killed.", string.Empty);
+                    try
+                    {
+                        psProcess.Kill();
+                    }
+                    catch { }
+                }
+
+                psProcess.WaitForExit();
+
+                if (psProcess.ExitCode == 0)
+                {
+                    Logger.LogDiagnoserVerboseEvent($"The script terminated successfully.");
+                    Logger.LogDiagnoserVerboseEvent($"Script stdout: {outputBuilder.ToString()}");
+                    Logger.LogDiagnoserVerboseEvent($"Script stderr: {errorBuilder}");
+                }
+                else
+                {
+                    Logger.LogDiagnoserErrorEvent($"The script exit code was {psProcess.ExitCode}", string.Empty);
+                    Logger.LogDiagnoserErrorEvent($"Script stdout: {outputBuilder.ToString()}", string.Empty);
+                    Logger.LogDiagnoserErrorEvent($"Script stderr: {errorBuilder.ToString()}", string.Empty);
+                }
+
+                return psProcess.ExitCode == 0;
             }
-
-            return string.Empty;
         }
     }
 }
