@@ -256,7 +256,7 @@
       <Version>1.0.17</Version>
     </PackageReference>
     <PackageReference Include="Newtonsoft.Json">
-      <Version>11.0.2</Version>
+      <Version>13.0.1</Version>
     </PackageReference>
     <PackageReference Include="PerfView.SupportFiles">
       <Version>1.0.7</Version>
