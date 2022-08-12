@@ -34,7 +34,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="DaaS">
-      <HintPath>..\DaaS\bin\Release\DaaS.dll</HintPath>
+        <HintPath>..\DaaS\bin\$(ConfigurationName)\DaaS.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
