@@ -365,7 +365,7 @@
     </Content>
     <Content Include="favicon.ico" />
     <Content Include="Global.asax" />
-    <Content Include="..\packages\Microsoft.VisualStudio.DiagnosticAnalysis.ResultsViewer.1.0.2046.95\content\client\**\*" Exclude="**\*.js.map">
+    <Content Include="..\packages\Microsoft.VisualStudio.DiagnosticAnalysis.ResultsViewer.1.0.2054.97\content\client\**\*" Exclude="**\*.js.map">
       <Link>DiagnosticAnalysis\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
