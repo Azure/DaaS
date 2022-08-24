@@ -192,6 +192,11 @@ namespace DaaS.Sessions
                 await SetCurrentInstanceAsCompleteAsync(activeSession);
 
                 //
+                // Cleanup all the temporary collected data
+                //
+                CleanupTempDataForSession(activeSession.SessionId);
+
+                //
                 // Check if all the instances have finished running the session
                 // and set the Session State to Complete
                 //
@@ -201,6 +206,12 @@ namespace DaaS.Sessions
             {
                 Logger.LogSessionErrorEvent("Exception while running tool", ex, activeSession.SessionId);
             }
+        }
+
+        private void CleanupTempDataForSession(string sessionId)
+        {
+            DeleteFolderSafe(Path.Combine(DaasDirectory.LogsTempDir, sessionId), sessionId);
+            DeleteFolderSafe(Path.Combine(DaasDirectory.ReportsTempDir, sessionId), sessionId);
         }
 
         public async Task<bool> CheckandCompleteSessionIfNeededAsync(bool forceCompletion = false)
@@ -259,8 +270,8 @@ namespace DaaS.Sessions
                         await DeleteLogsFromBlob(session);
                     }
 
-                    DeleteFolderSafe(Path.Combine(DaasDirectory.LogsDir, sessionId));
-                    DeleteFolderSafe(Path.Combine(DaasDirectory.ReportsDir, sessionId));
+                    DeleteFolderSafe(Path.Combine(DaasDirectory.LogsDir, sessionId), sessionId);
+                    DeleteFolderSafe(Path.Combine(DaasDirectory.ReportsDir, sessionId), sessionId);
                     FileSystemHelpers.DeleteFile(sessionFile);
                     Logger.LogSessionVerboseEvent("Session deleted", sessionId);
                 }
@@ -272,10 +283,17 @@ namespace DaaS.Sessions
             });
         }
 
-        private static void DeleteFolderSafe(string directory)
+        private static void DeleteFolderSafe(string directory, string sessionIdToLog)
         {
-            FileSystemHelpers.DeleteDirectoryContentsSafe(directory, ignoreErrors: false);
-            FileSystemHelpers.DeleteDirectorySafe(directory, ignoreErrors: false);
+            try
+            {
+                FileSystemHelpers.DeleteDirectoryContentsSafe(directory, ignoreErrors: false);
+                FileSystemHelpers.DeleteDirectorySafe(directory, ignoreErrors: false);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogSessionWarningEvent($"Exception while deleting ${directory}", ex, sessionIdToLog);
+            }
         }
 
         private static async Task DeleteLogsFromBlob(Session session)

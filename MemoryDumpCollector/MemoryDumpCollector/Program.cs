@@ -10,7 +10,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using DaaS;
@@ -43,27 +43,54 @@ namespace MemoryDumpCollector
             {
                 ParseInputs(args);
 
-                if (!IsScmSeparationDisabled())
+                //
+                // By default SCM Separation is enabled and Kudu and Main worker process run in different w3wp
+                //
+
+                if (IsScmSeparationDisabled())
                 {
+                    Logger.LogDiagnoserVerboseEvent("SCM Separation is disabled");
+                }
+                else
+                {
+                    //
                     // Determine which processes this process is a child of (since we don't want to call a memory dump on ourselves)
+                    //
+
                     Process parentProcess = Process.GetCurrentProcess();
                     while (parentProcess != null)
                     {
                         if (parentProcess.ProcessName.Equals(_processName, StringComparison.OrdinalIgnoreCase))
                         {
-                            Console.WriteLine("Ignoring parent " + parentProcess.GetPrintableInfo());
+                            //
                             // Don't collect memory dumps of our parent process. Taking the dump can sometimes freeze cdb and the process it's take a dump of
+                            //
+
+                            Logger.LogDiagnoserVerboseEvent("Ignoring parent " + parentProcess.GetPrintableInfo());
                             _processesToIgnore.Add(parentProcess.Id);
                         }
                         parentProcess = parentProcess.GetParentProcess();
                     }
 
-                    // We don't want to collect memory dumps of ourself
-                    _processesToIgnore.AddRange(Process.GetCurrentProcess().GetAllChildProcesses().Select(p => p.Id).ToList());
+                    //
+                    // We don't want to collect memory dumps of ourself and child processes
+                    //
+
+                    var currentProcessAndChildren = Process.GetCurrentProcess().GetAllChildProcesses().ToList();
+                    foreach (var childProcess in currentProcessAndChildren)
+                    {
+                        Logger.LogDiagnoserVerboseEvent("Ignoring childProcess " + childProcess.GetPrintableInfo());
+                        _processesToIgnore.Add(childProcess.Id);
+                    }
+
+                    Logger.LogDiagnoserVerboseEvent("Ignoring current processId " + Process.GetCurrentProcess().Id);
                     _processesToIgnore.Add(Process.GetCurrentProcess().Id);
                 }
 
+                //
                 // We don't want to collect processes spawned by the runner either
+                //
+
                 Process runnerProcesses = Process.GetProcessesByName("DaaSRunner").FirstOrDefault();
                 if (runnerProcesses != null)
                 {
@@ -76,9 +103,12 @@ namespace MemoryDumpCollector
                     AddtoIgnoredProcessList(consoleProcesses);
                 }
 
+                //
                 // Lets also ignore all cmd processes since they're not going to provide us with interesting dumps 
                 // (less clutter for the user that way)
                 // We'll also ignore all php_cgi processes since the PHP analyze will analyze the process directly.
+                //
+
                 _processesToIgnore.AddRange(
                             Process.GetProcesses()
                             .Where(p => p.ProcessName.Equals("cmd", StringComparison.OrdinalIgnoreCase)
@@ -109,12 +139,16 @@ namespace MemoryDumpCollector
 
                 if (requestedProcesses.Count == 0)
                 {
+                    var additionalLogMessage = GetProcessInformationToLog();
                     Console.WriteLine("No matching processes found");
-                    Logger.LogDiagnoserEvent("No matching processes found");
+                    Logger.LogDiagnoserWarningEvent("No matching processes found", additionalLogMessage.ToString());
                     return;
                 }
 
+                //
                 // Using a dictionary helps prevent processes from being dumped twice
+                //
+
                 var processesToDump = new Dictionary<int, Process>();
                 foreach (var process in requestedProcesses)
                 {
@@ -124,7 +158,11 @@ namespace MemoryDumpCollector
                 if (_includeChildProcesses)
                 {
                     Console.WriteLine("Including any child processes");
+
+                    //
                     // Include all child processes except for the current process and its children
+                    //
+
                     var childProcesses =
                         requestedProcesses.SelectMany(p => p.GetAllChildProcesses())
                             .Where(p => !_processesToIgnore.Contains(p.Id)).ToList();
@@ -136,7 +174,9 @@ namespace MemoryDumpCollector
 
                     foreach (var process in childProcesses.Where(p => p.ProcessName.Equals("dotnet", StringComparison.OrdinalIgnoreCase)))
                     {
-                        Console.WriteLine("Child process found: " + process.ProcessName + " PID: " + process.Id.ToString());
+                        string message = "Child process found: " + process.ProcessName + " PID: " + process.Id.ToString();
+                        Console.WriteLine(message);
+                        Logger.LogVerboseEvent(message);
                         processesToDump[process.Id] = process;
                     }
 
@@ -146,7 +186,9 @@ namespace MemoryDumpCollector
 
                     foreach (var process in childProcesses)
                     {
-                        Console.WriteLine("Child process found: " + process.ProcessName + " PID: " + process.Id.ToString());
+                        string message = "Child process found: " + process.ProcessName + " PID: " + process.Id.ToString();
+                        Console.WriteLine(message);
+                        Logger.LogVerboseEvent(message);
                         processesToDump[process.Id] = process;
 
                         //
@@ -178,7 +220,7 @@ namespace MemoryDumpCollector
                     }
                 }
 
-                Logger.LogStatus($"Collecting dumps of processes - { string.Join(",", processList) }");
+                Logger.LogStatus($"Collecting dumps of processes - {string.Join(",", processList)}");
                 foreach (var p in processesToDump.Values)
                 {
                     GetMemoryDumpProcDump(p, _outputDir);
@@ -192,6 +234,26 @@ namespace MemoryDumpCollector
                 Logger.LogDiagnoserErrorEvent($"Un-handled exception in MemoryDumpCollector", ex);
                 Console.WriteLine($"Un-handled exception in MemoryDumpCollector {ex}");
             }
+        }
+
+        private static StringBuilder GetProcessInformationToLog()
+        {
+            StringBuilder additionalLogMessage = new StringBuilder();
+            try
+            {
+                foreach (var process in Process.GetProcesses().Where(p => p.ProcessName.Equals(_processName, StringComparison.OrdinalIgnoreCase)))
+                {
+                    additionalLogMessage.AppendLine($"Requested Process = {process.GetPrintableInfo()}");
+                }
+
+                additionalLogMessage.AppendLine($"Ignored Process list = {string.Join(",", _processesToIgnore)}");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogDiagnoserWarningEvent("Error while getting process infomration to log", ex);
+            }
+
+            return additionalLogMessage;
         }
 
         private static bool IsScmSeparationDisabled()
@@ -309,7 +371,7 @@ namespace MemoryDumpCollector
                 var sessionDescription = Environment.GetEnvironmentVariable("DAAS_SESSION_DESCRIPTION");
                 if (!string.IsNullOrWhiteSpace(sessionDescription))
                 {
-                    debuggerComment = $"\"{ sessionDescription }\"";
+                    debuggerComment = $"\"{sessionDescription}\"";
                 }
 
                 var cancellationTokenSource = new CancellationTokenSource();
@@ -348,7 +410,7 @@ namespace MemoryDumpCollector
                 try
                 {
                     processPrivateBytes = process.PrivateMemorySize64;
-                    processMemoryConsumption = $"{ process.ProcessName} Private Bytes consumption is { ConversionUtils.BytesToString(processPrivateBytes) }";
+                    processMemoryConsumption = $"{process.ProcessName} Private Bytes consumption is {ConversionUtils.BytesToString(processPrivateBytes)}";
                 }
                 catch (Exception)
                 {
@@ -391,7 +453,7 @@ namespace MemoryDumpCollector
                 if (output.ToLower().Contains("Dump 1 complete".ToLower()))
                 {
                     Logger.LogDiagnoserVerboseEvent($"Procdump completed successfully.  Detailed ProcDump output: {Environment.NewLine} {procDumpOutput}");
-                    Logger.LogStatus($"Collected dump of {process.ProcessName} ({ process.Id })");
+                    Logger.LogStatus($"Collected dump of {process.ProcessName} ({process.Id})");
                 }
                 else
                 {

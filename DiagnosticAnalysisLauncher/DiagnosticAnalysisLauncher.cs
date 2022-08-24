@@ -8,9 +8,11 @@
 using DaaS;
 using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 
@@ -20,8 +22,17 @@ namespace DiagnosticAnalysisLauncher
     {
         private const int MaxProcessorTime = 300;
         private const int MaxPrivateBytes = 800 * 1024 * 1024;
+        private const string SandboxPropertyStorageAccountResourceId = "WEBSITE_DAAS_STORAGE_RESOURCEID";
         private readonly string _dumpFile;
         private readonly string _outputFolder;
+
+        [DllImport("picohelper.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+        internal static extern bool GetSandboxProperty(
+           string propertyId,
+           byte[] valueBuffer,
+           int valueBufferLength,
+           uint flags,
+           ref int copiedBytes);
 
         public DiagnosticAnalysisLauncher(string dumpFile, string outputFolder)
         {
@@ -236,12 +247,23 @@ namespace DiagnosticAnalysisLauncher
             string resultsViewerPath = Path.Combine(diagAnalysisDirectory, "ResultsViewer.html");
             string outputFile = Path.Combine(_outputFolder, $"DiagnosticAnalysis-{outputFileName}");
 
-            if (RunPowershellScript(
-                scriptPath: joinResultsViewerPath,
-                timeout: TimeSpan.FromSeconds(60),
+            var arguments = new List<string>
+            {
                 $@"-ResultsViewHtml ""{resultsViewerPath}""",
                 $@"-ResultsJson ""{jsonFilePath}""",
                 $@"-OutputFile ""{outputFile}"""
+            };
+
+            string azureStorageResourceId = GetAzureStorageResourceId();
+            if (!string.IsNullOrWhiteSpace(azureStorageResourceId))
+            {
+                arguments.Add($@"-AzureResourceId ""{azureStorageResourceId}""");
+            }
+
+            if (RunPowershellScript(
+                scriptPath: joinResultsViewerPath,
+                timeout: TimeSpan.FromSeconds(60),
+                arguments.ToArray()
             ))
             {
                 Logger.LogDiagnoserVerboseEvent($"Created report file at {outputFile}");
@@ -250,6 +272,18 @@ namespace DiagnosticAnalysisLauncher
             {
                 Logger.LogDiagnoserErrorEvent($"Failed to create report file at {outputFile}", string.Empty);
             }
+        }
+
+        private string GetAzureStorageResourceId()
+        {
+            string resourceId = GetSandboxProperty(SandboxPropertyStorageAccountResourceId);
+            if (!string.IsNullOrWhiteSpace(resourceId))
+            {
+                return resourceId;
+            }
+
+            resourceId = Environment.GetEnvironmentVariable(SandboxPropertyStorageAccountResourceId);
+            return resourceId;
         }
 
         private static string GetDiagnosticAnalysisDirectory()
@@ -261,11 +295,13 @@ namespace DiagnosticAnalysisLauncher
             return Path.Combine(binDir, "DiagnosticAnalysis");
         }
 
-        private bool RunPowershellScript(string scriptPath, TimeSpan timeout, params string[] arguments)
+        private bool RunPowershellScript(string scriptPath, TimeSpan timeout, string[] arguments)
         {
             using (var psProcess = new Process())
             {
-                psProcess.StartInfo = new ProcessStartInfo("PowerShell.exe", $@"-ExecutionPolicy RemoteSigned -File ""{scriptPath}"" " + string.Join(" ", arguments))
+                string powerShellArgs = $@"-ExecutionPolicy RemoteSigned -File ""{scriptPath}"" " + string.Join(" ", arguments);
+                Logger.LogDiagnoserVerboseEvent($"Launching Powershell.exe {powerShellArgs}");
+                psProcess.StartInfo = new ProcessStartInfo("PowerShell.exe", powerShellArgs)
                 {
                     CreateNoWindow = true,
                     UseShellExecute = false,
@@ -304,18 +340,34 @@ namespace DiagnosticAnalysisLauncher
                 if (psProcess.ExitCode == 0)
                 {
                     Logger.LogDiagnoserVerboseEvent($"The script terminated successfully.");
-                    Logger.LogDiagnoserVerboseEvent($"Script stdout: {outputBuilder.ToString()}");
+                    Logger.LogDiagnoserVerboseEvent($"Script stdout: {outputBuilder}");
                     Logger.LogDiagnoserVerboseEvent($"Script stderr: {errorBuilder}");
                 }
                 else
                 {
                     Logger.LogDiagnoserErrorEvent($"The script exit code was {psProcess.ExitCode}", string.Empty);
-                    Logger.LogDiagnoserErrorEvent($"Script stdout: {outputBuilder.ToString()}", string.Empty);
-                    Logger.LogDiagnoserErrorEvent($"Script stderr: {errorBuilder.ToString()}", string.Empty);
+                    Logger.LogDiagnoserErrorEvent($"Script stdout: {outputBuilder}", string.Empty);
+                    Logger.LogDiagnoserErrorEvent($"Script stderr: {errorBuilder}", string.Empty);
                 }
 
                 return psProcess.ExitCode == 0;
             }
+        }
+
+        private static string GetSandboxProperty(string propertyName)
+        {
+            int copiedBytes = 0;
+            byte[] valueBuffer = new byte[4096];
+            if (GetSandboxProperty(propertyName, valueBuffer, valueBuffer.Length, 0, ref copiedBytes))
+            {
+                string value = Encoding.Unicode.GetString(valueBuffer, 0, copiedBytes);
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    return value;
+                }
+            }
+
+            return string.Empty;
         }
     }
 }

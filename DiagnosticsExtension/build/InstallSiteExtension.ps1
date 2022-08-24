@@ -103,7 +103,7 @@ foreach($webapp in $allWebSites)
 }
 
 if ($mode -ne "uninstall"){
-    Compress-Archive -Path  "C:\source\DaaS\DiagnosticsExtension\bin\Release\PublishOutput\*" -DestinationPath $siteExtensionArchive -Force
+    Compress-Archive -Path  "D:\source\DaaS\DiagnosticsExtension\bin\Release\PublishOutput\*" -DestinationPath $siteExtensionArchive -Force
     Timeout /t 20 /nobreak
 }
 
