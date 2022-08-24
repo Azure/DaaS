@@ -63,7 +63,7 @@ namespace ClrProflingCollector
             }
             catch (Exception ex)
             {
-                Logger.LogDiagnoserErrorEvent("Failed while reading configuration to check for .net core processes", ex);
+                Logger.LogDiagnoserErrorEvent("Failed while reading configuration to check for .NET Core processes", ex);
             }
 
             foreach (var process in Process.GetProcesses())

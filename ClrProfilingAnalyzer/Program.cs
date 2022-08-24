@@ -19,12 +19,10 @@ using Microsoft.Diagnostics.Tracing.Etlx;
 using Microsoft.Diagnostics.Tracing.Stacks;
 using Microsoft.DiagnosticsHub.Packaging.InteropEx;
 using Newtonsoft.Json;
-using System.Collections;
 using System.Diagnostics;
 using Microsoft.Diagnostics.Tracing.Parsers.Kernel;
 using System.Runtime.InteropServices;
 using System.IO.Compression;
-using Microsoft.Diagnostics.Tracing.Parsers.Clr;
 using DaaS;
 
 namespace ClrProfilingAnalyzer
@@ -165,7 +163,7 @@ namespace ClrProfilingAnalyzer
                 Stopwatch stopWatch = new Stopwatch();
                 stopWatch.Start();
 
-                string etlFilePath = ExtractEtlFromDiagSession();
+                string etlFilePath = ExtractEtlFromDiagSession(out string uncompressedPath);
 
                 Logger.LogDiagnoserVerboseEvent($"Opening Trace File {etlFilePath}");
 
@@ -332,11 +330,32 @@ namespace ClrProfilingAnalyzer
                 stats.OutProcClrExceptions = exceptionsWithMessageOutProc.Count;
 
                 Logger.TraceStats(JsonConvert.SerializeObject(stats));
+
+                CleanupExtractedFiles(etlFilePath, uncompressedPath);
             }
             catch (Exception ex)
             {
                 Logger.LogDiagnoserErrorEvent("Failed while analyzing the trace", ex);
-                Logger.TraceFatal($"Failed while analyzing the trace with exception - {ex.GetType().ToString()}: {ex.Message}", false);
+                Logger.TraceFatal($"Failed while analyzing the trace with exception - {ex.GetType()}: {ex.Message}", false);
+            }
+        }
+
+        private static void CleanupExtractedFiles(string etlFilePath, string uncompressedPath)
+        {
+            try
+            {
+                FileSystemHelpers.DeleteFile(etlFilePath);
+                Logger.LogDiagnoserVerboseEvent($"Deleted file {etlFilePath}");
+                
+                if (!string.IsNullOrWhiteSpace(uncompressedPath))
+                {
+                    DeleteDirectory(uncompressedPath);
+                    Logger.LogDiagnoserVerboseEvent($"Deleted directory {uncompressedPath}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogDiagnoserWarningEvent("Failed while cleaning up the extracted file", ex);
             }
         }
 
@@ -1122,8 +1141,9 @@ namespace ClrProfilingAnalyzer
             return processId;
         }
 
-        private static string ExtractEtlFromDiagSession()
+        private static string ExtractEtlFromDiagSession(out string unCompressedPath)
         {
+            unCompressedPath = string.Empty;
             string etlFilePath = "";
 
             Logger.LogDiagnoserVerboseEvent($"Opening DiagSessionFile {m_DiagSessionPath}");
@@ -1163,10 +1183,11 @@ namespace ClrProfilingAnalyzer
                 string localFilePath = string.Empty;
                 try
                 {
-                    string unCompressedPath = string.Empty;
-
+                    //
                     // Doing this to avoid the PathTooLong exception which happens
                     // while extracing the zip file
+                    //
+
                     if (m_DiagSessionPath.StartsWith(EnvironmentVariables.LocalTemp, StringComparison.OrdinalIgnoreCase))
                     {
                         unCompressedPath = Path.Combine(EnvironmentVariables.LocalTemp, "ETL." + Guid.NewGuid().ToString().Replace("-", ""));
