@@ -72,9 +72,9 @@ namespace DaaS.Diagnostics
                     resp.Errors.Add($"Prevalidation failed for '{session.Tool}'. {additionalError}");
                     return resp;
                 }
-                
+
                 logs = GetLogsForSession(tempOutputDir);
-                Logger.LogSessionVerboseEvent($"Collected {logs.Count} log files for session", session.SessionId);
+                Logger.LogSessionVerboseEvent($"Collected '{string.Join(",", logs.Select(l => l.Name))}' log files for session", session.SessionId);
             }
 
             if (!logs.Any(x => !x.TempPath.EndsWith(".diaglog")))
@@ -101,7 +101,7 @@ namespace DaaS.Diagnostics
                 log.Name = Path.GetFileName(log.TempPath);
             }
 
-            await CopyLogsToPermanentLocationAsync(resp, session);
+            await CopyLogsToPermanentLocationAsync(resp, session, ct);
 
             Logger.LogSessionVerboseEvent($"Copied {resp.Logs.Count()} logs to permanent storage", session.SessionId);
 
@@ -221,19 +221,19 @@ namespace DaaS.Diagnostics
             return args;
         }
 
-        private async Task CopyLogsToPermanentLocationAsync(DiagnosticToolResponse resp, Session activeSession)
+        private async Task CopyLogsToPermanentLocationAsync(DiagnosticToolResponse resp, Session activeSession, CancellationToken cancellationToken)
         {
             if (RequiresStorageAccount)
             {
-                await CopyLogsToBlobStorage(resp, activeSession); 
+                await CopyLogsToBlobStorageAsync(resp, activeSession, cancellationToken);
             }
             else
             {
-                await CopyLogsToFileSystem(resp, activeSession);
+                await CopyLogsToFileSystemAsync(resp, activeSession, cancellationToken);
             }
         }
 
-        private async Task CopyLogsToBlobStorage(DiagnosticToolResponse resp, Session activeSession)
+        private async Task CopyLogsToBlobStorageAsync(DiagnosticToolResponse resp, Session activeSession, CancellationToken cancellationToken)
         {
             if (resp.Logs == null || !resp.Logs.Any())
             {
@@ -256,7 +256,8 @@ namespace DaaS.Diagnostics
                         ServerTimeout = TimeSpan.FromMinutes(10)
                     };
 
-                    await blob.UploadFromFileAsync(log.TempPath, null, blobRequestOptions, null);
+                    Logger.LogSessionVerboseEvent($"Uploading {logPath} to blob storage", activeSession.SessionId);
+                    await blob.UploadFromFileAsync(log.TempPath, null, blobRequestOptions, null, cancellationToken);
                     log.PartialPath = ConvertBackSlashesToForwardSlashes(logPath);
                     Logger.LogSessionVerboseEvent($"Uploaded {logPath} to blob storage", activeSession.SessionId);
                 }
@@ -268,13 +269,13 @@ namespace DaaS.Diagnostics
             }
         }
 
-        private async Task CopyLogsToFileSystem(DiagnosticToolResponse resp, Session activeSession)
+        private async Task CopyLogsToFileSystemAsync(DiagnosticToolResponse resp, Session activeSession, CancellationToken cancellationToken)
         {
             if (resp.Logs == null || !resp.Logs.Any())
             {
                 return;
             }
-            
+
             foreach (var log in resp.Logs)
             {
                 string logPath = Path.Combine(
@@ -287,7 +288,7 @@ namespace DaaS.Diagnostics
 
                 try
                 {
-                    await MoveFileAsync(log.TempPath, destination, activeSession.SessionId, deleteAfterCopy: activeSession.Mode == Mode.Collect);
+                    await MoveFileAsync(log.TempPath, destination, activeSession.SessionId, cancellationToken);
                 }
                 catch (Exception ex)
                 {
