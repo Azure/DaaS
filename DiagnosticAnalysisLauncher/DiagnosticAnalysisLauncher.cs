@@ -288,11 +288,11 @@ namespace DiagnosticAnalysisLauncher
 
         private static string GetDiagnosticAnalysisDirectory()
         {
-            // The app is in bin/DiagnosticTools/DiagnosticAnalysisLauncher.exe
-            // We need to return bin/DiagnosticAnalysis
+            // The app is in <ROOT>/bin/DiagnosticTools/DiagnosticAnalysisLauncher.exe
+            // We need to return <ROOT>/DiagnosticAnalysis
 
-            var binDir = Path.GetDirectoryName(Path.GetDirectoryName(typeof(DiagnosticAnalysisLauncher).Assembly.Location));
-            return Path.Combine(binDir, "DiagnosticAnalysis");
+            var rootDir = Path.GetDirectoryName(Path.GetDirectoryName(Path.GetDirectoryName(typeof(DiagnosticAnalysisLauncher).Assembly.Location)));
+            return Path.Combine(rootDir, "DiagnosticAnalysis");
         }
 
         private bool RunPowershellScript(string scriptPath, TimeSpan timeout, string[] arguments)
