@@ -27,7 +27,7 @@ namespace DaaS.Diagnostics
             Arguments = diagnoser.Analyzer.Arguments;
         }
 
-        internal async Task AnalyzeLogsAsync(List<LogFile> logs, Session activeSession, CancellationToken token)
+        internal async Task AnalyzeLogsAsync(List<LogFile> logs, Session activeSession, CancellationToken cancellationToken)
         {
             try
             {
@@ -56,14 +56,14 @@ namespace DaaS.Diagnostics
 
                     CancellationTokenSource analyzerTimeoutCts = new CancellationTokenSource();
                     analyzerTimeoutCts.CancelAfter(TimeSpan.FromMinutes(Infrastructure.Settings.MaxAnalyzerTimeInMinutes));
-                    var combinedCancellationSource = CancellationTokenSource.CreateLinkedTokenSource(token, analyzerTimeoutCts.Token);
+                    var combinedCancellationSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, analyzerTimeoutCts.Token);
 
                     await Task.Run(() => RunProcessAsync(Command, args, activeSession.SessionId, activeSession.Description, combinedCancellationSource.Token), combinedCancellationSource.Token);
                 }
 
                 AppendReportsToLogs(activeSession, logs);
 
-                await CopyReportsToPermanentLocationAsync(logs, activeSession);
+                await CopyReportsToPermanentLocationAsync(logs, activeSession, cancellationToken);
             }
             catch (Exception ex)
             {
@@ -109,7 +109,7 @@ namespace DaaS.Diagnostics
             }
         }
 
-        private async Task CopyReportsToPermanentLocationAsync(List<LogFile> logs, Session activeSession)
+        private async Task CopyReportsToPermanentLocationAsync(List<LogFile> logs, Session activeSession, CancellationToken cancellationToken)
         {
             foreach (var log in logs)
             {
@@ -122,7 +122,7 @@ namespace DaaS.Diagnostics
 
                     try
                     {
-                        await MoveFileAsync(report.TempPath, destination, activeSession.SessionId, deleteAfterCopy: true);
+                        await MoveFileAsync(report.TempPath, destination, activeSession.SessionId, cancellationToken);
                     }
                     catch (Exception ex)
                     {

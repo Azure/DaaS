@@ -363,6 +363,7 @@ namespace DaaS.Sessions
                 orphanedInstanceNames = activeSession.Instances.Where(x => !activeInstances.Contains(x)).ToList();
                 if (orphanedInstanceNames != null)
                 {
+                    Logger.LogSessionVerboseEvent($"ActiveSessionJson = {JsonConvert.SerializeObject(activeSession)}", activeSession.SessionId);
                     Logger.LogSessionVerboseEvent($"orphanedInstanceNames = {string.Join(",", orphanedInstanceNames)}", activeSession.SessionId);
                 }
             }
@@ -436,7 +437,8 @@ namespace DaaS.Sessions
             var activeSession = await GetActiveSessionAsync();
             if (activeSession == null)
             {
-                Logger.LogSessionErrorEvent("Failed while analyzing the session", "ActiveSession is NULL. Another instance might have completed the session", sessionId);
+                Logger.LogSessionWarningEvent("Failed while analyzing the session", "ActiveSession is NULL. Another instance might have completed the session", sessionId);
+                return;
             }
 
             if (activeSession.Mode == Mode.Collect)

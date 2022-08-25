@@ -127,7 +127,7 @@ namespace DaaS.Diagnostics
         }
 
         // https://stackoverflow.com/questions/882686/non-blocking-file-copy-in-c-sharp
-        protected async Task MoveFileAsync(string sourceFile, string destinationFile, string sessionId, bool deleteAfterCopy)
+        protected async Task MoveFileAsync(string sourceFile, string destinationFile, string sessionId, CancellationToken cancellationToken)
         {
             try
             {
@@ -138,16 +138,11 @@ namespace DaaS.Diagnostics
                 {
                     using (var destinationStream = new FileStream(destinationFile, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, FileOptions.Asynchronous | FileOptions.SequentialScan))
                     {
-                        await sourceStream.CopyToAsync(destinationStream);
+                        await sourceStream.CopyToAsync(destinationStream, 81920, cancellationToken);
                     }
                 }
 
                 Logger.LogSessionVerboseEvent($"File copied from {sourceFile} to {destinationFile}", sessionId);
-
-                if (deleteAfterCopy)
-                {
-                    FileSystemHelpers.DeleteFileSafe(sourceFile);
-                }
             }
             catch (Exception ex)
             {
