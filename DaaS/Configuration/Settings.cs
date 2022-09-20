@@ -28,6 +28,7 @@ namespace DaaS.Configuration
         const string DefaultHostNameSandboxProperty = "SANDBOX_FUNCTION_RESOURCE_ID";
         const string DaasStorageSasUri = "WEBSITE_DAAS_STORAGE_SASURI";
         const string DaasStorageConnectionString = "WEBSITE_DAAS_STORAGE_CONNECTIONSTRING";
+        const string SandboxPropertyStorageAccountResourceId = "WEBSITE_DAAS_STORAGE_RESOURCEID";
         const string ContainerName = "memorydumps";
 
         private string _diagnosticToolsPath;
@@ -87,6 +88,29 @@ namespace DaaS.Configuration
                 }
 
                 string envvar = Environment.GetEnvironmentVariable(DaasStorageSasUri);
+                if (!string.IsNullOrWhiteSpace(envvar))
+                {
+                    return envvar;
+                }
+
+                return string.Empty;
+            }
+        }
+
+        internal string AccountResourceId
+        {
+            get
+            {
+                if (IsSandBoxAvailable())
+                {
+                    string resourceId = GetSandboxProperty(SandboxPropertyStorageAccountResourceId);
+                    if (!string.IsNullOrWhiteSpace(resourceId))
+                    {
+                        return resourceId;
+                    }
+                }
+
+                string envvar = Environment.GetEnvironmentVariable(SandboxPropertyStorageAccountResourceId);
                 if (!string.IsNullOrWhiteSpace(envvar))
                 {
                     return envvar;

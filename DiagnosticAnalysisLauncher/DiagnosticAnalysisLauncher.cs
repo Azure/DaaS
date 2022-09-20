@@ -6,6 +6,7 @@
 // -----------------------------------------------------------------------
 
 using DaaS;
+using DaaS.Configuration;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -22,7 +23,6 @@ namespace DiagnosticAnalysisLauncher
     {
         private const int MaxProcessorTime = 300;
         private const int MaxPrivateBytes = 800 * 1024 * 1024;
-        private const string SandboxPropertyStorageAccountResourceId = "WEBSITE_DAAS_STORAGE_RESOURCEID";
         private readonly string _dumpFile;
         private readonly string _outputFolder;
 
@@ -254,10 +254,15 @@ namespace DiagnosticAnalysisLauncher
                 $@"-OutputFile ""{outputFile}"""
             };
 
-            string azureStorageResourceId = GetAzureStorageResourceId();
+            string azureStorageResourceId = Settings.Instance.AccountResourceId;
             if (!string.IsNullOrWhiteSpace(azureStorageResourceId))
             {
-                arguments.Add($@"-AzureResourceId ""{azureStorageResourceId}""");
+                var azureBlobUri = GetAzureStorageBlobUri();
+                if (!string.IsNullOrWhiteSpace(azureBlobUri))
+                {
+                    arguments.Add($@"-AzureResourceId ""{azureStorageResourceId}""");
+                    arguments.Add($@"-AzureBlobUri ""{azureBlobUri}""");
+                }
             }
 
             if (RunPowershellScript(
@@ -274,16 +279,44 @@ namespace DiagnosticAnalysisLauncher
             }
         }
 
-        private string GetAzureStorageResourceId()
+        private string GetAzureStorageBlobUri()
         {
-            string resourceId = GetSandboxProperty(SandboxPropertyStorageAccountResourceId);
-            if (!string.IsNullOrWhiteSpace(resourceId))
+            var sasUri = Settings.Instance.AccountSasUri;
+            if (string.IsNullOrWhiteSpace(sasUri))
             {
-                return resourceId;
+                return string.Empty;
             }
 
-            resourceId = Environment.GetEnvironmentVariable(SandboxPropertyStorageAccountResourceId);
-            return resourceId;
+            /*  The SAS Uri format:
+                    https://<account host name>/<container name>?<sas params>
+                The dump file path format:
+                    <LogsTempDir>\<dump file relative path>
+                The Azure storage blob uri should be:
+                    https://<account host name>/<container name>/<app host name>/<dump file relative path>
+            */
+
+            // accountAndContainerUri = 'https://<account host name>/<container name>'
+            var splitArray = sasUri.Split('?');
+            if (splitArray.Length <= 0)
+            {
+                return string.Empty;
+            }
+            var accountAndContainerUri = splitArray[0]; // if there's no '?', we'll just use the entire string
+
+            var tempDir = DaasDirectory.LogsTempDir;
+            if (!_dumpFile.StartsWith(tempDir))
+            {
+                // the dump needs to be stored in the temp directory;
+                return string.Empty;
+            }
+
+            var dumpRelativePath = _dumpFile.Substring(tempDir.Length + 1 /* trim the leading '\' too */);
+            if (string.IsNullOrWhiteSpace(dumpRelativePath))
+            {
+                return string.Empty;
+            }
+
+            return $"{accountAndContainerUri}/{Settings.Instance.DefaultHostName}/{dumpRelativePath}".Replace('\\', '/');
         }
 
         private static string GetDiagnosticAnalysisDirectory()

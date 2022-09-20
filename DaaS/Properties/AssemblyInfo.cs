@@ -19,6 +19,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyCulture("")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("DaaSTests")]
 [assembly: System.Runtime.CompilerServices.InternalsVisibleTo("DynamicProxyGenAssembly2")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("DiagnosticAnalysisLauncher")]
 
 // The following GUID is for the ID of the typelib if this project is exposed to COM
 [assembly: Guid("cda96362-3f19-4fe7-a33f-d3b15f307551")]
