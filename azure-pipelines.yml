@@ -164,7 +164,7 @@ steps:
       Set-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -AlwaysOn $true | Out-Null
 
       Write-Host "Adding AppSettings for WebApp"
-      $setting=@{"MSBUILD_PATH"="%MSBUILD_15_DIR%\\msbuild.exe";"WEBSITE_DAAS_STORAGE_SASURI"= "$sasUrl"}
+      $setting=@{"MSBUILD_PATH"="%MSBUILD_15_DIR%\\msbuild.exe";"WEBSITE_DAAS_STORAGE_SASURI"= "$sasUrl";"WEBSITE_DAAS_STORAGE_RESOURCEID"= "/resource/subscriptions/6b6db65f-680e-4650-b97d-e82ed6a0f583/resourceGroups/DAAS-DevOps-Testing/providers/Microsoft.Storage/storageAccounts/daasdevopsstorage"}
       Set-AzWebApp -AppSettings $setting -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP | Out-Null
 
       $srcWebApp = Get-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP
