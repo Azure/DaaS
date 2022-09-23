@@ -9,6 +9,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using DaaS.Sessions;
 using DiagnosticsExtension.Controllers;
@@ -122,6 +123,22 @@ namespace Daas.Test
             long minDumpSize = 52428800; // 50 MB
             long maxDumpSize = 5368709120; // 5GB
             Assert.InRange<long>(log.Size, minDumpSize, maxDumpSize);
+
+            // simple sanity check that verifies the html report contains a reference to the dmp file (for the "Open in VS" scenario")
+            Report htmlReport = log.Reports.FirstOrDefault(r => r.Name.EndsWith(".html"));
+            Assert.NotNull(htmlReport);
+
+            var htmlReportResponse = await _client.GetAsync("api/vfs/" + htmlReport.PartialPath);
+            Assert.True(htmlReportResponse.IsSuccessStatusCode);
+
+            var htmlReportContent = await htmlReportResponse.Content.ReadAsStringAsync();
+
+            var dmpBlobUri = log.RelativePath.Split('?')[0];// remove the SAS token URL params
+            Assert.True(htmlReportContent.Contains(dmpBlobUri), "The HTML report needs to contain a reference to the Azure Storage blob containing the dump.");
+
+            var storageAccountName = session.BlobStorageHostName.Split('.')[0];
+            var storageResourceIdRegex = new Regex($"/subscriptions/[a-z0-9\\-]+/resourceGroups/[\\w0-9\\-_\\(\\)\\.]+/providers/Microsoft\\.Storage/storageAccounts/{storageAccountName}");
+            Assert.True(storageResourceIdRegex.IsMatch(htmlReportContent), "The HTML report needs to contain a reference to the Azure Storage resource id containing the dump.");
         }
 
         [Fact]
