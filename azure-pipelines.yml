@@ -10,7 +10,7 @@ resources:
      endpoint: DiagServerCheckout
      type: git
      name: Antares/AAPT-Antares-DiagnosticServer
-     ref: main
+     ref: refs/head/main
    
 
 trigger:
