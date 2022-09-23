@@ -3,6 +3,15 @@
 # Add steps that publish symbols, save build artifacts, deploy, and more:
 # https://docs.microsoft.com/azure/devops/pipelines/apps/aspnet/build-aspnet-4
 
+
+resources:
+  repositories:
+   - repository: DiagnosticServer
+     endpoint: DiagServerCheckout
+     type: git
+     name: Antares/AAPT-Antares-DiagnosticServer
+   
+
 trigger:
   batch: true
   branches:
@@ -11,6 +20,8 @@ trigger:
   paths:
     exclude:
       - README.md
+
+
 
 pool:
   vmImage: 'windows-latest'
@@ -24,6 +35,8 @@ variables:
   GitRepoAspNet: https://github.com/puneetg1983/WebCampGit
 
 steps:
+
+- checkout: DiagnosticServer
 - task: NuGetToolInstaller@1
 
 - task: NuGetCommand@2
@@ -70,6 +83,14 @@ steps:
 
       $uniqueSiteName = "daasdevops" + (Get-Date -Format "yyyyMMdd-hhmm")
       Write-Host "##vso[task.setvariable variable=SITE_NAME]$uniqueSiteName"
+
+
+- task: CmdLine@2
+  displayName: 'Install dotnet-monitor'
+  inputs:
+    script: |     
+      echo Installing dotnet monitor
+      dotnet tool install dotnet-monitor --tool-path '$(Build.ArtifactStagingDirectory)/dotnet-monitor'
 
 - task: ArchiveFiles@2
   displayName: 'Create Daas Site Extension Zip file'
