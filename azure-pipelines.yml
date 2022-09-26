@@ -282,16 +282,16 @@ steps:
     KUDU_PASSWORD: $(KUDU_PASSWORD)
 
 
-- task: AzurePowerShell@5
-  displayName: 'Delete App and App Service Plan'
-  inputs:
-    azureSubscription: 'Private Test Sub PUNEETG(6b6db65f-680e-4650-b97d-e82ed6a0f583)'
-    ScriptType: 'InlineScript'
-    Inline: |
-      Write-Host "Removing WebApps"
-      Get-AzResource -ResourceGroupName $Env:RESOURCE_GROUP -ResourceType Microsoft.Web/sites | Remove-AzResource -Force
-      Write-Host "Removing App Service Plans"
-      Get-AzResource -ResourceGroupName $Env:RESOURCE_GROUP -ResourceType Microsoft.Web/serverfarms | Remove-AzResource -Force
+# - task: AzurePowerShell@5
+#   displayName: 'Delete App and App Service Plan'
+#   inputs:
+#     azureSubscription: 'Private Test Sub PUNEETG(6b6db65f-680e-4650-b97d-e82ed6a0f583)'
+#     ScriptType: 'InlineScript'
+#     Inline: |
+#       Write-Host "Removing WebApps"
+#       Get-AzResource -ResourceGroupName $Env:RESOURCE_GROUP -ResourceType Microsoft.Web/sites | Remove-AzResource -Force
+#       Write-Host "Removing App Service Plans"
+#       Get-AzResource -ResourceGroupName $Env:RESOURCE_GROUP -ResourceType Microsoft.Web/serverfarms | Remove-AzResource -Force
 
-    azurePowerShellVersion: 'LatestVersion'
+#     azurePowerShellVersion: 'LatestVersion'
 
