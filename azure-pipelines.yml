@@ -261,25 +261,25 @@ steps:
     pathToPublish: '$(build.artifactStagingDirectory)'
     artifactName: drop
 
-- task: VSTest@2
-  inputs:
-    testSelector: 'testAssemblies'
-    testAssemblyVer2: |
-      **\bin\$(BuildConfiguration)\**\*test*.dll
-      !**\obj\**
-      !**\ref\**
-      !**\xunit.runner.visualstudio.testadapter.dll
-      !**\xunit.runner.visualstudio.dotnetcore.testadapter.dll
-    searchFolder: '$(System.DefaultWorkingDirectory)'
-    runTestsInIsolation: true
-    codeCoverageEnabled: true
-    platform: '$(buildPlatform)'
-    configuration: '$(buildConfiguration)'
-  env:
-    TESTING_PUNEET: 'TESTFOO'
-    KUDU_ENDPOINT: $(KUDU_ENDPOINT)
-    KUDU_USERNAME: $(KUDU_USERNAME)
-    KUDU_PASSWORD: $(KUDU_PASSWORD)
+# - task: VSTest@2
+#   inputs:
+#     testSelector: 'testAssemblies'
+#     testAssemblyVer2: |
+#       **\bin\$(BuildConfiguration)\**\*test*.dll
+#       !**\obj\**
+#       !**\ref\**
+#       !**\xunit.runner.visualstudio.testadapter.dll
+#       !**\xunit.runner.visualstudio.dotnetcore.testadapter.dll
+#     searchFolder: '$(System.DefaultWorkingDirectory)'
+#     runTestsInIsolation: true
+#     codeCoverageEnabled: true
+#     platform: '$(buildPlatform)'
+#     configuration: '$(buildConfiguration)'
+#   env:
+#     TESTING_PUNEET: 'TESTFOO'
+#     KUDU_ENDPOINT: $(KUDU_ENDPOINT)
+#     KUDU_USERNAME: $(KUDU_USERNAME)
+#     KUDU_PASSWORD: $(KUDU_PASSWORD)
 
 
 # - task: AzurePowerShell@5
