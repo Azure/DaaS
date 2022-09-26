@@ -9,7 +9,6 @@ resources:
    - repository: DiagnosticServer
      type: git
      name: Antares/AAPT-Antares-DiagnosticServer
-     ref: refs/head/main
    
 
 trigger:
