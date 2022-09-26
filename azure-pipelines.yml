@@ -7,7 +7,6 @@
 resources:
   repositories:
    - repository: DiagnosticServer
-     endpoint: DiagServerCheckout
      type: git
      name: Antares/AAPT-Antares-DiagnosticServer
      ref: refs/head/main
