@@ -111,7 +111,11 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
 
             CloudBlobClient client = storageAccount.CreateCloudBlobClient();
             client.GetServiceProperties();
-            client.ListContainers();
+            IEnumerable<CloudBlobContainer> containerList = client.ListContainers();
+            foreach (var container in containerList)
+            {
+                container.ListBlobs();
+            }
 
             return Task.FromResult(data);
         }
