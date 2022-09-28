@@ -26,7 +26,7 @@ pool:
   vmImage: 'windows-latest'
 
 variables:
-  solution: 'DaaS/*.sln'
+  solution: 'DaaS/**/*.sln'
   buildPlatform: 'x64'
   buildConfiguration: 'Release'
   LOCATION: 'West US 2'
@@ -45,7 +45,7 @@ steps:
     command: 'restore'
     restoreSolution: '$(solution)'
     feedsToUse: 'config'
-    nugetConfigPath: './nuget.config'
+    nugetConfigPath: 'DaaS/nuget.config'
 
 - task: DotNetCoreCLI@2
   displayName: 'Restore DiagServer'
@@ -53,7 +53,7 @@ steps:
     command: 'restore'
     projects: 'AAPT-Antares-DiagnosticServer/**/*.csproj'
     feedsToUse: 'config'
-    nugetConfigPath: './nuget.config'
+    nugetConfigPath: 'AAPT-Antares-DiagnosticServer/nuget.config'
 
 - task: DotNetCoreCLI@2
   displayName: 'Build DiagServer'
