@@ -102,12 +102,12 @@ steps:
       Write-Host "##vso[task.setvariable variable=SITE_NAME]$uniqueSiteName"
 
 
-- task: CmdLine@2
-  displayName: 'Install dotnet-monitor'
-  inputs:
-    script: |     
-      echo Installing dotnet monitor
-      dotnet tool install dotnet-monitor --version 6.2.2 --tool-path '$(Build.ArtifactStagingDirectory)/dotnet-monitor'
+# - task: CmdLine@2
+#   displayName: 'Install dotnet-monitor'
+#   inputs:
+#     script: |     
+#       echo Installing dotnet monitor
+#       dotnet tool install dotnet-monitor --version 6.2.2 --tool-path '$(Build.ArtifactStagingDirectory)/dotnet-monitor'
 
 - task: ArchiveFiles@2
   displayName: 'Create Daas Site Extension Zip file'
