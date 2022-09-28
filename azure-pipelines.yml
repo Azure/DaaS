@@ -55,21 +55,18 @@ steps:
     feedsToUse: 'config'
     nugetConfigPath: 'AAPT-Antares-DiagnosticServer/nuget.config'
 
-- task: DotNetCoreCLI@2
+
+- task: VSBuild@1
   displayName: 'Build DiagServer'
   inputs:
-    command: 'build'
-    projects: 'AAPT-Antares-DiagnosticServer/**/*.csproj'
+    solution: 'AAPT-Antares-DiagnosticServer/**/*.sln'
+    msbuildArgs: '/p:Configuration=Release /p:DeployOnBuild=true /p:WebPublishMethod=FileSystem /p:PublishProfile=FolderProfile.pubxml /p:PackageAsSingleFile=true /p:publishUrl="$(build.artifactStagingDirectory)\\"'
+    platform: '$(buildPlatform)'
+    configuration: '$(buildConfiguration)'
+
 
 - task: VSBuild@1
   displayName: 'Build DaaS'
-  inputs:
-    solution: '$(solution)'
-    platform: '$(buildPlatform)'
-    configuration: '$(buildConfiguration)'
-    arguments: '--configuration $(buildConfiguration)'
-
-- task: VSBuild@1
   inputs:
     solution: '$(solution)'
     msbuildArgs: '/p:Configuration=Release /p:DeployOnBuild=true /p:WebPublishMethod=FileSystem /p:PublishProfile=FolderProfile.pubxml /p:PackageAsSingleFile=true /p:publishUrl="$(build.artifactStagingDirectory)\\"'
@@ -102,12 +99,12 @@ steps:
       Write-Host "##vso[task.setvariable variable=SITE_NAME]$uniqueSiteName"
 
 
-# - task: CmdLine@2
-#   displayName: 'Install dotnet-monitor'
-#   inputs:
-#     script: |     
-#       echo Installing dotnet monitor
-#       dotnet tool install dotnet-monitor --version 6.2.2 --tool-path '$(Build.ArtifactStagingDirectory)/dotnet-monitor'
+- task: CmdLine@2
+  displayName: 'Install dotnet-monitor'
+  inputs:
+    script: |     
+      echo Installing dotnet monitor
+      dotnet tool install dotnet-monitor --version 6.2.2 --tool-path '$(build.artifactStagingDirectory)/dotnet-monitor'
 
 - task: ArchiveFiles@2
   displayName: 'Create Daas Site Extension Zip file'
