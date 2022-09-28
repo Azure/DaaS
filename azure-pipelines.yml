@@ -107,7 +107,7 @@ steps:
   inputs:
     script: |     
       echo Installing dotnet monitor
-      dotnet tool install dotnet-monitor --tool-path '$(Build.ArtifactStagingDirectory)/dotnet-monitor'
+      dotnet tool install dotnet-monitor --version 6.2.2 --tool-path '$(Build.ArtifactStagingDirectory)/dotnet-monitor'
 
 - task: ArchiveFiles@2
   displayName: 'Create Daas Site Extension Zip file'
