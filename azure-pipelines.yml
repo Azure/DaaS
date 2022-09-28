@@ -109,7 +109,7 @@ steps:
   displayName: 'Install Dotnet Monitor'
   inputs:
     command: 'custom'
-    custom: 'dotnet tool install dotnet-monitor --version 6.2.2 --tool-path '$(build.artifactStagingDirectory)\dotnet-monitor'
+    custom: 'dotnet tool install dotnet-monitor --version 6.2.2 --tool-path $(build.artifactStagingDirectory)/dotnet-monitor'
 
 
 
