@@ -43,7 +43,7 @@ steps:
     command: 'restore'
     restoreSolution: '$(solution)'
     feedsToUse: 'select'
-    vstsFeed: 'b2430cf7-78c0-440a-aa4a-a25665c5778e'
+    vstsFeed: 'antares-websites'
 
 - task: VSBuild@1
   inputs:
