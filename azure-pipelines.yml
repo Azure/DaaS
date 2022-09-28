@@ -62,6 +62,7 @@ steps:
     projects: 'AAPT-Antares-DiagnosticServer/**/*.csproj'
 
 - task: VSBuild@1
+  displayName: 'Build DaaS'
   inputs:
     solution: '$(solution)'
     platform: '$(buildPlatform)'
