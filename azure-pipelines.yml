@@ -42,8 +42,8 @@ steps:
   inputs:
     command: 'restore'
     restoreSolution: '$(solution)'
-    feedsToUse: 'select'
-    vstsFeed: '9912b5ff-89a4-4651-bae2-9452eb7992a8'
+    feedsToUse: 'config'
+    nugetConfigPath: './nuget.config'
 
 - task: VSBuild@1
   inputs:
