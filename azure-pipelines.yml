@@ -55,14 +55,20 @@ steps:
     feedsToUse: 'config'
     nugetConfigPath: 'AAPT-Antares-DiagnosticServer/nuget.config'
 
-
-- task: VSBuild@1
+- task: DotNetCoreCLI@2
   displayName: 'Build DiagServer'
   inputs:
-    solution: 'AAPT-Antares-DiagnosticServer/**/*.sln'
-    msbuildArgs: '/p:Configuration=Release /p:DeployOnBuild=true /p:WebPublishMethod=FileSystem /p:PublishProfile=FolderProfile.pubxml /p:PackageAsSingleFile=true /p:publishUrl="$(build.artifactStagingDirectory)\\"'
-    platform: '$(buildPlatform)'
-    configuration: '$(buildConfiguration)'
+    command: 'build'
+    projects: 'AAPT-Antares-DiagnosticServer/**/*.csproj'
+    arguments: '--configuration $(buildConfiguration)'
+
+- task: DotNetCoreCLI@2
+  inputs:
+    command: 'publish'
+    publishWebProjects: false
+    projects: 'AAPT-Antares-DiagnosticServer/**/*.csproj'
+    arguments: '--configuration $(BuildConfiguration) --output $(build.artifactstagingdirectory)'
+    zipAfterPublish: false
 
 
 - task: VSBuild@1
