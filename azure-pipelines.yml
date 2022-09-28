@@ -105,13 +105,13 @@ steps:
       $uniqueSiteName = "daasdevops" + (Get-Date -Format "yyyyMMdd-hhmm")
       Write-Host "##vso[task.setvariable variable=SITE_NAME]$uniqueSiteName"
 
-
-- task: CmdLine@2
-  displayName: 'Install dotnet-monitor'
+- task: DotNetCoreCLI@2
+  displayName: 'Install Dotnet Monitor'
   inputs:
-    script: |     
-      echo Installing dotnet monitor
-      dotnet tool install dotnet-monitor --version 6.2.2 --tool-path '$(build.artifactStagingDirectory)/dotnet-monitor'
+    command: 'custom'
+    custom: 'dotnet tool install dotnet-monitor --version 6.2.2 --tool-path '$(build.artifactStagingDirectory)/dotnet-monitor'
+
+
 
 - task: ArchiveFiles@2
   displayName: 'Create Daas Site Extension Zip file'
