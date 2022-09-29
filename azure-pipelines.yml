@@ -63,14 +63,11 @@ steps:
     arguments: '--configuration $(buildConfiguration)'
 
 - task: DotNetCoreCLI@2
-  displayName: 'Publish DiagServer'
+  displayName: Package DiagServer
   inputs:
-    command: 'publish'
-    publishWebProjects: false
-    projects: 'AAPT-Antares-DiagnosticServer/src/diagserver/*.csproj'
-    arguments: '--configuration $(BuildConfiguration) --output $(build.artifactstagingdirectory)'
-    zipAfterPublish: false
-
+    command: 'pack'
+    packagesToPack: 'AAPT-Antares-DiagnosticServer/src/diagserver/*.csproj'
+    versioningScheme: 'off'
 
 - task: VSBuild@1
   displayName: 'Build DaaS'
