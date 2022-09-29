@@ -112,6 +112,10 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             CloudBlobClient client = storageAccount.CreateCloudBlobClient();
             client.GetServiceProperties();
             IEnumerable<CloudBlobContainer> containerList = client.ListContainers();
+
+            //Control plane API allows listing containers even for private storage
+            //But listing blob will not be allowed if the storage is private
+            //Therefore, this check is needed to verify if we can access blobs
             foreach (var container in containerList)
             {
                 container.ListBlobs();
