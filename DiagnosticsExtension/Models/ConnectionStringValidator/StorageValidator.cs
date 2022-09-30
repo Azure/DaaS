@@ -119,6 +119,7 @@ namespace DiagnosticsExtension.Models.ConnectionStringValidator
             foreach (var container in containerList)
             {
                 container.ListBlobs();
+                break;
             }
 
             return Task.FromResult(data);
