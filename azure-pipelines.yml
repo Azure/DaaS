@@ -55,21 +55,6 @@ steps:
     feedsToUse: 'config'
     nugetConfigPath: 'AAPT-Antares-DiagnosticServer/nuget.config'
 
-- task: DotNetCoreCLI@2
-  displayName: 'Build DiagServer'
-  inputs:
-    command: 'build'
-    projects: 'AAPT-Antares-DiagnosticServer/**/*.csproj'
-    arguments: '--configuration $(buildConfiguration)'
-
-- task: DotNetCoreCLI@2
-  displayName: Publish DiagServer
-  inputs:
-    command: 'publish'
-    publishWebProjects: false
-    projects: 'AAPT-Antares-DiagnosticServer/src/diagserver'
-    arguments: '--configuration $(BuildConfiguration) --output $(Build.ArtifactStagingDirectory)/diagserver'
-
 - task: VSBuild@1
   displayName: 'Build DaaS'
   inputs:
@@ -77,6 +62,23 @@ steps:
     msbuildArgs: '/p:Configuration=Release /p:DeployOnBuild=true /p:WebPublishMethod=FileSystem /p:PublishProfile=FolderProfile.pubxml /p:PackageAsSingleFile=true /p:publishUrl="$(build.artifactStagingDirectory)\\"'
     platform: '$(buildPlatform)'
     configuration: '$(buildConfiguration)'
+
+- task: DotNetCoreCLI@2
+  displayName: 'Build DiagServer'
+  inputs:
+    command: 'build'
+    projects: 'AAPT-Antares-DiagnosticServer/src/diagserver/diagserver.csproj'
+    arguments: '--configuration $(buildConfiguration)'
+
+
+- task: DotNetCoreCLI@2
+  displayName: Publish DiagServer
+  inputs:
+    command: 'publish'
+    publishWebProjects: false
+    projects: 'AAPT-Antares-DiagnosticServer/src/diagserver/diagserver.csproj'
+    arguments: '--configuration $(BuildConfiguration) --output $(Build.ArtifactStagingDirectory)/diagserver'
+    zipAfterPublish: false
 
 - task: PowerShell@2
   displayName: 'Delete additional files'
