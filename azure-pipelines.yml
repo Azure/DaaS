@@ -68,7 +68,7 @@ steps:
     command: 'publish'
     publishWebProjects: false
     projects: 'AAPT-Antares-DiagnosticServer/src/diagserver'
-    arguments: '--configuration $(BuildConfiguration) --output $(Build.ArtifactStagingDirectory)'
+    arguments: '--configuration $(BuildConfiguration) --output $(Build.ArtifactStagingDirectory)/diagserver'
 
 - task: VSBuild@1
   displayName: 'Build DaaS'
