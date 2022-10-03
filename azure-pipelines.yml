@@ -102,11 +102,12 @@ steps:
       $uniqueSiteName = "daasdevops" + (Get-Date -Format "yyyyMMdd-hhmm")
       Write-Host "##vso[task.setvariable variable=SITE_NAME]$uniqueSiteName"
 
-# - task: DotNetCoreCLI@2
-#   displayName: 'Install Dotnet Monitor'
-#   inputs:
-#     command: 'custom'
-#     custom: 'dotnet tool install dotnet-monitor --version 6.2.2 --tool-path $(build.artifactStagingDirectory)/dotnet-monitor'
+- task: DotNetCoreCLI@2
+  displayName: 'Install Dotnet Monitor'
+  inputs:
+    command: 'custom'
+    custom: 'tool'
+    arguments: install dotnet-monitor --version 6.2.2 --tool-path $(build.artifactStagingDirectory)/dotnet-monitor
 
 
 
