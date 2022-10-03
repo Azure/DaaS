@@ -77,7 +77,7 @@ steps:
     command: 'publish'
     publishWebProjects: false
     projects: 'AAPT-Antares-DiagnosticServer/src/diagserver/diagserver.csproj'
-    arguments: '--configuration $(BuildConfiguration) --output $(Build.ArtifactStagingDirectory)/diagserver'
+    arguments: '--configuration $(BuildConfiguration) --output $(Build.ArtifactStagingDirectory)'
     zipAfterPublish: false
 
 - task: PowerShell@2
@@ -96,6 +96,7 @@ steps:
       Remove-Item $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\Dia2Lib.dll -Verbose
       Remove-Item $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\OSExtensions.dll -Verbose
       Remove-Item $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\TraceReloggerLib.dll -Verbose
+      Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\diagserver\diagnosticscli -Verbose
 
       $fileVersion = [System.Diagnostics.FileVersionInfo]::GetVersionInfo("$Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\daas.dll").FileVersion
       $fileVersion
@@ -110,7 +111,7 @@ steps:
   inputs:
     command: 'custom'
     custom: 'tool'
-    arguments: install dotnet-monitor --version 6.2.2 --tool-path $(build.artifactStagingDirectory)/dotnet-monitor
+    arguments: install dotnet-monitor --version 6.2.2 --tool-path $(build.artifactStagingDirectory)/diagserver/dotnet-monitor
 
 
 
