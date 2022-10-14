@@ -111,7 +111,7 @@ steps:
   inputs:
     command: 'custom'
     custom: 'tool'
-    arguments: install dotnet-monitor --version 6.2.2 --tool-path $(build.artifactStagingDirectory)/diagserver/dotnet-monitor
+    arguments: install dotnet-monitor --version 6.3 --tool-path $(build.artifactStagingDirectory)/diagserver/dotnet-monitor
 
 
 
