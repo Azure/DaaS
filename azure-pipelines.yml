@@ -29,7 +29,7 @@ variables:
   solution: 'DaaS/**/*.sln'
   buildPlatform: 'x64'
   buildConfiguration: 'Release'
-  LOCATION: 'West US 2'
+  LOCATION: 'East US'
   RESOURCE_GROUP: 'DAAS-DevOps-Testing'
   GitRepoAspNet: https://github.com/puneetg1983/WebCampGit
 
