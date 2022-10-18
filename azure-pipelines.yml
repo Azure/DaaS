@@ -112,7 +112,11 @@ steps:
     custom: 'tool'
     arguments: install dotnet-monitor --version 6.3 --tool-path $(build.artifactStagingDirectory)/diagserver/dotnet-monitor
 
-
+- task: PowerShell@2
+  displayName: 'Print dir structure'
+  inputs:
+    targetType: 'inline'
+    script: 'Get-ChildItem $(build.artifactStagingDirectory) -recurse'
 
 - task: ArchiveFiles@2
   displayName: 'Create Daas Site Extension Zip file'
