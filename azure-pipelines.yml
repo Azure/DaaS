@@ -180,7 +180,7 @@ steps:
       }
       
       Write-Host "Checking availability of Storage Account"
-      $storageAccountName = "daasdevopsstorage"
+      $storageAccountName = "daasdevopsstoragediag"
       $checkNameAvail = (Get-AzStorageAccountNameAvailability -Name $storageAccountName) | Select-Object NameAvailable
       
       if ($checkNameAvail.NameAvailable) {
