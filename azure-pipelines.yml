@@ -175,7 +175,7 @@ steps:
 - task: AzurePowerShell@5
   displayName: 'Setup new WebApp and upload DaaS bits'
   inputs:
-    azureSubscription: 'Private Test Sub PUNEETG(6b6db65f-680e-4650-b97d-e82ed6a0f583)'
+    azureSubscription: 'Private test sub reswamin'
     ScriptType: 'InlineScript'
     Inline: |
       try {
@@ -191,7 +191,7 @@ steps:
       }
       
       Write-Host "Checking availability of Storage Account"
-      $storageAccountName = "daasdevopsstorage"
+      $storageAccountName = "daasdevopsstoragediag"
       $checkNameAvail = (Get-AzStorageAccountNameAvailability -Name $storageAccountName) | Select-Object NameAvailable
       
       if ($checkNameAvail.NameAvailable) {
@@ -208,7 +208,7 @@ steps:
       
       Write-Host "Generating SAS URI"
       $sasUrl = New-AzStorageAccountSASToken -Context $storageAccount.context -Service Blob,Table,Queue -ResourceType Container,Object -Permission "acdlpruw" -ExpiryTime (Get-Date).AddDays(1)
-      $sasUrl = "https://daasdevopsstorage.blob.core.windows.net/memorydumps" + $sasurl
+      $sasUrl = "https://daasdevopsstoragediag.blob.core.windows.net/memorydumps" + $sasurl
       
       Write-Host "Creating App Service Plan"
       New-AzAppServicePlan -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location $Env:LOCATION -Tier "Basic" -WorkerSize "Small" | Out-Null
@@ -218,7 +218,7 @@ steps:
       Set-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -AlwaysOn $true | Out-Null
       
       Write-Host "Adding AppSettings for WebApp"
-      $setting=@{"MSBUILD_PATH"="%MSBUILD_15_DIR%\\msbuild.exe";"WEBSITE_DAAS_STORAGE_SASURI"= "$sasUrl";"WEBSITE_DAAS_STORAGE_RESOURCEID"= "/resource/subscriptions/6b6db65f-680e-4650-b97d-e82ed6a0f583/resourceGroups/DAAS-DevOps-Testing/providers/Microsoft.Storage/storageAccounts/daasdevopsstorage"}
+      $setting=@{"MSBUILD_PATH"="%MSBUILD_15_DIR%\\msbuild.exe";"WEBSITE_DAAS_STORAGE_SASURI"= "$sasUrl";"WEBSITE_DAAS_STORAGE_RESOURCEID"= "/resource/subscriptions/72383ac7-d6f4-4a5e-bf56-b172f2fdafb2/resourceGroups/DAAS-DevOps-Testing/providers/Microsoft.Storage/storageAccounts/daasdevopsstoragediag"}
       Set-AzWebApp -AppSettings $setting -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP | Out-Null
       
       $srcWebApp = Get-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP
