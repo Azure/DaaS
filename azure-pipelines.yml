@@ -175,7 +175,7 @@ steps:
 - task: AzurePowerShell@5
   displayName: 'Setup new WebApp and upload DaaS bits'
   inputs:
-    azureSubscription: 'Private test sub reswamin'
+    azureSubscription: 'Private Test Sub PUNEETG(6b6db65f-680e-4650-b97d-e82ed6a0f583)'
     ScriptType: 'InlineScript'
     Inline: |
       try {
@@ -191,7 +191,7 @@ steps:
       }
       
       Write-Host "Checking availability of Storage Account"
-      $storageAccountName = "daasdevopsstoragediag"
+      $storageAccountName = "daasdevopsstorage"
       $checkNameAvail = (Get-AzStorageAccountNameAvailability -Name $storageAccountName) | Select-Object NameAvailable
       
       if ($checkNameAvail.NameAvailable) {
@@ -208,7 +208,7 @@ steps:
       
       Write-Host "Generating SAS URI"
       $sasUrl = New-AzStorageAccountSASToken -Context $storageAccount.context -Service Blob,Table,Queue -ResourceType Container,Object -Permission "acdlpruw" -ExpiryTime (Get-Date).AddDays(1)
-      $sasUrl = "https://daasdevopsstoragediag.blob.core.windows.net/memorydumps" + $sasurl
+      $sasUrl = "https://daasdevopsstorage.blob.core.windows.net/memorydumps" + $sasurl
       
       Write-Host "Creating App Service Plan"
       New-AzAppServicePlan -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location $Env:LOCATION -Tier "Basic" -WorkerSize "Small" | Out-Null
