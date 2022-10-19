@@ -207,7 +207,7 @@ steps:
       
       Write-Host "Generating SAS URI"
       $sasUrl = New-AzStorageAccountSASToken -Context $storageAccount.context -Service Blob,Table,Queue -ResourceType Container,Object -Permission "acdlpruw" -ExpiryTime (Get-Date).AddDays(1)
-      $sasUrl = "https://daasdevopsstorage.blob.core.windows.net/memorydumps" + $sasurl
+      $sasUrl = "https://daasdevopsstoragediag.blob.core.windows.net/memorydumps" + $sasurl
       
       Write-Host "Creating App Service Plan"
       New-AzAppServicePlan -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location $Env:LOCATION -Tier "Basic" -WorkerSize "Small" | Out-Null
