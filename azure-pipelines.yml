@@ -3,6 +3,14 @@
 # Add steps that publish symbols, save build artifacts, deploy, and more:
 # https://docs.microsoft.com/azure/devops/pipelines/apps/aspnet/build-aspnet-4
 
+
+resources:
+  repositories:
+   - repository: DiagnosticServer
+     type: git
+     name: Antares/AAPT-Antares-DiagnosticServer
+   
+
 trigger:
   batch: true
   branches:
@@ -12,39 +20,72 @@ trigger:
     exclude:
       - README.md
 
+
+
 pool:
   vmImage: 'windows-latest'
 
 variables:
-  solution: '**/*.sln'
+  solution: 'DaaS/**/*.sln'
   buildPlatform: 'x64'
   buildConfiguration: 'Release'
-  LOCATION: 'West US 2'
+  LOCATION: 'East US'
   RESOURCE_GROUP: 'DAAS-DevOps-Testing'
   GitRepoAspNet: https://github.com/puneetg1983/WebCampGit
 
 steps:
+
+- checkout: DiagnosticServer
+- checkout: self 
 - task: NuGetToolInstaller@1
 
 - task: NuGetCommand@2
+  displayName: 'Restore DaaS'
   inputs:
     command: 'restore'
     restoreSolution: '$(solution)'
-    feedsToUse: 'select'
-    vstsFeed: 'b2430cf7-78c0-440a-aa4a-a25665c5778e'
+    feedsToUse: 'config'
+    nugetConfigPath: 'DaaS/nuget.config'
+
+- task: DotNetCoreCLI@2
+  displayName: 'Restore DiagServer'
+  inputs:
+    command: 'restore'
+    projects: 'AAPT-Antares-DiagnosticServer/**/*.csproj'
+    feedsToUse: 'config'
+    nugetConfigPath: 'AAPT-Antares-DiagnosticServer/nuget.config'
 
 - task: VSBuild@1
+  displayName: 'Build DaaS'
   inputs:
     solution: '$(solution)'
     platform: '$(buildPlatform)'
     configuration: '$(buildConfiguration)'
 
 - task: VSBuild@1
+  displayName: 'Build and Publish DaaS'
   inputs:
     solution: '$(solution)'
     msbuildArgs: '/p:Configuration=Release /p:DeployOnBuild=true /p:WebPublishMethod=FileSystem /p:PublishProfile=FolderProfile.pubxml /p:PackageAsSingleFile=true /p:publishUrl="$(build.artifactStagingDirectory)\\"'
     platform: '$(buildPlatform)'
     configuration: '$(buildConfiguration)'
+
+- task: DotNetCoreCLI@2
+  displayName: 'Build DiagServer'
+  inputs:
+    command: 'build'
+    projects: 'AAPT-Antares-DiagnosticServer/src/diagserver/diagserver.csproj'
+    arguments: '--configuration $(buildConfiguration)'
+
+
+- task: DotNetCoreCLI@2
+  displayName: Publish DiagServer
+  inputs:
+    command: 'publish'
+    publishWebProjects: false
+    projects: 'AAPT-Antares-DiagnosticServer/src/diagserver/diagserver.csproj'
+    arguments: '--configuration $(BuildConfiguration) --output $(Build.ArtifactStagingDirectory)'
+    zipAfterPublish: false
 
 - task: PowerShell@2
   displayName: 'Delete additional files'
@@ -58,6 +99,7 @@ steps:
       Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\x64 -Verbose
       Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\x86 -Verbose
       Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\DiagnosticAnalysis -Verbose
+      Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\diagserver\diagnosticscli -Verbose
       Remove-Item $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\* -include *.ps1, *.html -Verbose
       Remove-Item $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\Dia2Lib.dll -Verbose
       Remove-Item $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\OSExtensions.dll -Verbose
@@ -70,6 +112,19 @@ steps:
 
       $uniqueSiteName = "daasdevops" + (Get-Date -Format "yyyyMMdd-hhmm")
       Write-Host "##vso[task.setvariable variable=SITE_NAME]$uniqueSiteName"
+
+- task: DotNetCoreCLI@2
+  displayName: 'Install Dotnet Monitor'
+  inputs:
+    command: 'custom'
+    custom: 'tool'
+    arguments: install dotnet-monitor --version 6.3 --tool-path $(build.artifactStagingDirectory)/diagserver/dotnet-monitor
+
+- task: PowerShell@2
+  displayName: 'Print dir structure'
+  inputs:
+    targetType: 'inline'
+    script: 'Get-ChildItem $(build.artifactStagingDirectory) -recurse'
 
 - task: ArchiveFiles@2
   displayName: 'Create Daas Site Extension Zip file'
@@ -120,10 +175,9 @@ steps:
 - task: AzurePowerShell@5
   displayName: 'Setup new WebApp and upload DaaS bits'
   inputs:
-    azureSubscription: 'Private Test Sub PUNEETG(6b6db65f-680e-4650-b97d-e82ed6a0f583)'
+    azureSubscription: 'Private test sub reswamin'
     ScriptType: 'InlineScript'
     Inline: |
-
       try {
         Write-Host ("Selected ResourceGroup is " + $Env:RESOURCE_GROUP)
         Write-Host "Removing WebApps"
@@ -135,11 +189,11 @@ steps:
       catch {
         Write-Host "Encountered " + $_.Exception + " while cleaning up old resources"
       }
-
+      
       Write-Host "Checking availability of Storage Account"
-      $storageAccountName = "daasdevopsstorage"
+      $storageAccountName = "daasdevopsstoragediag"
       $checkNameAvail = (Get-AzStorageAccountNameAvailability -Name $storageAccountName) | Select-Object NameAvailable
-
+      
       if ($checkNameAvail.NameAvailable) {
         Write-Host "Storage Account name is available. Creating storage account"
         $storageAccount = (New-AzStorageAccount -ResourceGroupName $Env:RESOURCE_GROUP `
@@ -151,32 +205,32 @@ steps:
         Write-Host "Getting existing storage account"
         $storageAccount = Get-AzStorageAccount -ResourceGroupName $Env:RESOURCE_GROUP -StorageAccountName $storageAccountName
       }
-
+      
       Write-Host "Generating SAS URI"
       $sasUrl = New-AzStorageAccountSASToken -Context $storageAccount.context -Service Blob,Table,Queue -ResourceType Container,Object -Permission "acdlpruw" -ExpiryTime (Get-Date).AddDays(1)
-      $sasUrl = "https://daasdevopsstorage.blob.core.windows.net/memorydumps" + $sasurl
-
+      $sasUrl = "https://daasdevopsstoragediag.blob.core.windows.net/memorydumps" + $sasurl
+      
       Write-Host "Creating App Service Plan"
       New-AzAppServicePlan -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location $Env:LOCATION -Tier "Basic" -WorkerSize "Small" | Out-Null
-
+      
       Write-Host "Creating Web App"
       New-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location $Env:LOCATION -AppServicePlan $Env:SITE_NAME | Out-Null
       Set-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -AlwaysOn $true | Out-Null
-
+      
       Write-Host "Adding AppSettings for WebApp"
-      $setting=@{"MSBUILD_PATH"="%MSBUILD_15_DIR%\\msbuild.exe";"WEBSITE_DAAS_STORAGE_SASURI"= "$sasUrl";"WEBSITE_DAAS_STORAGE_RESOURCEID"= "/resource/subscriptions/6b6db65f-680e-4650-b97d-e82ed6a0f583/resourceGroups/DAAS-DevOps-Testing/providers/Microsoft.Storage/storageAccounts/daasdevopsstorage"}
+      $setting=@{"MSBUILD_PATH"="%MSBUILD_15_DIR%\\msbuild.exe";"WEBSITE_DAAS_STORAGE_SASURI"= "$sasUrl";"WEBSITE_DAAS_STORAGE_RESOURCEID"= "/resource/subscriptions/72383ac7-d6f4-4a5e-bf56-b172f2fdafb2/resourceGroups/DAAS-DevOps-Testing/providers/Microsoft.Storage/storageAccounts/daasdevopsstoragediag"}
       Set-AzWebApp -AppSettings $setting -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP | Out-Null
-
+      
       $srcWebApp = Get-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP
       [xml]$publishProfileXml = Get-AzWebAppPublishingProfile -WebApp $srcWebApp
-
+      
       $publishProfile = $publishProfileXml.publishData.publishProfile[0]
       $kuduEndpoint = $publishProfile.publishUrl
       [string]$userName = $publishProfile.userName
       [string]$publishingPassword = $publishProfile.userPWD
       $authorizationHeader = "Basic {0}" -f [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f $userName, $publishingPassword)))
       Write-Host ("KuduEndpoint = " + $kuduEndpoint + ". Going to upload SiteExtension bits now")
-
+      
       $kuduApiUrl = "https://$kuduEndpoint/api/zip/SiteExtensions/DaaS/"
       try {
       
@@ -196,13 +250,13 @@ steps:
       catch {
         Write-Host "Encountered " + $_.Exception.Response.StatusCode + " while uploading DaaS site extension"
       }
-
+      
       Write-Host "Stopping Web App"
       Invoke-AzResourceAction -ResourceId $srcWebApp.Id -Action stop -Force
-
+      
       Write-Host "Starting Web App"
       Invoke-AzResourceAction -ResourceId $srcWebApp.Id -Action start -Force
-
+      
       Write-Host "Checking DaaS version"
       $retryCount = 0;
       $succeeded = $false
@@ -212,7 +266,7 @@ steps:
         {
           $DaaSVersion = Invoke-RestMethod -Uri "https://$kuduEndpoint/daas/api/v2/daasversion" `
           -Headers @{"Authorization"=$authorizationHeader;"If-Match"="*"}
-
+      
           Write-Host ("DaasVersion is " + $DaaSVersion)
           $succeeded = $true
         }
@@ -228,11 +282,10 @@ steps:
       {
         throw "Call to get DaaS Version failed"
       }
-
+      
       Write-Host "##vso[task.setvariable variable=KUDU_ENDPOINT]$kuduEndpoint"
       Write-Host "##vso[task.setvariable variable=KUDU_USERNAME]$userName"
       Write-Host "##vso[task.setvariable variable=KUDU_PASSWORD]$publishingPassword"
-
     azurePowerShellVersion: 'LatestVersion'
 
 - task: PublishBuildArtifacts@1
@@ -264,7 +317,7 @@ steps:
 - task: AzurePowerShell@5
   displayName: 'Delete App and App Service Plan'
   inputs:
-    azureSubscription: 'Private Test Sub PUNEETG(6b6db65f-680e-4650-b97d-e82ed6a0f583)'
+    azureSubscription: 'Private test sub reswamin'
     ScriptType: 'InlineScript'
     Inline: |
       Write-Host "Removing WebApps"
