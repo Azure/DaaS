@@ -1,4 +1,4 @@
-[![Build Status](https://dev.azure.com/app-service-diagnostics-portal/app-service-diagnostics-portal/_apis/build/status/Azure.DaaS%20Build?branchName=main)](https://dev.azure.com/app-service-diagnostics-portal/app-service-diagnostics-portal/_build/latest?definitionId=41&branchName=main)
+[![Build Status](https://msazure.visualstudio.com/Antares/_apis/build/status/Azure.DaaS?branchName=main)](https://msazure.visualstudio.com/Antares/_build/latest?definitionId=291420&branchName=main)
 
 # Contributing
 
