@@ -99,6 +99,7 @@ steps:
       Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\x64 -Verbose
       Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\x86 -Verbose
       Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\DiagnosticAnalysis -Verbose
+      Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\diagserver\diagnosticscli -Verbose
       Remove-Item $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\* -include *.ps1, *.html -Verbose
       Remove-Item $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\Dia2Lib.dll -Verbose
       Remove-Item $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\OSExtensions.dll -Verbose
