@@ -360,7 +360,7 @@ namespace DaaS.Sessions
             else
             {
                 var activeInstances = activeSession.ActiveInstances.Select(x => x.Name);
-                orphanedInstanceNames = activeSession.Instances.Where(x => !activeInstances.Contains(x)).ToList();
+                orphanedInstanceNames = activeSession.Instances.Where(x => !activeInstances.Contains(x, StringComparer.OrdinalIgnoreCase)).ToList();
                 if (orphanedInstanceNames != null)
                 {
                     Logger.LogSessionVerboseEvent($"ActiveSessionJson = {JsonConvert.SerializeObject(activeSession)}", activeSession.SessionId);
