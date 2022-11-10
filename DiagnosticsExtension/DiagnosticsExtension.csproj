@@ -414,8 +414,6 @@
     <Compile Include="Parsers\ServerSideEvent.cs" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="client\bundle.c24957f681aac15900bc.js.LICENSE.txt" />
-    <Content Include="client\ResultsViewer.html" />
     <Content Include="Content\img\back-down.png" />
     <Content Include="Content\img\back-hover.png" />
     <Content Include="Content\img\back-white.png" />
@@ -461,11 +459,6 @@
       <Link>DiagnosticAnalysis\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="prod\bundle.f5f385cadfb76dde9418.js" />
-    <Content Include="prod\bundle.f5f385cadfb76dde9418.js.LICENSE.txt" />
-    <Content Include="prod\resultsViewer.b592119845b370482050.js" />
-    <Content Include="prod\ResultsViewer.html" />
-    <Content Include="prod\runtime.df9195d8f9d9dc56fb62.js" />
     <Content Include="scmApplicationHost.xdt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
