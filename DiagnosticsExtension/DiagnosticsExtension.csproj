@@ -463,7 +463,6 @@
     </Content>
     <Content Include="prod\bundle.f5f385cadfb76dde9418.js" />
     <Content Include="prod\bundle.f5f385cadfb76dde9418.js.LICENSE.txt" />
-    <Content Include="prod\resultsViewer.75361698d3a02315fc55.js" />
     <Content Include="prod\resultsViewer.b592119845b370482050.js" />
     <Content Include="prod\ResultsViewer.html" />
     <Content Include="prod\runtime.df9195d8f9d9dc56fb62.js" />
