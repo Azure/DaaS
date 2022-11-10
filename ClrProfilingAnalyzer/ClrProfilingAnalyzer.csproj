@@ -250,10 +250,10 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent">
-      <Version>2.0.54</Version>
+      <Version>3.0.5</Version>
     </PackageReference>
     <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent.SupportFiles">
-      <Version>1.0.17</Version>
+      <Version>1.0.23</Version>
     </PackageReference>
     <PackageReference Include="Newtonsoft.Json">
       <Version>13.0.1</Version>
