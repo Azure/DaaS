@@ -76,6 +76,16 @@ namespace DaaS.Sessions
                 throw new AccessViolationException($"There is an already an existing active session for {activeSession.Tool}");
             }
 
+            var alwaysOnEnabled = Environment.GetEnvironmentVariable("WEBSITE_SCM_ALWAYS_ON_ENABLED");
+            if (int.TryParse(alwaysOnEnabled, out int isAlwaysOnEnabled) && isAlwaysOnEnabled == 0)
+            {
+                string sku = Environment.GetEnvironmentVariable("WEBSITE_SKU");
+                if (!string.IsNullOrWhiteSpace(sku) && !sku.ToLower().Contains("elastic"))
+                {
+                    throw new AccessViolationException("Cannot submit a diagnostic session because 'Always-On' is disabled. Please enable Always-On in site configuration and re-submit the session");
+                }
+            }
+
             await ThrowIfSessionInvalid(session);
 
             await SaveSessionAsync(session, invokedViaDaasConsole);
@@ -915,6 +925,7 @@ namespace DaaS.Sessions
                     Instances = string.Join(",", session.Instances),
                     session.DefaultScmHostName,
                     session.BlobStorageHostName,
+                    Sku = Environment.GetEnvironmentVariable("WEBSITE_SKU"),
                     invokedViaDaasConsole
                 };
 
