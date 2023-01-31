@@ -1,4 +1,4 @@
-// -----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="ConnectionStringValidationController.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
@@ -7,19 +7,12 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Net.Sockets;
-using System.Text;
 using System.Threading.Tasks;
-using System.Web;
 using System.Web.Http;
-using DiagnosticsExtension.Models;
 using DiagnosticsExtension.Models.ConnectionStringValidator;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace DiagnosticsExtension.Controllers
 {
@@ -44,22 +37,6 @@ namespace DiagnosticsExtension.Controllers
             typeValidatorMap = validators.ToDictionary(v => v.Type, v => v);
         }
 
-        [HttpGet]
-        [Route("validate")]
-        public async Task<HttpResponseMessage> Validate(string connStr, string type)
-        {
-            bool success = Enum.TryParse(type, out ConnectionStringType csType);
-            if (success && typeValidatorMap.ContainsKey(csType))
-            {
-                var result = await typeValidatorMap[csType].ValidateAsync(connStr);
-                return Request.CreateResponse(HttpStatusCode.OK, result);
-            }
-            else
-            {
-                return Request.CreateErrorResponse(HttpStatusCode.BadRequest, $"Type '{type}' is not supported");
-            }
-        }
-
         [HttpPost]
         [Route("validate")]
         public async Task<HttpResponseMessage> Validate([FromBody] ConnectionStringRequestBody requestBody)
@@ -77,19 +54,33 @@ namespace DiagnosticsExtension.Controllers
             return result;
         }
 
-        [HttpGet]
+        [HttpPost]
         [Route("validateappsetting")]
-        public async Task<HttpResponseMessage> ValidateAppSetting(string appSettingName, string type)
+        public async Task<HttpResponseMessage> ValidateAppSetting([FromBody] AppSettingRequestBody requestBody)
         {
             var envDict = Environment.GetEnvironmentVariables();
-            if (envDict.Contains(appSettingName))
+            if (envDict.Contains(requestBody.AppSettingName))
             {
-                var connectionString = (string)envDict[appSettingName];
-                return await Validate(connectionString, type);
+                var connectionString = (string)envDict[requestBody.AppSettingName];
+                return await Validate(connectionString, requestBody.Type);
             }
             else
             {
-                return Request.CreateErrorResponse(HttpStatusCode.NotFound, $"AppSetting {appSettingName} not found");
+                return Request.CreateErrorResponse(HttpStatusCode.NotFound, $"AppSetting {requestBody.AppSettingName} not found");
+            }
+        }
+
+        private async Task<HttpResponseMessage> Validate(string connStr, string type)
+        {
+            bool success = Enum.TryParse(type, out ConnectionStringType csType);
+            if (success && typeValidatorMap.ContainsKey(csType))
+            {
+                var result = await typeValidatorMap[csType].ValidateAsync(connStr);
+                return Request.CreateResponse(HttpStatusCode.OK, result);
+            }
+            else
+            {
+                return Request.CreateErrorResponse(HttpStatusCode.BadRequest, $"Type '{type}' is not supported");
             }
         }
     }

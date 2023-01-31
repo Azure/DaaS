@@ -1,4 +1,4 @@
-// -----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="DatabaseTestController.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
@@ -124,28 +124,14 @@ namespace DiagnosticsExtension.Controllers
 
         private const string CustomPrefix = "CUSTOMCONNSTR_";
 
-        // GET api/databasetest
-        public async Task<HttpResponseMessage> Get(string clientId = null) // clientId used for Used Assigned Managed Identity
+        // POST api/databasetest
+        [HttpPost]
+        public async Task<HttpResponseMessage> Post(string clientId = null) // clientId used for Used Assigned Managed Identity
         {
             try
             {
                 var response = await GetConnectionsResponse(clientId);
                 return Request.CreateResponse(HttpStatusCode.OK, response.Connections);
-            }
-            catch (Exception ex)
-            {
-                return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, ex.Message);
-            }
-        }
-
-        // GET api/databasetest/v2
-        [Route("v2")]
-        public async Task<HttpResponseMessage> GetV2(string clientId = null)
-        {
-            try
-            {
-                var response = await GetConnectionsResponse(clientId);
-                return Request.CreateResponse(HttpStatusCode.OK, response);
             }
             catch (Exception ex)
             {
