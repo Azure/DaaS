@@ -371,6 +371,7 @@
     <Compile Include="Controllers\ConnectionStringValidationController.cs" />
     <Compile Include="Controllers\DiagnosersController.cs" />
     <Compile Include="Controllers\SessionController.cs" />
+    <Compile Include="Models\ConnectionStringValidator\AppSettingRequestBody.cs" />
     <Compile Include="Models\Settings.cs" />
     <Compile Include="Controllers\SettingsController.cs" />
     <Compile Include="Controllers\SettingsV2Controller.cs" />
@@ -381,7 +382,6 @@
     <Compile Include="Controllers\EventsController.cs" />
     <Compile Include="Controllers\FrebLogsController.cs" />
     <Compile Include="Controllers\InstancesController.cs" />
-    <Compile Include="Controllers\MsiValidatorController.cs" />
     <Compile Include="Controllers\HomeController.cs" />
     <Compile Include="Controllers\StdoutLogsController.cs" />
     <Compile Include="LoggingHandler.cs" />
