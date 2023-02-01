@@ -135,6 +135,7 @@ namespace DiagnosticsExtension.Controllers
             }
             catch (Exception ex)
             {
+                DaaS.Logger.LogErrorEvent("Unhandled exception while calling databasetest", ex);
                 return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, ex.Message);
             }
         }
@@ -274,7 +275,7 @@ namespace DiagnosticsExtension.Controllers
 
             if (keyVaultReferencesInformation.Count > 0)
             {
-                foreach (var connection in connections.Where(x => keyVaultReferencesInformation.ContainsKey(x.EnvironmentVariableName)))
+                foreach (var connection in connections.Where(x => !string.IsNullOrWhiteSpace(x.EnvironmentVariableName) && keyVaultReferencesInformation.ContainsKey(x.EnvironmentVariableName)))
                 {
                     connection.ConnectionString = "[Hidden - " + keyVaultReferencesInformation[connection.EnvironmentVariableName]["status"] + ": " + keyVaultReferencesInformation[connection.EnvironmentVariableName]["rawReference"] + "]";
                 }
