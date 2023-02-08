@@ -3,16 +3,15 @@ using Microsoft.WindowsAzure.Storage;
 using System;
 using System.Net.Http;
 using System.Web.Http;
-using DaaS;
 using DaaS.Storage;
 
 namespace DiagnosticsExtension.Controllers
 {
     public class SettingsController : ApiController
     {
-        [HttpGet]
+        [HttpPost]
         [Route("api/settings")]
-        public Settings Get()
+        public Settings Post()
         {
             var sessionController = new DaaS.Sessions.SessionController();
             Settings settings = new Settings

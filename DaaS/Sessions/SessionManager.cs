@@ -112,7 +112,7 @@ namespace DaaS.Sessions
 
             if (diagnoser.RequiresStorageAccount && string.IsNullOrWhiteSpace(Settings.Instance.BlobSasUri))
             {
-                throw new ArgumentException($"The tool '{session.Tool}' requires that WEBSITE_DAAS_STORAGE_SASURI setting must be specified");
+                throw new ArgumentException($"The tool '{session.Tool}' requires that WEBSITE_DAAS_STORAGE_CONNECTIONSTRING setting must be specified");
             }
 
             if (InvokedViaAutomation)
