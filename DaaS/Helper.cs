@@ -23,8 +23,8 @@ namespace DaaS
 
         internal static Stream GetXmlStream(this Object obj)
         {
-            var objStream = new MemoryStream();
             var x = new System.Xml.Serialization.XmlSerializer(obj.GetType());
+            var objStream = new MemoryStream();
             x.Serialize(objStream, obj);
             objStream.Position = 0;
             return objStream;
