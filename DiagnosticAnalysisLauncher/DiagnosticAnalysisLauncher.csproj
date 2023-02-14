@@ -36,10 +36,6 @@
     <Reference Include="DaaS">
       <HintPath>..\DaaS\bin\$(ConfigurationName)\DaaS.dll</HintPath>
     </Reference>
-    <Reference Include="Microsoft.WindowsAzure.Storage, Version=9.3.2.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\NUGET_PACKAGES\windowsazure.storage\9.3.3\lib\net45\Microsoft.WindowsAzure.Storage.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -59,6 +55,9 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAzure.Storage">
+      <Version>9.3.3</Version>
+    </PackageReference>
     <PackageReference Include="Newtonsoft.Json">
       <Version>13.0.1</Version>
     </PackageReference>
