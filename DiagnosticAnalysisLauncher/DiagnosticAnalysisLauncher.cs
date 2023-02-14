@@ -7,6 +7,7 @@
 
 using DaaS;
 using DaaS.Configuration;
+using Microsoft.WindowsAzure.Storage;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -281,27 +282,35 @@ namespace DiagnosticAnalysisLauncher
 
         private string GetAzureStorageBlobUri()
         {
+            string accountAndContainerUri;
             var sasUri = Settings.Instance.AccountSasUri;
             if (string.IsNullOrWhiteSpace(sasUri))
             {
-                return string.Empty;
+                accountAndContainerUri = GetAccountAndContainerUriFromConnectionString();
+                if (string.IsNullOrWhiteSpace(accountAndContainerUri))
+                {
+                    return string.Empty;
+                }
             }
-
-            /*  The SAS Uri format:
+            else
+            {
+                /*  The SAS Uri format:
                     https://<account host name>/<container name>?<sas params>
                 The dump file path format:
                     <LogsTempDir>\<dump file relative path>
                 The Azure storage blob uri should be:
                     https://<account host name>/<container name>/<app host name>/<dump file relative path>
-            */
+                */
 
-            // accountAndContainerUri = 'https://<account host name>/<container name>'
-            var splitArray = sasUri.Split('?');
-            if (splitArray.Length <= 0)
-            {
-                return string.Empty;
+                // accountAndContainerUri = 'https://<account host name>/<container name>'
+                var splitArray = sasUri.Split('?');
+                if (splitArray.Length <= 0)
+                {
+                    return string.Empty;
+                }
+
+                accountAndContainerUri = splitArray[0]; // if there's no '?', we'll just use the entire string
             }
-            var accountAndContainerUri = splitArray[0]; // if there's no '?', we'll just use the entire string
 
             var tempDir = DaasDirectory.LogsTempDir;
             if (!_dumpFile.StartsWith(tempDir))
@@ -317,6 +326,27 @@ namespace DiagnosticAnalysisLauncher
             }
 
             return $"{accountAndContainerUri}/{Settings.Instance.DefaultHostName}/{dumpRelativePath}".Replace('\\', '/');
+        }
+
+        private static string GetAccountAndContainerUriFromConnectionString()
+        {
+            try
+            {
+                var connectionString = Settings.Instance.StorageConnectionString;
+                if (string.IsNullOrWhiteSpace(connectionString))
+                {
+                    return string.Empty;
+                }
+
+                var storageAccount = CloudStorageAccount.Parse(connectionString);
+                return storageAccount.BlobEndpoint.ToString() + "memorydumps";
+            }
+            catch (Exception ex)
+            {
+                Logger.LogDiagnoserWarningEvent("Unhandled exception parsing connection string", ex);
+            }
+
+            return string.Empty;
         }
 
         private static string GetDiagnosticAnalysisDirectory()

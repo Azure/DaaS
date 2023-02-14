@@ -34,7 +34,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="DaaS">
-        <HintPath>..\DaaS\bin\$(ConfigurationName)\DaaS.dll</HintPath>
+      <HintPath>..\DaaS\bin\$(ConfigurationName)\DaaS.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -55,6 +55,9 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAzure.Storage">
+      <Version>9.3.3</Version>
+    </PackageReference>
     <PackageReference Include="Newtonsoft.Json">
       <Version>13.0.1</Version>
     </PackageReference>
