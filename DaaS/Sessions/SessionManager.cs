@@ -923,10 +923,13 @@ namespace DaaS.Sessions
                 var details = new
                 {
                     Instances = string.Join(",", session.Instances),
-                    session.DefaultScmHostName,
+                    HostName = session.DefaultScmHostName,
                     session.BlobStorageHostName,
                     Sku = Environment.GetEnvironmentVariable("WEBSITE_SKU"),
-                    invokedViaDaasConsole
+                    invokedViaDaasConsole,
+                    session.Description,
+                    ConnectionStringConfigured = !string.IsNullOrWhiteSpace(Settings.Instance.StorageConnectionString),
+                    SasUriConfigured = !string.IsNullOrWhiteSpace(Settings.Instance.AccountSasUri)
                 };
 
                 Logger.LogNewSession(
