@@ -96,6 +96,7 @@
     <Compile Include="Configuration\Diagnoser.cs" />
     <Compile Include="Diagnostics\DiagnosticTool.cs" />
     <Compile Include="Sessions\DiagnosticToolResponse.cs" />
+    <Compile Include="Sessions\HyperVSessionManager.cs" />
     <Compile Include="Sessions\ISessionManager.cs" />
     <Compile Include="Sessions\LogFile.cs" />
     <Compile Include="Sessions\Report.cs" />
