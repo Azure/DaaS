@@ -7,7 +7,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net.Http.Headers;
 using System.Net.Http;
 using System.Text;
@@ -15,15 +14,45 @@ using System.Threading;
 using System.Threading.Tasks;
 using DaaS.Configuration;
 using Newtonsoft.Json;
-using System.Net.Mime;
+using System.Collections;
 
 namespace DaaS.Sessions
 {
     public class HyperVSessionManager : ISessionManager
     {
-        bool ISessionManager.IncludeSasUri { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
-        bool ISessionManager.InvokedViaAutomation { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public bool IncludeSasUri { get; set; }
+        public bool InvokedViaAutomation { get; set; }
 
+        private string daasHost;
+        private string daasPort;
+
+        private string baseUri;
+        public HyperVSessionManager() 
+        { 
+            daasHost = GetIpAddress();
+            daasPort = GetDaasPort();
+            if (string.IsNullOrEmpty(daasHost) || string.IsNullOrEmpty(daasPort) )
+            {
+                throw new ArgumentException("Unable to fetch daas host and IP");
+            } else
+            {
+                    baseUri = $"http://{daasHost}:{daasPort}/sessions";
+            }
+        }
+
+        private static string GetIpAddress()
+        {
+            IDictionary environmentVariables = System.Environment.GetEnvironmentVariables();
+            string containerAddress = (string)environmentVariables["DAAS_HOST"];
+            return containerAddress ?? string.Empty;
+        }
+
+        private static string GetDaasPort()
+        {
+            IDictionary environmentVariables = System.Environment.GetEnvironmentVariables();
+            string containerAddress = (string)environmentVariables["DAAS_PORT"];
+            return containerAddress ?? string.Empty;
+        }
 
         private static readonly Lazy<HttpClient> client = new Lazy<HttpClient>(() =>
         {
@@ -40,7 +69,7 @@ namespace DaaS.Sessions
                 return client.Value;
             }
         }
-        private string baseUri = "http://localhost:50055/sessions";
+       
         private TimeSpan timeout = TimeSpan.FromSeconds(60);
 
         Task ISessionManager.CancelOrphanedInstancesIfNeeded()
@@ -55,8 +84,11 @@ namespace DaaS.Sessions
 
         public async Task DeleteSessionAsync(string sessionId)
         {
-            var reponse = await InvokeDiagServer<HttpRequestMessage>($"{baseUri}/{sessionId}", null, HttpMethod.Delete);
-
+            await Task.Run(async () =>
+            {
+                await InvokeDiagServer<string>($"{baseUri}/{sessionId}", null, HttpMethod.Delete);
+            });
+            
         }
 
         public async Task<Session> GetActiveSessionAsync(bool isDetailed)
