@@ -99,8 +99,8 @@ namespace DaaS.Sessions
 
         public async Task<IEnumerable<Session>> GetAllSessionsAsync(bool isDetailed)
         {
-            var resonse = await InvokeDiagServer<string>(baseUri, null, httpMethod: HttpMethod.Get);
-            return JsonConvert.DeserializeObject<IEnumerable<Session>>(resonse);
+            var response = await InvokeDiagServer<string>(baseUri, null, httpMethod: HttpMethod.Get);
+            return JsonConvert.DeserializeObject<IEnumerable<Session>>(response);
         }
 
         Task<IEnumerable<Session>> ISessionManager.GetCompletedSessionsAsync()

@@ -24,15 +24,15 @@ namespace DaaS.Sessions
     {
         [JsonConverter(typeof(StringEnumConverter))]
         public Mode Mode { get; set; }
-        public string SessionId { get; set; }
+        public string? SessionId { get; set; }
         public string Description { get; set; }
         public Status Status { get; set; }
         public DateTime StartTime { get; set; }
         public string Tool { get; set; }
-        public string ToolParams { get; set; }
-        public List<string> Instances { get; set; }
-        public List<ActiveInstance> ActiveInstances { get; set; }
-        public DateTime EndTime { get; set; }
+        public string? ToolParams { get; set; }
+        public List<string>? Instances { get; set; }
+        public List<ActiveInstance>? ActiveInstances { get; set; }
+        public DateTime? EndTime { get; set; }
         public string BlobStorageHostName { get; set; }
         public string DefaultScmHostName { get; set; }
 
