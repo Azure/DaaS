@@ -15,68 +15,73 @@ $machineName = hostname
 #find out the path of the rt.jar from java.exe's File Handles
 foreach ($javaProcess in $javaProcesses)
 {
-	$rtJarFile = kuduhandles $javaProcess | where { $_.EndsWith('\jre\lib\rt.jar') } | Select -First 1
-	[DaaS.Logger]::LogDiagnoserVerboseEvent("rt.jar path is [$rtJarFile]")
+    $rtJarFile = kuduhandles $javaProcess | where { $_.EndsWith('\jre\lib\rt.jar') } | Select -First 1
+    [DaaS.Logger]::LogDiagnoserVerboseEvent("rt.jar path is [$rtJarFile]")
     if ($rtJarFile.length -gt 0)
     {
-		$parentpath = $rtJarFile.ToLower().Replace("\jre\lib\rt.jar","").Replace("c:","d:")
+        $parentpath = $rtJarFile.ToLower().Replace("\jre\lib\rt.jar","").Replace("c:","d:")
         if (test-path $parentpath)
         {
-			$jmapProcess = [io.path]::combine($parentpath, 'bin', 'jmap.exe')
-			[DaaS.Logger]::LogDiagnoserVerboseEvent("jMap Process path is [$jmapProcess]")
-			if (test-path $jmapProcess)
-			{
-				$jmapExists = $true
-				break
-			}
-		}
-		else
-		{
-			[DaaS.Logger]::LogDiagnoserVerboseEvent("testpath returned false, parentPath is [$parentpath]")
-		}
-	}
+            $jmapProcess = [io.path]::combine($parentpath, 'bin', 'jmap.exe')
+            [DaaS.Logger]::LogDiagnoserVerboseEvent("jMap Process path is [$jmapProcess]")
+            if (test-path $jmapProcess)
+            {
+                $jmapExists = $true
+                break
+            }
+        }
+        else
+        {
+            [DaaS.Logger]::LogDiagnoserVerboseEvent("testpath returned false, parentPath is [$parentpath]")
+        }
+    }
 }
 
 if ($jmapExists -eq $true)
 {
     foreach ($javaProcess in $javaProcesses)
     {
-		$outFilePath = [io.path]::combine($outputPath, $machineName + "_" + $javaProcess.ToString())
+        $jmapFileName = $machineName + "_" + $javaProcess.ToString() + "_MemoryDump.bin"
 
-		if ($options.Contains("text"))
-		{
-			$outFile =  $outFilePath+ "_MemorySummary.txt"
-			$cmdToExecute = "Executing: " + $jmapProcess + " -heap " + $javaProcess + " > " +  $outFile 
-            [DaaS.Logger]::LogDiagnoserVerboseEvent($cmdToExecute)
-			&$jmapProcess -heap $javaProcess > $outFile
-			[DaaS.Logger]::LogDiagnoserVerboseEvent("jMap collected -heap output for the process $javaProcess")
+        ## For some reason jMap.exe is not able to write files to %SystemDrive%\local\temp directory
+        ## so we generate a file in %SystemDrive%\home\logfiles\ticks folder and move it to TEMP to keep DAAS 
+        ## happy. Later we delete this folder.
 
-			$outFile =  $outFilePath+ "_ObjectHistogram.txt"
-			$cmdToExecute = "Executing: " + $jmapProcess + "-F -histo " + $javaProcess + " > " +  $outFile 
-            [DaaS.Logger]::LogDiagnoserVerboseEvent($cmdToExecute)
-			&$jmapProcess -F -histo $javaProcess > $outFile
-			[DaaS.Logger]::LogDiagnoserVerboseEvent("jMap collected -histo output for the process $javaProcess")
-		}
-		else
-		{
-			$outFile =  $outFilePath+ "_MemoryDump.bin"
+        $dirPath = [io.path]::combine("$Env:HOME\logfiles","JMAP_DAAS",(get-date).ticks)
+        $jMapPath = [io.path]::combine("$Env:HOME\logfiles","JMAP_DAAS")
+        $dirExists = test-path $dirPath
+        if ($dirExists -eq $false)
+        {
+            [io.directory]::createdirectory($dirPath)    
+        }
+        
+        $dirExists = test-path $outputPath
+        if ($dirExists -eq $false)
+        {
+            [io.directory]::createdirectory($outputPath)    
+        }
 
-			if ($jmapProcess.ToLower().Contains("program files (x86)"))
-			{
-				$cmdToExecute = "Executing: " + $jmapProcess + "-F -J-d32 -dump:format=b,file=" + $outFile + " " + $javaProcess
-                [DaaS.Logger]::LogDiagnoserVerboseEvent($cmdToExecute)
-				&$jmapProcess -F -J-d32 -dump:live,format=b,file=$outfile $javaProcess
-				[DaaS.Logger]::LogDiagnoserVerboseEvent("jMap finished collecting binary output" )
-			}
-			else
-			{
-				$cmdToExecute = "Executing: " + $jmapProcess + "-F -J-d64 -dump:format=b,file=" + $outFile + " " + $javaProcess
-                [DaaS.Logger]::LogDiagnoserVerboseEvent($cmdToExecute)
-				&$jmapProcess -F -J-d64 -dump:live,format=b,file=$outfile $javaProcess
-				[DaaS.Logger]::LogDiagnoserVerboseEvent("jMap finished collecting binary output" )
-			}
-		}
-    
+        $jmapFilePath = [io.path]::combine($dirPath, $jmapFileName)
+        $outFile = [io.path]::combine($outputPath, $jmapFileName)
+        
+        $cmdToExecute = "Executing: " + $jmapProcess + "-dump:format=b,file=" + $jmapFilePath + " " + $javaProcess
+        [DaaS.Logger]::LogDiagnoserVerboseEvent($cmdToExecute)
+        &$jmapProcess -dump:format=b,file=$jmapFilePath $javaProcess
+        [DaaS.Logger]::LogDiagnoserVerboseEvent("jMap finished collecting binary output" )
+        
+        [DaaS.Logger]::LogStatus("jMap finished collecting memory dumps, moving files to correct folders")
+        "moving file from $jmapFilePath to $outFile"
+        [DaaS.Logger]::LogDiagnoserVerboseEvent( "moving file from $jmapFilePath to $outFile")
+        if (test-path $outFile)
+        {
+            del $outFile
+        }
+        move-item -path $jmapFilePath $outFile
+
+        if (test-path $jMapPath)
+        {
+            Remove-Item -Recurse -Force $jMapPath
+        }
     }
 
     [DaaS.Logger]::LogDiagnoserVerboseEvent("jMap Collector finished collecting data")

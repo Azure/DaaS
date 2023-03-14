@@ -91,22 +91,6 @@
       }
     },
     {
-      "Name": "JAVA Memory Statistics",
-      "Description": "Collects a memory and object statistics report using JMAP of all Java.exe (or javaw.exe) processes running for this app",
-      "ProcessCleanupOnCancel": "jMap",
-      "RequiresStorageAccount": false,
-      "Collector": {
-        "Command": "%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
-        "Arguments": "-File \"%diagnosticToolsPath%\\javatools\\collectJMap.ps1\" \"%outputDir%\" text",
-        "PreValidationMethod": "JavaMemoryStatisticsValidator"
-
-      },
-      "Analyzer": {
-        "Command": "%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
-        "Arguments": "-File \"%diagnosticToolsPath%\\javatools\\analyzeJavaTool.ps1\" \"%logFile%\" \"%outputDir%\" \"jmapAnalysis.html\""
-      }
-    },
-    {
       "Name": "JAVA Flight Recorder",
       "Description": "Collects a jfr log for the Java.exe (or javaw.exe) process using Java Flight Recorder tool (jcmd.exe)",
       "ProcessCleanupOnCancel": "jMap,jcmd",
