@@ -123,12 +123,10 @@ steps:
   inputs:
     targetType: 'inline'
     script: |
-      $jsonData = @"
-            {
+      $jsonData = @"{
       
                 "urls": "http://0.0.0.0:50051"
-            }
-            "@
+            }"@
               
       $jsonData | Out-File config.json
     workingDirectory: '$(build.artifactStagingDirectory)/diagserver/dotnet-monitor'
