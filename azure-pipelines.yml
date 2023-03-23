@@ -120,13 +120,15 @@ steps:
     arguments: install dotnet-monitor --version 6.3 --tool-path $(build.artifactStagingDirectory)/diagserver/dotnet-monitor
 
 - task: PowerShell@2
+  displayName: 'Create dotnet-monitor config.json'
   inputs:
     targetType: 'inline'
     script: |
-      $jsonData = @"{
-                "urls": "http://0.0.0.0:50051"
-            }"@
-              
+      $jsonData = @"
+      {
+      "urls": "http://0.0.0.0:50051"
+      }
+      "@
       $jsonData | Out-File config.json
     workingDirectory: '$(build.artifactStagingDirectory)/diagserver/dotnet-monitor'
 
