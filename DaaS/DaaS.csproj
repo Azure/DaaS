@@ -32,6 +32,10 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <PropertyGroup>
+  <Nullable>enable</Nullable>
+  <LangVersion>8.0</LangVersion>
+</PropertyGroup>
   <ItemGroup>
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System" />
@@ -96,6 +100,7 @@
     <Compile Include="Configuration\Diagnoser.cs" />
     <Compile Include="Diagnostics\DiagnosticTool.cs" />
     <Compile Include="Sessions\DiagnosticToolResponse.cs" />
+    <Compile Include="Sessions\HyperVSessionManager.cs" />
     <Compile Include="Sessions\ISessionManager.cs" />
     <Compile Include="Sessions\LogFile.cs" />
     <Compile Include="Sessions\Report.cs" />

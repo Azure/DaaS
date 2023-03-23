@@ -5,6 +5,7 @@
 // </copyright>
 // -----------------------------------------------------------------------
 
+using System;
 using System.Web.Http;
 using DaaS.Sessions;
 using Unity;
@@ -17,7 +18,14 @@ namespace DiagnosticsExtension
         public static void RegisterComponents()
         {
             var container = new UnityContainer();
-            container.RegisterType<ISessionManager, SessionManager>(TypeLifetime.Singleton);
+            string isolationMode = Environment.GetEnvironmentVariable("WEBSITE_ISOLATION");
+            if (!string.IsNullOrWhiteSpace(isolationMode) && isolationMode.Equals("hyperv", StringComparison.CurrentCultureIgnoreCase))
+            {
+                container.RegisterType<ISessionManager, HyperVSessionManager>(TypeLifetime.Singleton);
+            } else
+            {
+                container.RegisterType<ISessionManager, SessionManager>(TypeLifetime.Singleton);
+            }
             GlobalConfiguration.Configuration.DependencyResolver = new UnityDependencyResolver(container);
         }
     }

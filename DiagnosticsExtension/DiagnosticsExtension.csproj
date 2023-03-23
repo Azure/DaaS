@@ -527,6 +527,8 @@
     <Folder Include="Views\ActiveSessionV2\" />
     <Folder Include="Views\DaasV2\" />
     <Folder Include="Views\DiagnosersV2\" />
+    <Folder Include="Views\HyperVSessions\" />
+    <Folder Include="Views\HyperVSession\" />
     <Folder Include="Views\ResultsViewer\" />
     <Folder Include="Views\SettingsV2\" />
     <Folder Include="Views\Settings\" />
