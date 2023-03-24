@@ -99,7 +99,6 @@ steps:
       Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\x64 -Verbose
       Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\x86 -Verbose
       Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\DiagnosticAnalysis -Verbose
-      Remove-Item -Recurse -Force $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\diagserver -Verbose
       Remove-Item $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\* -include *.ps1, *.html -Verbose
       Remove-Item $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\Dia2Lib.dll -Verbose
       Remove-Item $Env:BUILD_ARTIFACTSTAGINGDIRECTORY\bin\OSExtensions.dll -Verbose
@@ -119,6 +118,19 @@ steps:
     command: 'custom'
     custom: 'tool'
     arguments: install dotnet-monitor --version 6.3 --tool-path $(build.artifactStagingDirectory)/diagserver/dotnet-monitor
+
+- task: PowerShell@2
+  displayName: 'Create dotnet-monitor config.json'
+  inputs:
+    targetType: 'inline'
+    script: |
+      $jsonData = @"
+      {
+      "urls": "http://0.0.0.0:50051"
+      }
+      "@
+      $jsonData | Out-File config.json
+    workingDirectory: '$(build.artifactStagingDirectory)/diagserver/dotnet-monitor'
 
 - task: PowerShell@2
   displayName: 'Print Directory Structure (only for Debugging)'
