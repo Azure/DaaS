@@ -34,7 +34,7 @@ namespace Daas.Test
         [Fact]
         public async Task GetAllSessions_ShouldReturnValidHttpResponse()
         {
-            var resp = await _client.GetAsync("daas/sessions");
+            var resp = await _client.PostAsync("daas/sessions/list", null);
             Assert.True(resp.IsSuccessStatusCode);
         }
 
@@ -265,7 +265,7 @@ namespace Daas.Test
 
         private async Task<Session> GetSessionInformation(string sessionId)
         {
-            var sessionResponse = await _client.GetAsync($"daas/sessions/{sessionId}");
+            var sessionResponse = await _client.PostAsync($"daas/sessions/{sessionId}", null);
             sessionResponse.EnsureSuccessStatusCode();
 
             string sessionString = await sessionResponse.Content.ReadAsStringAsync();

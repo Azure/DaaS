@@ -17,7 +17,7 @@ namespace DiagnosticsExtension.Controllers
 {
     public class DaasAdministerController : ApiController
     {
-        [HttpGet]
+        [HttpPost]
         public string StartSessionController(bool shouldStop = false)
         {
             try
