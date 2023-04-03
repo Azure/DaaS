@@ -19,9 +19,9 @@ namespace DiagnosticsExtension.Controllers
     public class CpuMonitoringController : ApiController
     {
 
-        [HttpGet]
-        [Route("")]
-        public HttpResponseMessage Get()
+        [HttpPost]
+        [Route("list")]
+        public HttpResponseMessage ListSessions()
         {
             var monitoringController = new MonitoringSessionController();
             try
@@ -41,9 +41,9 @@ namespace DiagnosticsExtension.Controllers
             }
         }
 
-        [HttpGet]
+        [HttpPost]
         [Route("{sessionId}")]
-        public HttpResponseMessage Get(string sessionId)
+        public HttpResponseMessage GetSession(string sessionId)
         {
             var monitoringController = new MonitoringSessionController();
             try
@@ -58,7 +58,7 @@ namespace DiagnosticsExtension.Controllers
             }
         }
 
-        [HttpGet]
+        [HttpPost]
         [Route("active")]
         public HttpResponseMessage GetActiveSession()
         {
@@ -80,7 +80,7 @@ namespace DiagnosticsExtension.Controllers
             }
         }
 
-        [HttpGet]
+        [HttpPost]
         [Route("activesessiondetails")]
         public HttpResponseMessage GetActiveSessionDetails()
         {
