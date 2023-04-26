@@ -5,6 +5,7 @@
 // </copyright>
 // -----------------------------------------------------------------------
 
+using System.Collections.Generic;
 using Newtonsoft.Json;
 
 namespace DiagnosticAnalysisLauncher
@@ -13,8 +14,28 @@ namespace DiagnosticAnalysisLauncher
     {
         public Interpretedresult[] interpretedResults { get; set; }
 
+        public Assets assets { get; set; }
+
         [JsonIgnore]
         public Result[] results { get; set; }
+    }
+
+    public class Assets
+    {
+        [JsonProperty("clrmodule", Required = Required.DisallowNull, NullValueHandling = NullValueHandling.Ignore)]
+        public IDictionary<string, ClrModuleAsset> Clrmodule { get; set; }
+    }
+
+    public class ClrModuleAsset
+    {
+        [JsonProperty("fileNameHash", Required = Required.Default, NullValueHandling = NullValueHandling.Ignore)]
+        public string FileNameHash { get; set; }
+
+        [JsonProperty("version", Required = Required.Default, NullValueHandling = NullValueHandling.Ignore)]
+        public string Version { get; set; }
+
+        [JsonProperty("isUserModule", Required = Required.DisallowNull, NullValueHandling = NullValueHandling.Ignore)]
+        public bool IsUserModule { get; set; } = false;
     }
 
     public class Interpretedresult
