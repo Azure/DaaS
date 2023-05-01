@@ -36,6 +36,12 @@ namespace DiagnosticAnalysisLauncher
 
         [JsonProperty("isUserModule", Required = Required.DisallowNull, NullValueHandling = NullValueHandling.Ignore)]
         public bool IsUserModule { get; set; } = false;
+
+        [JsonProperty("hasSymbols", Required = Required.DisallowNull, NullValueHandling = NullValueHandling.Ignore)]
+        public bool HasSymbols { get; set; } = false;
+
+        [JsonProperty("isAspnetCompiled", Required = Required.DisallowNull, NullValueHandling = NullValueHandling.Ignore)]
+        public bool IsAspnetCompiled { get; set; } = false;
     }
 
     public class Interpretedresult
