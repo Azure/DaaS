@@ -381,7 +381,6 @@
     <Compile Include="Controllers\DaaSVersionController.cs" />
     <Compile Include="Controllers\EventsController.cs" />
     <Compile Include="Controllers\FrebLogsController.cs" />
-    <Compile Include="Controllers\InstancesController.cs" />
     <Compile Include="Controllers\HomeController.cs" />
     <Compile Include="Controllers\StdoutLogsController.cs" />
     <Compile Include="LoggingHandler.cs" />

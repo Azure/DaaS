@@ -33,9 +33,9 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup>
-  <Nullable>enable</Nullable>
-  <LangVersion>8.0</LangVersion>
-</PropertyGroup>
+    <Nullable>enable</Nullable>
+    <LangVersion>8.0</LangVersion>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System" />
@@ -62,8 +62,6 @@
     <Compile Include="DaaSFileInfo.cs" />
     <Compile Include="DelegatingStream.cs" />
     <Compile Include="EnvironmentVariables.cs" />
-    <Compile Include="HeartBeats\HeartBeatController.cs" />
-    <Compile Include="HeartBeats\Instance.cs" />
     <Compile Include="MemoryStreamExtensions.cs" />
     <Compile Include="Monitoring\AlwaysOnCpuRule.cs" />
     <Compile Include="Monitoring\AnalysisRequest.cs" />

@@ -539,7 +539,6 @@ namespace DaaS
         {
             var logs = new List<MonitoringLogsPerInstance>();
             string cpuMonitorPath = GetCpuMonitoringPath(MonitoringSessionDirectories.Active);
-            var activeInstances = HeartBeats.HeartBeatController.GetLiveInstances();
 
             if (GetActiveSession() == null)
             {
@@ -548,19 +547,43 @@ namespace DaaS
 
             foreach (var logFile in FileSystemHelpers.GetFilesInDirectory(cpuMonitorPath, "*.log", false, SearchOption.TopDirectoryOnly))
             {
-                string instanceName = Path.GetFileNameWithoutExtension(logFile);
-                if (activeInstances.Any(x => x.Name.Equals(instanceName, StringComparison.OrdinalIgnoreCase)))
+                if (!IsActiveInstance(logFile))
                 {
-                    string logContent = ReadEndTokens(logFile, 10, Encoding.Default, Environment.NewLine);
-                    logs.Add(new MonitoringLogsPerInstance()
-                    {
-                        Instance = instanceName,
-                        Logs = logContent
-                    });
+                    continue;
                 }
+
+                string instanceName = Path.GetFileNameWithoutExtension(logFile);
+                string logContent = ReadEndTokens(logFile, 10, Encoding.Default, Environment.NewLine);
+                logs.Add(new MonitoringLogsPerInstance()
+                {
+                    Instance = instanceName,
+                    Logs = logContent
+                });
             }
 
             return logs;
+        }
+
+        private bool IsActiveInstance(string logFile)
+        {
+            try
+            {
+                var lastModifiedUtc = File.GetLastWriteTimeUtc(logFile);
+                if (DateTime.UtcNow.Subtract(lastModifiedUtc).TotalMinutes > 15)
+                {
+                    //
+                    // Cleanup log files from instances that are no longer assigned to this site
+                    //
+
+                    FileSystemHelpers.DeleteFileSafe(logFile);
+                    return false;
+                }
+            }
+            catch (Exception)
+            {
+            }
+
+            return true;
         }
 
         //
