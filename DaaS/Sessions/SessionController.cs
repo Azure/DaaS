@@ -11,8 +11,6 @@ using System.Linq;
 using DaaS.Storage;
 using System.Diagnostics;
 using DaaS.Configuration;
-using System.Collections.Generic;
-using DaaS.HeartBeats;
 using Microsoft.WindowsAzure.Storage;
 
 namespace DaaS.Sessions
@@ -318,11 +316,6 @@ namespace DaaS.Sessions
             {
             }
             return ver;
-        }
-
-        public IEnumerable<Instance> GetAllRunningSiteInstances()
-        {
-            return HeartBeatController.GetLiveInstances();
         }
     }
 }

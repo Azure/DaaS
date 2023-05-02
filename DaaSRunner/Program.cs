@@ -17,7 +17,6 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Collections.Concurrent;
 using System.Net;
-using DaaS.HeartBeats;
 using DaaS.Configuration;
 
 namespace DaaSRunner
@@ -32,10 +31,7 @@ namespace DaaSRunner
 
         private static SessionController _DaaS = new SessionController();
         private static int cleanOutHeartBeats = 0;
-        private static double sleepIntervalForHeartbeatCheck = 0;
         private static DateTime _lastHeartbeatSent = DateTime.MinValue;
-        private static DateTime _lastInstanceCountCheck = DateTime.MinValue;
-        private static int _instanceCountCheckFrequency = 30;
         private static bool m_MonitoringEnabled = false;
         private static readonly CpuMonitoring m_CpuMonitoring = new CpuMonitoring();
         private static ICpuMonitoringRule m_CpuMonitoringRule = null;
@@ -385,42 +381,8 @@ namespace DaaSRunner
 
         private static void StartSessionRunner()
         {
-            int logCounter = 0;
-            sleepIntervalForHeartbeatCheck = (sleepIntervalForHeartbeatCheck < Settings.Instance.FrequencyToCheckForNewSessionsAtInSeconds) ? Settings.Instance.FrequencyToCheckForNewSessionsAtInSeconds: sleepIntervalForHeartbeatCheck;
-            _lastInstanceCountCheck = DateTime.UtcNow;
-
             while (true)
             {
-                if (DateTime.UtcNow.Subtract(_lastHeartbeatSent).TotalSeconds > sleepIntervalForHeartbeatCheck)
-                {
-                    _lastHeartbeatSent = DateTime.UtcNow;
-                    SendHeartBeat();
-                }
-
-                if (DateTime.UtcNow.Subtract(_lastInstanceCountCheck).TotalMinutes > _instanceCountCheckFrequency)
-                {
-                    _lastInstanceCountCheck = DateTime.UtcNow;
-                    try
-                    {
-                        logCounter++;
-                        int instanceCount = HeartBeatController.GetNumberOfLiveInstances();
-                        sleepIntervalForHeartbeatCheck = GetSleepIntervalBetweenHeartbeats(instanceCount);
-
-                        // Treat sleepInterval as minutes for InstanceCountCheckFrequency 
-                        // to avoid making this call every 30 minutes
-                        _instanceCountCheckFrequency = Convert.ToInt32(sleepIntervalForHeartbeatCheck);
-                        if (logCounter == 5)
-                        {
-                            logCounter = 0;
-                            Logger.LogVerboseEvent($"Live Instance Count = {instanceCount} and sleepInterval between heartbeats = {sleepIntervalForHeartbeatCheck}");
-                        }
-
-                    }
-                    catch (Exception)
-                    {
-                    }
-                }
-
                 RunActiveSession(_cts.Token);
                 RemoveOlderSessionsIfNeeded();
 
@@ -602,19 +564,6 @@ namespace DaaSRunner
             interval = Math.Max(30, interval);
             interval = Math.Min(180, interval);
             return Convert.ToDouble(interval);
-        }
-
-        private static void SendHeartBeat()
-        {
-            HeartBeatController.SendHeartBeat();
-
-            // No need to bother cleaning out stale heartbeats all the time. 
-            cleanOutHeartBeats++;
-            if (cleanOutHeartBeats >= 5)
-            {
-                HeartBeatController.DeleteExpiredHeartBeats();
-                cleanOutHeartBeats = 0;
-            }
         }
     }
 

@@ -54,7 +54,6 @@ namespace DiagnosticsExtension.Controllers
             }
         }
 
-
         [HttpPost]
         [Route("list")]
         public async Task<IHttpActionResult> ListSessions()
