@@ -24,6 +24,7 @@ using Microsoft.Diagnostics.Tracing.Parsers.Kernel;
 using System.Runtime.InteropServices;
 using System.IO.Compression;
 using DaaS;
+using System.Text;
 
 namespace ClrProfilingAnalyzer
 {
@@ -329,6 +330,11 @@ namespace ClrProfilingAnalyzer
                 }
                 stats.OutProcClrExceptions = exceptionsWithMessageOutProc.Count;
 
+                stopWatch.Restart();
+                LaunchDiagnosticTraceAnalysis(etlFilePath, dataFile.MachineName);
+                stopWatch.Stop();
+                stats.TimeToRunDiagnosticTraceAnalysis = stopWatch.Elapsed.TotalSeconds;
+
                 Logger.TraceStats(JsonConvert.SerializeObject(stats));
 
                 CleanupExtractedFiles(etlFilePath, uncompressedPath);
@@ -338,6 +344,80 @@ namespace ClrProfilingAnalyzer
                 Logger.LogDiagnoserErrorEvent("Failed while analyzing the trace", ex);
                 Logger.TraceFatal($"Failed while analyzing the trace with exception - {ex.GetType()}: {ex.Message}", false);
             }
+        }
+
+        private static void LaunchDiagnosticTraceAnalysis(string etlFilePath, string machineName)
+        {
+            string directoryName = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+            string diagnosticAnalysisExePath = Path.Combine(directoryName, "TraceDiagnosticsAnalysis", "DiagnosticAnalysis.exe");
+            string siteDirectory = Path.Combine(Environment.GetEnvironmentVariable("HOME"), "site", "wwwroot");
+            var outputBuilder = new StringBuilder();
+
+            var diagnosticsAnalysis = new Process()
+            {
+                StartInfo = new ProcessStartInfo()
+                {
+                    FileName = diagnosticAnalysisExePath,
+                    Arguments = $"analyze {etlFilePath} --sympath {siteDirectory}",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                },
+                EnableRaisingEvents = true
+            };
+
+            diagnosticsAnalysis.OutputDataReceived += new DataReceivedEventHandler
+            (
+                delegate (object sender, DataReceivedEventArgs e)
+                {
+                    outputBuilder.Append(e.Data);
+                }
+            );
+
+
+            Stopwatch watch = new Stopwatch();
+            watch.Start();
+            diagnosticsAnalysis.Start();
+            diagnosticsAnalysis.BeginOutputReadLine();
+
+            diagnosticsAnalysis.WaitForExit();
+            diagnosticsAnalysis.CancelOutputRead();
+            watch.Stop();
+
+            var diagCliJsonOutput = outputBuilder.ToString();
+
+            if (!string.IsNullOrWhiteSpace(diagCliJsonOutput))
+            {
+                var diagCliOutputFileName = CreateDiagCliJson(machineName, diagCliJsonOutput);
+                CreateReportHtml(diagCliOutputFileName, $"{Path.GetFileNameWithoutExtension(etlFilePath)}.html");
+            }
+        }
+
+        private static void CreateReportHtml(string diagCliOutputFileName, string v)
+        {
+            // To be implemented
+        }
+
+        private static string CreateDiagCliJson(string machineName, string diagCliOutput)
+        {
+            //
+            // Make sure that the Diag CLI.json file is in a child path of the
+            // reports folder. This ensures that the link to this file is not
+            // created in the session.
+            //
+
+            Logger.LogDiagnoserVerboseEvent("Inside CreateDiagCliJson method");
+
+            string directoryName = Path.Combine(m_OutputPath, machineName);
+            FileSystemHelpers.EnsureDirectory(directoryName);
+
+            var diagCliOutputFileName = Path.Combine(directoryName, "DiagCli.json");
+            FileSystemHelpers.WriteAllText(diagCliOutputFileName, diagCliOutput);
+
+            Logger.LogDiagnoserVerboseEvent($"Created {diagCliOutputFileName}");
+
+            return diagCliOutputFileName;
         }
 
         private static void CleanupExtractedFiles(string etlFilePath, string uncompressedPath)

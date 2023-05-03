@@ -58,6 +58,9 @@
     <PackageReference Include="Microsoft.VisualStudio.DiagnosticAnalysis.OneCore.x64" GeneratePathProperty="true">
       <Version>17.6.1032401</Version>
     </PackageReference>
+    <PackageReference Include="Microsoft.VisualStudio.TraceDiagnosticsAnalysis" GeneratePathProperty="true">
+      <Version>1.0.2313.37</Version>
+    </PackageReference>
     <PackageReference Include="Microsoft.WindowsAzure.Storage">
       <Version>9.3.3</Version>
     </PackageReference>
@@ -75,6 +78,10 @@
     </Content>
     <Content Include="$(PkgMicrosoft_VisualStudio_DiagnosticAnalysis_OneCore_x64)\content\**\*">
       <Link>DiagnosticAnalysis\DiagnosticAnalysis_OneCore_x64\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="$(PkgMicrosoft_VisualStudio_TraceDiagnosticsAnalysis)\content\**\*">
+      <Link>DiagnosticAnalysis\TraceDiagnosticsAnalysis\%(RecursiveDir)%(Filename)%(Extension)</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
