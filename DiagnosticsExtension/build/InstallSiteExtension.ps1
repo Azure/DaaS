@@ -7,8 +7,53 @@ Class Credentials
 {
     [string] $kuduEndpoint
     [string] $resourceGroupName
-    [string] $authorizationHeader
 
+}
+
+# https://www.powershellgallery.com/packages/AzureSimpleREST/0.1.16/Content/internal%5Cfunctions%5CGet-AzureRmCachedAccessToken.ps1
+
+Function Get-AzureRmCachedAccessToken() {
+    <#
+    .SYNOPSIS
+        Returns the current Access token from the AzureRM Module. You need to login first with Connect-AzureRmAccount
+ 
+    .DESCRIPTION
+        Allows easy retrival of you Azure API Access Token / Bearer Token
+        This makes it much easier to use Invoke-RestMethod because you do not need a service principal
+ 
+    .EXAMPLE
+        Get-AzureRmCachedAccessToken
+ 
+    .NOTES
+        Website: https://gallery.technet.microsoft.com/scriptcenter/Easily-obtain-AccessToken-3ba6e593/view/Discussions#content
+        Copyright: (c) 2018 Stéphane Lapointe
+        License: MIT https://opensource.org/licenses/MIT
+    #>
+    $ErrorActionPreference = 'Stop'
+
+    if (-not (Get-Module AzureRm.Profile)) {
+        Import-Module AzureRm.Profile
+    }
+    $azureRmProfileModuleVersion = (Get-Module AzureRm.Profile).Version
+    # refactoring performed in AzureRm.Profile v3.0 or later
+    if ($azureRmProfileModuleVersion.Major -ge 3) {
+        $azureRmProfile = [Microsoft.Azure.Commands.Common.Authentication.Abstractions.AzureRmProfileProvider]::Instance.Profile
+        if (-not $azureRmProfile.Accounts.Count) {
+            Write-Error "Ensure you have logged in (Connect-AzureRmAccount) before calling this function."
+        }
+    } else {
+        # AzureRm.Profile < v3.0
+        $azureRmProfile = [Microsoft.WindowsAzure.Commands.Common.AzureRmProfileProvider]::Instance.Profile
+        if (-not $azureRmProfile.Context.Account.Count) {
+            Write-Error "Ensure you have logged in (Connect-AzureRmAccount) before calling this function."
+        }
+    }
+
+    $currentAzureContext = Get-AzureRmContext
+    $profileClient = New-Object Microsoft.Azure.Commands.ResourceManager.Common.RMProfileClient($azureRmProfile)
+    Write-Debug ("Getting access token for tenant" + $currentAzureContext.Subscription.TenantId)
+    $token = $profileClient.AcquireAccessToken($currentAzureContext.Subscription.TenantId)
+    $token.AccessToken
 }
 
 Function GetResourceGroupForWebApp ([string] $webappNameParam)
@@ -36,13 +81,16 @@ Function GetPublishingCredsForWebApp([string] $subscriptionId, [string] $webAppN
 
     $publishProfileXml =[xml]$publishProfileString
 
-    $userName = $publishProfileXml.publishData.publishProfile[0].userName
-    $password = $publishProfileXml.publishData.publishProfile[0].userPWD
+    #
+    # The Publish Profile Credentials below are not really used.
+    # Will clean this code at some point.
+    #
+    
+    #$userName = $publishProfileXml.publishData.publishProfile[0].userName
+    #$password = $publishProfileXml.publishData.publishProfile[0].userPWD
 
     $script:creds.kuduEndpoint = $publishProfileXml.publishData.publishProfile[0].publishUrl
-    $script:creds.authorizationHeader = "Basic {0}" -f [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f  $userName, $password)))
     $script:creds.resourceGroupName = $rgName
-
     $script:creds.kuduEndpoint
 
     return $script:creds
@@ -71,6 +119,8 @@ if ($mode -ne "uninstall"){
 
 if ([string]::IsNullOrEmpty($(Get-AzureRmContext).Account)) {Login-AzureRmAccount}
 
+$accessToken = Get-AzureRmCachedAccessToken
+$authorizationHeader = "Bearer " + $accessToken
 foreach($webapp in $allWebSites)
 {
     $webAppName = $webapp.SiteName
@@ -78,7 +128,6 @@ foreach($webapp in $allWebSites)
 
     $creds = GetPublishingCredsForWebApp $subscriptionId $webAppName 
     $kuduEndpoint = $creds.kuduEndpoint
-    $authorizationHeader = $creds.authorizationHeader
     $rgName = $creds.resourceGroupName
 
     "[$webAppName]"
@@ -103,7 +152,7 @@ foreach($webapp in $allWebSites)
 }
 
 if ($mode -ne "uninstall"){
-    Compress-Archive -Path  "D:\source\DaaS\DiagnosticsExtension\bin\Release\PublishOutput\*" -DestinationPath $siteExtensionArchive -Force
+    Compress-Archive -Path  "c:\source\DaaS\DiagnosticsExtension\bin\Release\PublishOutput\*" -DestinationPath $siteExtensionArchive -Force
     Timeout /t 20 /nobreak
 }
 
@@ -115,7 +164,6 @@ foreach($webapp in $allWebSites)
     
     $script:creds = GetPublishingCredsForWebApp $subscriptionId $webAppName 
     $kuduEndpoint = $script:creds.kuduEndpoint
-    $authorizationHeader = $script:creds.authorizationHeader
     $rgName = $script:creds.resourceGroupName
     
     $kuduApiUrl = "https://$kuduEndpoint/api/zip/SiteExtensions/DaaS/"
@@ -167,7 +215,6 @@ if ($mode -ne "uninstall") {
         
         $script:creds = GetPublishingCredsForWebApp $subscriptionId $webAppName 
         $kuduEndpoint = $script:creds.kuduEndpoint
-        $authorizationHeader = $script:creds.authorizationHeader
         $rgName = $script:creds.resourceGroupName
         
         "[$webAppName]"
