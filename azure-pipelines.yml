@@ -242,7 +242,7 @@ steps:
       $publishProfile = $publishProfileXml.publishData.publishProfile[0]
       $kuduEndpoint = $publishProfile.publishUrl
 
-      $accessToken = Get-AzAccessToken
+      $accessToken = (Get-AzAccessToken).Token
       $authorizationHeader = "Bearer " + $accessToken
 
       Write-Host ("KuduEndpoint = " + $kuduEndpoint + ". Going to upload SiteExtension bits now")
