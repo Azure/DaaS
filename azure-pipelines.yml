@@ -241,9 +241,10 @@ steps:
       
       $publishProfile = $publishProfileXml.publishData.publishProfile[0]
       $kuduEndpoint = $publishProfile.publishUrl
-      [string]$userName = $publishProfile.userName
-      [string]$publishingPassword = $publishProfile.userPWD
-      $authorizationHeader = "Basic {0}" -f [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes(("{0}:{1}" -f $userName, $publishingPassword)))
+
+      $accessToken = (Get-AzAccessToken).Token
+      $authorizationHeader = "Bearer " + $accessToken
+
       Write-Host ("KuduEndpoint = " + $kuduEndpoint + ". Going to upload SiteExtension bits now")
       
       $kuduApiUrl = "https://$kuduEndpoint/api/zip/SiteExtensions/DaaS/"
@@ -299,8 +300,7 @@ steps:
       }
       
       Write-Host "##vso[task.setvariable variable=KUDU_ENDPOINT]$kuduEndpoint"
-      Write-Host "##vso[task.setvariable variable=KUDU_USERNAME]$userName"
-      Write-Host "##vso[task.setvariable variable=KUDU_PASSWORD]$publishingPassword"
+      Write-Host "##vso[task.setvariable variable=KUDU_AUTH_TOKEN]$accessToken"
     azurePowerShellVersion: 'LatestVersion'
 
 - task: PublishBuildArtifacts@1
@@ -324,8 +324,7 @@ steps:
     configuration: '$(buildConfiguration)'
   env:
     KUDU_ENDPOINT: $(KUDU_ENDPOINT)
-    KUDU_USERNAME: $(KUDU_USERNAME)
-    KUDU_PASSWORD: $(KUDU_PASSWORD)
+    KUDU_AUTH_TOKEN: $(KUDU_AUTH_TOKEN)
 
 
 - task: AzurePowerShell@5

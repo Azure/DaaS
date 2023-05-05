@@ -302,7 +302,7 @@ namespace DaaS.Sessions
             }
             catch (Exception ex)
             {
-                Logger.LogSessionWarningEvent($"Exception while deleting ${directory}", ex, sessionIdToLog);
+                Logger.LogSessionWarningEvent($"Exception while deleting {directory}", ex, sessionIdToLog);
             }
         }
 

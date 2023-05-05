@@ -28,40 +28,57 @@ namespace Daas.Test
 
         internal static HttpClient GetHttpClient(IConfiguration configuration)
         {
-            string userName = configuration["KUDU_USERNAME"];
-            string password = configuration["KUDU_PASSWORD"];
+            string authToken = configuration["KUDU_AUTH_TOKEN"];
             string kuduEndpoint = configuration["KUDU_ENDPOINT"];
+            string userName = string.Empty;
+            string password = string.Empty;
+            bool usingPublishProfileCredentails = false;
 
-            if (string.IsNullOrWhiteSpace(userName))
-            {
-                throw new ArgumentNullException(nameof(userName));
-            }
-            if (string.IsNullOrWhiteSpace(password))
-            {
-                throw new ArgumentNullException(nameof(password));
-            }
             if (string.IsNullOrWhiteSpace(kuduEndpoint))
             {
                 throw new ArgumentNullException(nameof(kuduEndpoint));
             }
 
-            // For Debugging VSTest in Azure Devops
-            // Console.WriteLine("Kudu Endpoint = " + kuduEndpoint);
-            // Console.WriteLine("Kudu UserName = " + userName);
+            if (string.IsNullOrWhiteSpace(authToken))
+            {
+                userName = configuration["KUDU_USERNAME"];
+                password = configuration["KUDU_PASSWORD"];
+
+                if (string.IsNullOrWhiteSpace(userName))
+                {
+                    throw new ArgumentNullException(nameof(userName));
+                }
+                if (string.IsNullOrWhiteSpace(password))
+                {
+                    throw new ArgumentNullException(nameof(password));
+                }
+
+                usingPublishProfileCredentails = true;
+            }
 
             if (!kuduEndpoint.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
             {
                 kuduEndpoint = $"https://{kuduEndpoint}";
             }
 
-            var credentials = new NetworkCredential(userName, password);
-            var handler = new HttpClientHandler { Credentials = credentials };
+            HttpClientHandler handler = new HttpClientHandler();
+            if (usingPublishProfileCredentails)
+            {
+                var credentials = new NetworkCredential(userName, password);
+                handler.Credentials = credentials;
+            }
+
             handler.ServerCertificateCustomValidationCallback += (sender, cert, chain, sslPolicyErrors) => true;
 
             var client = new HttpClient(handler)
             {
                 BaseAddress = new Uri(kuduEndpoint),
             };
+
+            if (!usingPublishProfileCredentails)
+            {
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
+            }
 
             client.DefaultRequestHeaders.Accept.Clear();
             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
