@@ -56,7 +56,7 @@
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.VisualStudio.DiagnosticAnalysis.OneCore.x64" GeneratePathProperty="true">
-      <Version>17.6.1032401</Version>
+      <Version>17.7.1050401</Version>
     </PackageReference>
     <PackageReference Include="Microsoft.WindowsAzure.Storage">
       <Version>9.3.3</Version>
@@ -65,7 +65,7 @@
       <Version>13.0.1</Version>
     </PackageReference>
     <PackageReference Include="Microsoft.VisualStudio.DiagnosticAnalysis.Windows" GeneratePathProperty="true">
-      <Version>17.5.1111701</Version>
+      <Version>17.7.1050401</Version>
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
