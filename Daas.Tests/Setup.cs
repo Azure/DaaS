@@ -28,34 +28,25 @@ namespace Daas.Test
 
         internal static HttpClient GetHttpClient(IConfiguration configuration)
         {
-            string userName = configuration["KUDU_USERNAME"];
-            string password = configuration["KUDU_PASSWORD"];
+            string authToken = configuration["KUDU_AUTH_TOKEN"];
             string kuduEndpoint = configuration["KUDU_ENDPOINT"];
 
-            if (string.IsNullOrWhiteSpace(userName))
+            if (string.IsNullOrWhiteSpace(authToken))
             {
-                throw new ArgumentNullException(nameof(userName));
-            }
-            if (string.IsNullOrWhiteSpace(password))
-            {
-                throw new ArgumentNullException(nameof(password));
+                throw new ArgumentNullException(nameof(authToken));
             }
             if (string.IsNullOrWhiteSpace(kuduEndpoint))
             {
                 throw new ArgumentNullException(nameof(kuduEndpoint));
             }
 
-            // For Debugging VSTest in Azure Devops
-            // Console.WriteLine("Kudu Endpoint = " + kuduEndpoint);
-            // Console.WriteLine("Kudu UserName = " + userName);
-
             if (!kuduEndpoint.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
             {
                 kuduEndpoint = $"https://{kuduEndpoint}";
             }
 
-            var credentials = new NetworkCredential(userName, password);
-            var handler = new HttpClientHandler { Credentials = credentials };
+            
+            var handler = new HttpClientHandler();
             handler.ServerCertificateCustomValidationCallback += (sender, cert, chain, sslPolicyErrors) => true;
 
             var client = new HttpClient(handler)
@@ -63,6 +54,7 @@ namespace Daas.Test
                 BaseAddress = new Uri(kuduEndpoint),
             };
 
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", authToken);
             client.DefaultRequestHeaders.Accept.Clear();
             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
