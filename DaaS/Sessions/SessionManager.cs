@@ -64,6 +64,7 @@ namespace DaaS.Sessions
 
         public async Task<string> SubmitNewSessionAsync(Session session, bool invokedViaDaasConsole = false)
         {
+            string sessionId = string.Empty;
             var computeMode = Environment.GetEnvironmentVariable("WEBSITE_COMPUTE_MODE");
             if (computeMode != null && !computeMode.Equals("Dedicated", StringComparison.OrdinalIgnoreCase))
             {
@@ -88,8 +89,53 @@ namespace DaaS.Sessions
 
             await ThrowIfSessionInvalid(session);
 
-            await SaveSessionAsync(session, invokedViaDaasConsole);
-            return session.SessionId;
+            //
+            // Acquire lock on the Active Session file
+            //
+
+            var activeSessionLock = AcquireActiveSessionLock();
+            if (activeSessionLock == null)
+            {
+                //
+                // If we failed to acquire the lock, someone else might have already created a session.
+                // Throw an exception to indicate that there is an active session
+                //
+
+                throw new AccessViolationException("Failed to acquire the lock to create a session. There is most likely another active session");
+            }
+
+            try
+            {
+                var existingActiveSession = await GetActiveSessionAsync();
+                if (existingActiveSession == null)
+                {
+                    //
+                    // Save session only if there is no existing active session
+                    //
+
+                    sessionId = await SaveSessionAsync(session, invokedViaDaasConsole);
+                }
+                else
+                {
+                    Logger.LogSessionWarningEvent($"Ignoring current session as we found an existing session", $"Existing session for '{existingActiveSession.Tool}' found", existingActiveSession.SessionId);
+                }
+
+            }
+            catch (Exception ex)
+            {
+                Logger.LogSessionErrorEvent("Failed while submitting session", ex, "NEW_SESSION_ID");
+            }
+            finally
+            {
+                activeSessionLock.Release();
+            }
+
+            if (string.IsNullOrWhiteSpace(sessionId))
+            {
+                throw new Exception("Failed to create a new session");
+            }
+
+            return sessionId;
         }
 
         private async Task ThrowIfSessionInvalid(Session session)
@@ -902,7 +948,7 @@ namespace DaaS.Sessions
             return path;
         }
 
-        private async Task SaveSessionAsync(Session session, bool invokedViaDaasConsole)
+        private async Task<string> SaveSessionAsync(Session session, bool invokedViaDaasConsole)
         {
             try
             {
@@ -920,6 +966,21 @@ namespace DaaS.Sessions
                 await WriteJsonAsync(session,
                     Path.Combine(SessionDirectories.ActiveSessionsDir, session.SessionId + ".json"));
 
+                LogSessionDetailsSafe(session, invokedViaDaasConsole);
+                return session.SessionId;
+            }
+            catch (Exception ex)
+            {
+                Logger.LogSessionErrorEvent("Failed while saving the session", ex, session.SessionId);
+            }
+
+            return string.Empty;
+        }
+
+        private static void LogSessionDetailsSafe(Session session, bool invokedViaDaasConsole)
+        {
+            try
+            {
                 var details = new
                 {
                     Instances = string.Join(",", session.Instances),
@@ -940,7 +1001,7 @@ namespace DaaS.Sessions
             }
             catch (Exception ex)
             {
-                Logger.LogSessionErrorEvent("Failed while saving the session", ex, session.SessionId);
+                Logger.LogErrorEvent("Failed while logging session details", ex);
             }
         }
 
@@ -1013,6 +1074,19 @@ namespace DaaS.Sessions
 
             Logger.LogSessionVerboseEvent($"Acquired SessionLock by {callerMethodName}", sessionId);
             return sessionLock;
+        }
+
+        private IOperationLock AcquireActiveSessionLock()
+        {
+            IOperationLock sessionLock = new SessionLockFile(Path.Combine(SessionDirectories.ActiveSessionsDir, "activesession.json.lock"));
+            Logger.LogSessionVerboseEvent($"Acquiring ActiveSessionLock by AcquireActiveSessionLock", "NEW_SESSION_ID");
+            if (sessionLock.Lock("AcquireActiveSessionLock"))
+            {
+                Logger.LogSessionVerboseEvent($"Acquired ActiveSessionLock by AcquireActiveSessionLock", "NEW_SESSION_ID");
+                return sessionLock;
+            }
+
+            return null;
         }
 
         private async Task UpdateActiveSessionFileAsync(Session activeSesion)

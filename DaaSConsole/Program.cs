@@ -91,7 +91,8 @@ namespace DaaSConsole
                     case (Options.Troubleshoot):
                     case (Options.CollectKillAnalyze):
                         {
-                            CollectLogsAndTakeActions(option, args, ref argNum);
+                            string sessionId = CollectLogsAndTakeActions(option, args, ref argNum);
+                            KillProcessIfNeeded(option, sessionId);
                             break;
                         }
                     default:
@@ -99,6 +100,22 @@ namespace DaaSConsole
                 }
 
                 Console.WriteLine();
+            }
+        }
+
+        private static void KillProcessIfNeeded(Options option, string sessionId)
+        {
+            if (string.IsNullOrWhiteSpace(sessionId))
+            {
+                sessionId = "SESSION_THROTTLED";
+            }
+
+            if (option == Options.CollectKillAnalyze)
+            {
+                Process mainSiteW3wpProcess = GetMainSiteW3wpProcess();
+                Console.WriteLine($"Killing process {mainSiteW3wpProcess.ProcessName} with pid {mainSiteW3wpProcess.Id}");
+                mainSiteW3wpProcess.Kill();
+                Logger.LogSessionVerboseEvent($"DaasConsole killed process {mainSiteW3wpProcess.ProcessName} with pid {mainSiteW3wpProcess.Id}", sessionId);
             }
         }
 
@@ -157,15 +174,15 @@ namespace DaaSConsole
             return retval;
         }
 
-        private static void CollectLogsAndTakeActions(Options options, string[] args, ref int argNum)
+        private static string CollectLogsAndTakeActions(Options options, string[] args, ref int argNum)
         {
             try
             {
                 if (IsSessionOption(options))
                 {
                     var toolName = GetToolToRun(args, ref argNum);
-                    SubmitAndWaitForSession(toolName, string.Empty, options);
-                    return;
+                    string sessionId = SubmitAndWaitForSession(toolName, string.Empty, options);
+                    return sessionId;
                 }
             }
             catch (Exception ex)
@@ -175,6 +192,8 @@ namespace DaaSConsole
                 Console.WriteLine(logMessage);
                 Logger.LogErrorEvent("Unhandled exception in DaasConsole.exe while collecting logs and taking actions", ex);
             }
+
+            return string.Empty;
         }
 
         private static bool IsSessionOption(Options options)
@@ -184,7 +203,7 @@ namespace DaaSConsole
                 || options == Options.CollectLogs;
         }
 
-        private static void SubmitAndWaitForSession(string toolName, string toolParams, Options options)
+        private static string SubmitAndWaitForSession(string toolName, string toolParams, Options options)
         {
             Console.WriteLine($"Running Diagnosers on { Environment.MachineName}");
 
@@ -263,13 +282,7 @@ namespace DaaSConsole
                 }
             }
 
-            if (options == Options.CollectKillAnalyze)
-            {
-                Process mainSiteW3wpProcess = GetMainSiteW3wpProcess();
-                Console.WriteLine($"Killing process {mainSiteW3wpProcess.ProcessName} with pid {mainSiteW3wpProcess.Id}");
-                mainSiteW3wpProcess.Kill();
-                Logger.LogSessionVerboseEvent($"DaasConsole killed process {mainSiteW3wpProcess.ProcessName} with pid {mainSiteW3wpProcess.Id}", sessionId);
-            }
+            return sessionId;
         }
 
         private static string GetSessionDescription()
@@ -301,37 +314,6 @@ namespace DaaSConsole
             }
 
             throw new ArgumentException("Invalid diagnostic mode specified");
-        }
-
-        private static string GetBlobSasUriFromArg(string[] args, ref int argNum)
-        {
-            var sasUri = "";
-            if (argNum > args.Length)
-            {
-                return sasUri;
-            }
-            else
-            {
-                try
-                {
-                    var sasUriString = args[argNum];
-                    if (ArgumentIsAParameter(sasUriString))
-                    {
-                        var optionString = args[argNum].Substring(1, args[argNum].Length - 1);
-
-                        if (optionString.StartsWith("blobsasuri:", StringComparison.OrdinalIgnoreCase))
-                        {
-                            sasUri = optionString.Substring("blobsasuri:".Length);
-                            argNum++;
-                        }
-                    }
-                }
-                catch
-                {
-                }
-            }
-
-            return sasUri;
         }
 
         private static Process GetMainSiteW3wpProcess()
@@ -369,60 +351,9 @@ namespace DaaSConsole
 
             if (mainSiteW3wpProcess == null)
             {
-                Console.WriteLine("Woah, I missed it. Where did w3wp go?");
+                Console.WriteLine("The worker process for the main site is not running any more");
             }
             return mainSiteW3wpProcess;
-        }
-
-        private static TimeSpan GetTimeSpanFromArg(string[] args, ref int argNum)
-        {
-            int numberOfSeconds = 30;
-            try
-            {
-                var numberOfSecondsStr = args[argNum];
-                if (!ArgumentIsAParameter(numberOfSecondsStr))
-                {
-                    numberOfSeconds = int.Parse(numberOfSecondsStr);
-                    argNum++;
-                }
-            }
-            catch
-            {
-                // No timespan is specified. We'll default to 30 seconds;
-            }
-
-            return TimeSpan.FromSeconds(numberOfSeconds);
-        }
-
-        private static bool GetRunAllInstancesFromArg(string[] args, ref int argNum)
-        {
-            if (argNum > args.Length)
-            {
-                return false;
-            }
-            else
-            {
-                try
-                {
-                    var allInstancesString = args[argNum];
-                    if (ArgumentIsAParameter(allInstancesString))
-                    {
-                        Options.TryParse(args[argNum].Substring(1, args[argNum].Length - 1), true, out Options option);
-                        if (option == Options.AllInstances)
-                        {
-                            argNum++;
-                            return true;
-                        }
-
-                    }
-                }
-                catch
-                {
-                    // Assume Options.AllInstances is false if not specified
-                }
-            }
-
-            return false;
         }
 
         private static bool ArgumentIsAParameter(string currentArgument)
@@ -434,14 +365,14 @@ namespace DaaSConsole
         {
             var optionDescriptions = new List<Argument>()
             {
-                new Argument() {Command = Options.Troubleshoot, Usage = "<Diagnoser1> [<Diagnoser2> ...] [TimeSpanToRunForInSeconds] [-BlobSasUri:\"<A_VALID_BLOB_SAS_URI>\"] [-AllInstances]", Description = "Create a new Collect and Analyze session with the requested diagnosers. Default TimeSpanToRunForInSeconds is 30. If a valid BlobSasUri is specified, all data for the session will be stored on the specified blob account. By default this option collects data only on the current instance. To collect the data on all the instances specify -AllInstances."},
-                new Argument() {Command = Options.CollectLogs, Usage = "<Diagnoser1> [<Diagnoser2> ...] [TimeSpanToRunForInSeconds] [-BlobSasUri:\"<A_VALID_BLOB_SAS_URI>\"] [-AllInstances]", Description = "Create a new Collect Only session with the requested diagnosers. Default TimeSpanToRunForInSeconds is 30. If a valid BlobSasUri is specified, all data for the session will be stored on the specified blob account. By default this option collects data only on the current instance. To collect the data on all the instances specify -AllInstances."},
-                new Argument() {Command = Options.CollectKillAnalyze, Usage = "<Diagnoser1> [<Diagnoser2> ...] [TimeSpanToRunForInSeconds] [-BlobSasUri:\"<A_VALID_BLOB_SAS_URI>\"] [-AllInstances]", Description = "Create a new Collect Only session with the requested diagnosers, kill the main site's w3wp process to restart w3wp, then analyze the collected logs. Default TimeSpanToRunForInSeconds is 30. If a valid BlobSasUri is specified, all data for the session will be stored on the specified blob account. By default this option collects data only on the current instance. To collect the data on all the instances specify -AllInstances."},
+                new Argument() {Command = Options.Troubleshoot, Usage = "<Diagnoser1>", Description = "Create a new Collect and Analyze session with the requested diagnosers. Default TimeSpanToRunForInSeconds is 30. If a valid BlobSasUri is specified, all data for the session will be stored on the specified blob account. By default this option collects data only on the current instance. To collect the data on all the instances specify -AllInstances."},
+                new Argument() {Command = Options.CollectLogs, Usage = "<Diagnoser1>", Description = "Create a new Collect Only session with the requested diagnosers. Default TimeSpanToRunForInSeconds is 30. If a valid BlobSasUri is specified, all data for the session will be stored on the specified blob account. By default this option collects data only on the current instance. To collect the data on all the instances specify -AllInstances."},
+                new Argument() {Command = Options.CollectKillAnalyze, Usage = "<Diagnoser1>", Description = "Create a new Collect Only session with the requested diagnosers, kill the main site's w3wp process to restart w3wp, then analyze the collected logs. Default TimeSpanToRunForInSeconds is 30. If a valid BlobSasUri is specified, all data for the session will be stored on the specified blob account. By default this option collects data only on the current instance. To collect the data on all the instances specify -AllInstances."},
                 new Argument() {Command = Options.ListDiagnosers, Usage = "", Description = "List all available diagnosers"},
                 new Argument() {Command = Options.ListSessions, Usage = "", Description = "List all sessions"},
                 new Argument() {Command = Options.GetSasUri, Usage = "", Description = "Get the blob storage Sas Uri"},
                 new Argument() {Command = Options.Setup, Usage = "", Description = "Start the continuous webjob runner (if it's already started this does nothing)"},
-                new Argument() {Command = Options.GetSetting, Usage = "<SettingName>", Description = "The the value of the given setting"},
+                new Argument() {Command = Options.GetSetting, Usage = "<SettingName>", Description = "The value of the given setting"},
             };
 
             Console.WriteLine("\n Usage: DaasConsole.exe -<parameter1> [param1 args] [-parameter2 ...]\n");
@@ -459,10 +390,10 @@ namespace DaaSConsole
             Console.WriteLine("       DaasConsole.exe -ListDiagnosers");
             Console.WriteLine();
             Console.WriteLine("   To collect and analyze memory dumps run");
-            Console.WriteLine("       DaasConsole.exe -Troubleshoot \"Memory Dump\" 60");
+            Console.WriteLine("       DaasConsole.exe -Troubleshoot \"Memory Dump\"");
             Console.WriteLine();
             Console.WriteLine("   To collect memory dumps, kill w3wp, and then analyze the logs run");
-            Console.WriteLine("       DaasConsole.exe -CollectKillAnalyze \"Memory Dump\" 60 ");
+            Console.WriteLine("       DaasConsole.exe -CollectKillAnalyze \"Memory Dump\"");
             Console.WriteLine();
             Console.WriteLine("To specify a custom folder to get the diagnostic tools from, set the DiagnosticToolsPath setting to the desired location");
         }
