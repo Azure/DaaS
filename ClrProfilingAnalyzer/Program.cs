@@ -717,8 +717,7 @@ namespace ClrProfilingAnalyzer
 
         private static void GenerateStackTracesForSlowRequests(SymbolReader symbolReader, TraceLog dataFile, IEnumerable<IisRequest> slowRequests, ClrProfilingAnalyzerStats stats)
         {
-            Logger.LogStatus("Generating stack-traces for slow requests");
-
+            Logger.LogStatus("Extracting stack traces from trace file");
             MutableTraceEventStackSource mutStacks = new MutableTraceEventStackSource(dataFile)
             {
                 ShowUnknownAddresses = false
@@ -756,6 +755,7 @@ namespace ClrProfilingAnalyzer
                 shouldParseAsync = false;
             }
 
+            Logger.LogStatus("Generating stack-traces for slow requests");
             int counterStacksThread = 0;
             int counterStacksActivity = 0;
             int counter = 0;
