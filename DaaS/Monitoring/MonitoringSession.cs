@@ -40,6 +40,7 @@ namespace DaaS
         public MonitoringSessionResponse(MonitoringSession s)
         {
             Mode = s.Mode;
+            RuleType = s.RuleType;
             SessionId = s.SessionId;
             StartDate = s.StartDate;
             EndDate = s.EndDate;
