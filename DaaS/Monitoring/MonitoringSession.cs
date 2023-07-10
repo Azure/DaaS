@@ -40,6 +40,7 @@ namespace DaaS
         public MonitoringSessionResponse(MonitoringSession s)
         {
             Mode = s.Mode;
+            RuleType = s.RuleType;
             SessionId = s.SessionId;
             StartDate = s.StartDate;
             EndDate = s.EndDate;
@@ -57,6 +58,7 @@ namespace DaaS
             IntervalDays = s.IntervalDays;
             ActionsInInterval = s.ActionsInInterval;
             DefaultHostName = s.DefaultHostName;
+            ProcessWarmupTime = s.ProcessWarmupTime;
         }
 
         public string BlobSasUri
