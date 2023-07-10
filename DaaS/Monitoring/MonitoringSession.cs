@@ -58,6 +58,7 @@ namespace DaaS
             IntervalDays = s.IntervalDays;
             ActionsInInterval = s.ActionsInInterval;
             DefaultHostName = s.DefaultHostName;
+            ProcessWarmupTime = s.ProcessWarmupTime;
         }
 
         public string BlobSasUri
