@@ -51,6 +51,7 @@ namespace DiagnosticAnalysisLauncher
         public string shortDescription { get; set; }
         public string severity { get; set; }
         public string errorCode { get; set; }
+        public IDictionary<string, object> stats { get; set; }
     }
 
     public class Detail
