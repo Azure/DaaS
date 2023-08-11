@@ -86,13 +86,13 @@ namespace DaaS.Sessions
                 string newDaasConsole = Path.Combine(Infrastructure.GetDaasInstallationPath(), "bin", "daasconsole.exe");
                 string oldDaasConsole = EnvironmentVariables.DaasConsole;
 
-                if (IsDaasRunnerVersionDifferent(newDaasRunner, oldDaasRunner))
+                if (IsDaasRunnerVersionLower(newDaasRunner, oldDaasRunner))
                 {
                     CopyFileWithRetry(newDaasRunner, targetFile: oldDaasRunner);
                     CopyFileWithRetry($"{newDaasRunner}.config", targetFile: $"{oldDaasRunner}.config");
                 }
 
-                if (IsFileVersionDifferent(newDaasConsole, oldDaasConsole))
+                if (IsFileVersionLower(newDaasConsole, oldDaasConsole))
                 {
                     CopyFileWithRetry(newDaasConsole, targetFile: oldDaasConsole);
                     CopyFileWithRetry($"{newDaasConsole}.config", targetFile: $"{oldDaasConsole}.config");
@@ -148,7 +148,7 @@ namespace DaaS.Sessions
             }
             catch (Exception ex)
             {
-                Logger.LogErrorEvent("Failed while cleaning up obsolete files", ex);
+                Logger.LogWarningEvent("Failed while cleaning up obsolete files", ex);
             }
         }
 
@@ -199,7 +199,7 @@ namespace DaaS.Sessions
             }
         }
 
-        private static bool IsFileVersionDifferent(string newFile, string oldFile)
+        private static bool IsFileVersionLower(string newFile, string oldFile)
         {
             if (!FileSystemHelpers.FileExists(oldFile))
             {
@@ -215,17 +215,19 @@ namespace DaaS.Sessions
             Version oldVersion = GetFileVersion(oldFile);
             var fileName = Path.GetFileName(newFile);
 
-            if (oldVersion.Equals(newVersion))
+            var result = oldVersion.CompareTo(newVersion);
+
+            if (result >= 0)
             {
-                Logger.LogVerboseEvent($"[{fileName}] New version ({newVersion}) is the same as existing version {oldVersion}");
+                Logger.LogVerboseEvent($"[{fileName}] New version ({newVersion}) is the same as existing version {oldVersion}. Version Compare result = {result}");
                 return false;
             }
 
-            Logger.LogVerboseEvent($"[{fileName}] Current version : {oldVersion} is different than version in Daas installation path : {newVersion}, new bits will be copied");
+            Logger.LogVerboseEvent($"[{fileName}] Current version : {oldVersion} is lower than version in Daas installation path : {newVersion}, new bits will be copied");
             return true;
         }
 
-        private static bool IsDaasRunnerVersionDifferent(string newDaasRunner, string oldDaasRunner)
+        private static bool IsDaasRunnerVersionLower(string newDaasRunner, string oldDaasRunner)
         {
             if (!FileSystemHelpers.FileExists(oldDaasRunner))
             {
@@ -246,19 +248,19 @@ namespace DaaS.Sessions
 
             if (oldVersion.Major == 0)
             {
-                return IsFileVersionDifferent(newDaasRunner, oldDaasRunner);
+                return IsFileVersionLower(newDaasRunner, oldDaasRunner);
             }
 
             Version newVersion = GetFileVersion(newDaasRunner);
+            var result = oldVersion.CompareTo(newVersion);
 
-            if (oldVersion.Equals(newVersion))
+            if (result >= 0)
             {
-
-                Logger.LogVerboseEvent($"[DaasRunner] New version ({newVersion}) is the same as existing version {oldVersion}");
+                Logger.LogVerboseEvent($"[DaasRunner] New version ({newVersion}) is the same as existing version {oldVersion}. Version Compare result = {result}");
                 return false;
             }
 
-            Logger.LogVerboseEvent($"[DaasRunner] Current version : {oldVersion} is different than version in Daas installation path : {newVersion}, new bits will be copied");
+            Logger.LogVerboseEvent($"[DaasRunner] Current version : {oldVersion} is lower than version in Daas installation path : {newVersion}, new bits will be copied");
             return true;
         }
 
@@ -294,10 +296,10 @@ namespace DaaS.Sessions
             string file = Path.GetFileName(sourceFile);
             RetryHelper.RetryOnException($"Copying file {file} from {sourceFile} to {targetFile}...", () =>
             {
-                if (System.IO.File.Exists(sourceFile))
+                if (File.Exists(sourceFile))
                 {
                     Logger.LogVerboseEvent($"Copying file {file} from {sourceFile} to {targetFile}");
-                    System.IO.File.Copy(sourceFile, targetFile, true);
+                    File.Copy(sourceFile, targetFile, true);
                     Logger.LogVerboseEvent($"File {file} copied successfully");
                 }
 
