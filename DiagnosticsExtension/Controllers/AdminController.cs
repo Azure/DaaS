@@ -49,7 +49,7 @@ namespace DiagnosticsExtension.Controllers
                 }
 
                 string webjobLog = await ReadLastBytesAsync(webjobLogPath, fileBufferSize);
-                return Ok(webjobLog);
+                return Ok(webjobLog.Split(new string[] { Environment.NewLine }, StringSplitOptions.None));
             }
             catch (Exception ex)
             {
