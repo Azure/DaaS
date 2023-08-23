@@ -367,7 +367,7 @@
     <Compile Include="Controllers\CertificateTestController.cs" />
     <Compile Include="Controllers\CpuMonitoringController.cs" />
     <Compile Include="Controllers\CrashMonitoringController.cs" />
-    <Compile Include="Controllers\DaasAdministerController.cs" />
+    <Compile Include="Controllers\AdminController.cs" />
     <Compile Include="Controllers\ConnectionStringValidationController.cs" />
     <Compile Include="Controllers\DiagnosersController.cs" />
     <Compile Include="Controllers\SessionController.cs" />
