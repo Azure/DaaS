@@ -55,6 +55,7 @@
     <Compile Include="ApplicationInfo\NetCoreWebConfigHelpers.cs" />
     <Compile Include="ApplicationInfo\RuntimeFramework.cs" />
     <Compile Include="ApplicationInfo\WebConfigSection.cs" />
+    <Compile Include="Configuration\StorageAccountConfiguration.cs" />
     <Compile Include="ConversionUtils.cs" />
     <Compile Include="CrashMonitoring\CrashController.cs" />
     <Compile Include="CrashMonitoring\CrashMonitoringFile.cs" />

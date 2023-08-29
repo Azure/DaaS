@@ -160,6 +160,8 @@ namespace DaaS.Sessions
                 throw new ArgumentException($"The tool '{session.Tool}' requires that WEBSITE_DAAS_STORAGE_CONNECTIONSTRING setting must be specified");
             }
 
+            ThrowIfInvalidStorageConfiguration(diagnoser);
+
             if (InvokedViaAutomation)
             {
                 var maxSessionsPerDay = Infrastructure.Settings.MaxSessionsPerDay;
@@ -189,6 +191,22 @@ namespace DaaS.Sessions
                 else
                 {
                     Logger.LogVerboseEvent($"MaxSessionCountThresholdPeriodInMinutes is {sessionThresholdPeriodInMinutes} and sessionsInThresholdPeriod is {sessionsInThresholdPeriod} so allowing DaaSConsole to submit a new session");
+                }
+            }
+        }
+
+        private static void ThrowIfInvalidStorageConfiguration(Diagnoser diagnoser)
+        {
+            if (!diagnoser.RequiresStorageAccount)
+            {
+                return;
+            }
+
+            if (!BlobController.ValidateBlobSasUri(Settings.Instance.BlobSasUri, out Exception exceptionContactingStorage))
+            {
+                if (exceptionContactingStorage != null)
+                {
+                    throw exceptionContactingStorage;
                 }
             }
         }
