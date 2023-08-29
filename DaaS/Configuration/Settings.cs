@@ -463,7 +463,6 @@ namespace DaaS.Configuration
             {
                 if (DateTime.UtcNow.Subtract(_blobStorageConnectionStrings[connectionString].DateAdded.UtcDateTime).TotalDays < 28)
                 {
-                    Logger.LogVerboseEvent($"Returning cached SAS URI for connectionString");
                     return _blobStorageConnectionStrings[connectionString].SasUri;
                 }
             }
