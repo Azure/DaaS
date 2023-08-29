@@ -14,7 +14,6 @@ using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.WindowsAzure.Storage;
 using Microsoft.WindowsAzure.Storage.Blob;
-using Microsoft.WindowsAzure.Storage.Queue;
 using Newtonsoft.Json;
 
 namespace DaaS.Configuration
@@ -34,7 +33,7 @@ namespace DaaS.Configuration
         private string _diagnosticToolsPath;
         private bool? _isSandboxAvailable;
         private string _siteName;
-        private readonly Dictionary<string, string> _blobStorageConnectionStrings = new Dictionary<string, string>();
+        private readonly Dictionary<string, StorageAccountConfiguration> _blobStorageConnectionStrings = new Dictionary<string, StorageAccountConfiguration>();
         private readonly Dictionary<string, string> _queueStorageConnectionStrings = new Dictionary<string, string>();
 
         private static string _instanceName;
@@ -462,11 +461,22 @@ namespace DaaS.Configuration
         {
             if (_blobStorageConnectionStrings.ContainsKey(connectionString))
             {
-                return _blobStorageConnectionStrings[connectionString];
+                if (DateTime.UtcNow.Subtract(_blobStorageConnectionStrings[connectionString].DateAdded.UtcDateTime).TotalDays < 28)
+                {
+                    Logger.LogVerboseEvent($"Returning cached SAS URI for connectionString");
+                    return _blobStorageConnectionStrings[connectionString].SasUri;
+                }
             }
 
-            _blobStorageConnectionStrings[connectionString] = GenerateBlobSasUri(connectionString);
-            return _blobStorageConnectionStrings[connectionString];
+            string sasUri = GenerateBlobSasUri(connectionString);
+            _blobStorageConnectionStrings[connectionString] = new StorageAccountConfiguration()
+            {
+                DateAdded = new DateTimeOffset(DateTime.UtcNow),
+                SasUri = sasUri
+            };
+
+            Logger.LogVerboseEvent($"Generated new SAS URI for connectionString at {_blobStorageConnectionStrings[connectionString].DateAdded }");
+            return _blobStorageConnectionStrings[connectionString].SasUri;
 
         }
 
