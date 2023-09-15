@@ -12,7 +12,6 @@ using System.IO;
 using System.Linq;
 using System.Management.Instrumentation;
 using DaaS.Configuration;
-using DaaS.Leases;
 
 namespace DaaS
 {
@@ -25,13 +24,6 @@ namespace DaaS
         {
             get { return _settings ?? (_settings = Settings.Instance); }
             set { _settings = value; }
-        }
-
-        private static ILeaseManager _leaseManager;
-        internal static ILeaseManager LeaseManager
-        {
-            get { return _leaseManager ?? (_leaseManager = Leases.LeaseManager.Instance); }
-            set { _leaseManager = value; }
         }
 
         internal static string GetInstanceId()

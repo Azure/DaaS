@@ -11,12 +11,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using Newtonsoft.Json;
 using System.Threading;
-using DaaS.Storage;
-using DaaS.Leases;
-using Microsoft.WindowsAzure.Storage;
-using System.Threading.Tasks;
 
 namespace DaaS
 {
