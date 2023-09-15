@@ -5,8 +5,6 @@
 // </copyright>
 // -----------------------------------------------------------------------
 
-using DaaS.Diagnostics;
-using DaaS.Leases;
 using System;
 using System.Collections.Generic;
 using System.IO;

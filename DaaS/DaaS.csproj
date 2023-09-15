@@ -74,10 +74,6 @@
     <Compile Include="Diagnostics\Exceptions.cs" />
     <Compile Include="Monitoring\MonitoredProcess.cs" />
     <Compile Include="ExceptionExtension.cs" />
-    <Compile Include="Leases\BlobLease.cs" />
-    <Compile Include="Leases\FileLease.cs" />
-    <Compile Include="Leases\LeaseManager.cs" />
-    <Compile Include="Leases\Lease.cs" />
     <Compile Include="Logger.cs" />
     <Compile Include="Monitoring\MonitoringFile.cs" />
     <Compile Include="Monitoring\MonitoringLogsPerInstance.cs" />

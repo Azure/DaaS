@@ -8,12 +8,11 @@
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Linq;
+using System.Text;
 using DaaS.Configuration;
-using DaaS.Leases;
 using DaaS.Storage;
-using Microsoft.WindowsAzure.Storage;
+using Microsoft.WindowsAzure.Storage.Blob;
 using Newtonsoft.Json;
 
 namespace DaaS
@@ -76,12 +75,40 @@ namespace DaaS
                 {
                     FileName = _actionToExecute,
                     Arguments = arguments,
-                    UseShellExecute = false
+                    UseShellExecute = false,
+                    RedirectStandardError = true,
+                    RedirectStandardOutput = true
                 }
             };
 
+            var outputBuilder = new StringBuilder();
+            var errorBuilder = new StringBuilder();
+            process.OutputDataReceived += (o, a) =>
+            {
+                outputBuilder.AppendLine(a.Data ?? string.Empty);
+            };
+            process.ErrorDataReceived += (o, a) =>
+            {
+                errorBuilder.AppendLine(a.Data ?? string.Empty);
+            };
+
             process.Start();
+
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
             process.WaitForExit();
+
+            appendToMonitoringLog($"Action executed with exit code: {process.ExitCode}", true);
+
+            if (!string.IsNullOrWhiteSpace(outputBuilder.ToString()))
+            {
+                appendToMonitoringLog($"Action executed with output {CleanProcdumpOutput(outputBuilder)}", true);
+            }
+            
+            if (!string.IsNullOrWhiteSpace(errorBuilder.ToString()))
+            {
+                appendToMonitoringLog($"Action executed with error {errorBuilder}", true);
+            }
         }
 
         protected void CreateCustomActionFile(string fileName, bool completed)
@@ -154,32 +181,27 @@ namespace DaaS
             try
             {
                 string relativeFilePath = Path.Combine(MonitoringSessionController.GetRelativePathForSession(_defaultHostName, _sessionId), fileName);
-                Lease lease = Infrastructure.LeaseManager.TryGetLease(relativeFilePath);
-                if (lease == null)
-                {
-                    // This instance is already running this collector
-                    Logger.LogCpuMonitoringVerboseEvent($"Could not get lease to upload the memory dump - {relativeFilePath}", _sessionId);
-                }
-
                 appendToMonitoringLog($"Copying {fileName} from temp folders to Blob Storage", true);
-                var accessCondition = AccessCondition.GenerateLeaseCondition(lease.Id);
-                var taskToUpload = Task.Run(() =>
+
+                var blobRequestOptions = new BlobRequestOptions()
+                {
+                    ServerTimeout = TimeSpan.FromMinutes(10)
+                };
+
+                try
                 {
                     var blockBlob = BlobController.GetBlobForFile(relativeFilePath);
-                    blockBlob.UploadFromFile(sourceFile, accessCondition);
+                    blockBlob.UploadFromFile(sourceFile, null, blobRequestOptions);
                     if (EnqueueEventToAzureQueue(fileName, blockBlob.Uri.ToString()))
                     {
                         appendToMonitoringLog("Message dropped successfully in Azure Queue for alerting", false);
                     }
-                });
-
-                while (!taskToUpload.IsCompleted)
-                {
-                    lease.Renew();
-                    Logger.LogCpuMonitoringVerboseEvent($"Renewing lease to the blob file", _sessionId);
-                    Thread.Sleep(Infrastructure.Settings.LeaseRenewalTime);
                 }
-                lease.Release();
+                catch (Exception ex)
+                {
+                    Logger.LogCpuMonitoringErrorEvent("Failed uploading file to blob storage", ex, _sessionId);
+                    throw;
+                }
                 appendToMonitoringLog($"Copied {fileName} from temp folders to Blob Storage", true);
             }
             catch (Exception ex)
@@ -209,6 +231,23 @@ namespace DaaS
             {
                 Logger.LogCpuMonitoringErrorEvent("Failed while killing process consuming High CPU", ex, _sessionId);
             }
+        }
+
+        private string CleanProcdumpOutput(StringBuilder outputBuilder)
+        {
+            string procDumpOutput = outputBuilder.ToString();
+            try
+            {
+                var procDumpOutputArray = procDumpOutput.Split(Environment.NewLine.ToCharArray(), StringSplitOptions.RemoveEmptyEntries);
+                procDumpOutputArray = procDumpOutputArray.Where(s => !s.Contains("Mark Russinovich") && !s.Contains("process dump utility") && !s.Contains("www.sysinternals.com")).ToArray();
+                return string.Join(Environment.NewLine, procDumpOutputArray);
+            }
+            catch(Exception ex)
+            {
+                Logger.LogCpuMonitoringEvent($"Failed while cleaning procdump output: {ex}", _sessionId);
+            }
+
+            return procDumpOutput;
         }
     }
 }
