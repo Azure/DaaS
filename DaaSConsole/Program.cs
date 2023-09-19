@@ -183,15 +183,27 @@ namespace DaaSConsole
                     return sessionId;
                 }
             }
+            catch (AggregateException ae)
+            {
+                ae.Handle(ex => {
+                    LogRealException(ex);
+                    return true;
+                });
+            }
             catch (Exception ex)
             {
-                string logMessage = $"Unhandled exception in DaasConsole.exe - {ex} ";
-                EventLog.WriteEntry("Application", logMessage, EventLogEntryType.Information);
-                Console.WriteLine(logMessage);
-                Logger.LogErrorEvent("Unhandled exception in DaasConsole.exe while collecting logs and taking actions", ex);
+                LogRealException(ex);
             }
 
             return string.Empty;
+        }
+
+        private static void LogRealException(Exception ex)
+        {
+            string logMessage = $"Unhandled exception in DaasConsole.exe - {ex} ";
+            EventLog.WriteEntry("Application", logMessage, EventLogEntryType.Information);
+            Console.WriteLine(logMessage);
+            Logger.LogErrorEvent("Unhandled exception in DaasConsole.exe while collecting logs and taking actions", ex);
         }
 
         private static bool IsSessionOption(Options options)
