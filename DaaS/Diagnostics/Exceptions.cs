@@ -9,6 +9,17 @@ using System;
 
 namespace DaaS.Diagnostics
 {
+    public class DiagnosticSessionAbortedException : Exception
+    {
+        public DiagnosticSessionAbortedException(string message, Exception innerException) : base(GetExceptionMessage(message), innerException) {}
+        public DiagnosticSessionAbortedException(string message) : base(GetExceptionMessage(message)) { }
+
+        private static string GetExceptionMessage(string message = "")
+        {
+            return $"Failed to submit session - {message}";
+        }
+    }
+
     class DiagnosticToolErrorException : Exception
     {
         public DiagnosticToolErrorException(string message) : base(GetExceptionMessage(message)) { }
@@ -19,6 +30,7 @@ namespace DaaS.Diagnostics
             return string.Format("Tool exited with an error. {0}", message);
         }
     }
+
     class DiagnosticToolHasNoOutputException : System.Exception
     {
         public DiagnosticToolHasNoOutputException(string toolName, string additionalText = "") : base(GetExceptionMessage(toolName, additionalText)) { }

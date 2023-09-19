@@ -5,6 +5,7 @@
 // </copyright>
 // -----------------------------------------------------------------------
 
+using DaaS.Diagnostics;
 using Microsoft.WindowsAzure.Storage;
 using Newtonsoft.Json;
 using System;
@@ -192,20 +193,37 @@ namespace DaaS
             LogErrorEvent(message, exception.GetType().ToString(), exception.Message, exception.StackTrace, details);
         }
 
+        private static string GetStorageExceptionDetails(StorageException storageException)
+        {
+            try
+            {
+                if (storageException.RequestInformation != null
+                && storageException.RequestInformation.ExtendedErrorInformation != null)
+                {
+                    return "ExtendedErrorInformation = " + JsonConvert.SerializeObject(storageException.RequestInformation.ExtendedErrorInformation);
+                }
+            }
+            catch (Exception)
+            {
+            }
+
+             return string.Empty;
+        }
+
         private static string GetExceptionDetails(Exception exception)
         {
             var builder = new StringBuilder();
-            if (exception is StorageException storageEx && storageEx.RequestInformation != null
-                && storageEx.RequestInformation.ExtendedErrorInformation != null)
-            {
-                try
-                {
-                    builder.AppendLine("ExtendedErrorInformation = " + JsonConvert.SerializeObject(storageEx.RequestInformation.ExtendedErrorInformation));
-                }
-                catch (Exception)
-                {
-                }
+            if (exception is StorageException storageEx) 
+            { 
+                builder.AppendLine(GetStorageExceptionDetails(storageEx));
             }
+            else if (exception is DiagnosticSessionAbortedException diagnosticSessionAbortedException 
+                && diagnosticSessionAbortedException.InnerException != null 
+                && diagnosticSessionAbortedException.InnerException is StorageException storageException)
+            {
+                builder.AppendLine(GetStorageExceptionDetails(storageException));
+            }
+
             else if (exception is AggregateException aggregateException)
             {
                 aggregateException.Handle((x) =>
