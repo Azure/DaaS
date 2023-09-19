@@ -82,7 +82,7 @@ namespace DaaS.Sessions
                 string sku = Environment.GetEnvironmentVariable("WEBSITE_SKU");
                 if (!string.IsNullOrWhiteSpace(sku) && !sku.ToLower().Contains("elastic"))
                 {
-                    throw new AccessViolationException("Cannot submit a diagnostic session because 'Always-On' is disabled. Please enable Always-On in site configuration and re-submit the session");
+                    throw new DiagnosticSessionAbortedException("Cannot submit a diagnostic session because 'Always-On' is disabled. Please enable Always-On in site configuration and re-submit the session");
                 }
             }
 
@@ -155,11 +155,6 @@ namespace DaaS.Sessions
                 throw new ArgumentException($"Invalid diagnostic tool '{session.Tool}' ");
             }
 
-            if (diagnoser.RequiresStorageAccount && string.IsNullOrWhiteSpace(Settings.Instance.BlobSasUri))
-            {
-                throw new ArgumentException($"The tool '{session.Tool}' requires that WEBSITE_DAAS_STORAGE_CONNECTIONSTRING setting must be specified");
-            }
-
             ThrowIfInvalidStorageConfiguration(diagnoser);
 
             if (InvokedViaAutomation)
@@ -202,12 +197,24 @@ namespace DaaS.Sessions
                 return;
             }
 
-            if (!BlobController.ValidateBlobSasUri(Settings.Instance.BlobSasUri, out Exception exceptionContactingStorage))
+            try
             {
-                if (exceptionContactingStorage != null)
+                if (string.IsNullOrWhiteSpace(Settings.Instance.BlobSasUri))
                 {
-                    throw exceptionContactingStorage;
+                    throw new ArgumentException($"The tool '{diagnoser.Name}' requires that WEBSITE_DAAS_STORAGE_CONNECTIONSTRING setting must be specified");
                 }
+
+                if (!BlobController.ValidateBlobSasUri(Settings.Instance.BlobSasUri, out Exception exceptionContactingStorage))
+                {
+                    if (exceptionContactingStorage != null)
+                    {
+                        throw new DiagnosticSessionAbortedException($"Storage configuration is invalid - {exceptionContactingStorage.Message}", exceptionContactingStorage);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                throw new DiagnosticSessionAbortedException($"Storage configuration is invalid - {ex.Message}", ex);
             }
         }
 

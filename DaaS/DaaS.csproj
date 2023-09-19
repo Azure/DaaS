@@ -119,6 +119,7 @@
     <Compile Include="ZipStreamContent.cs" />
     <None Include="app.config" />
     <EmbeddedResource Include="Configuration\PrivateSettings.json" />
+    <EmbeddedResource Include="Configuration\DiagnosticSettings.json" />
   </ItemGroup>
   <ItemGroup>
     <WCFMetadata Include="Service References\" />

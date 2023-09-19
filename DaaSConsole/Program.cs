@@ -15,6 +15,7 @@ using Newtonsoft.Json;
 using System.Net;
 using DaaS;
 using DaaS.Sessions;
+using DaaS.Diagnostics;
 
 namespace DaaSConsole
 {
@@ -32,9 +33,6 @@ namespace DaaSConsole
             CollectKillAnalyze,
             ListSessions,
             ListDiagnosers,
-            GetSasUri,
-            Setup,
-            GetSetting,
             Help,
             AllInstances,
             BlobSasUri
@@ -185,15 +183,27 @@ namespace DaaSConsole
                     return sessionId;
                 }
             }
+            catch (AggregateException ae)
+            {
+                ae.Handle(ex => {
+                    LogRealException(ex);
+                    return true;
+                });
+            }
             catch (Exception ex)
             {
-                string logMessage = $"Unhandled exception in DaasConsole.exe - {ex} ";
-                EventLog.WriteEntry("Application", logMessage, EventLogEntryType.Information);
-                Console.WriteLine(logMessage);
-                Logger.LogErrorEvent("Unhandled exception in DaasConsole.exe while collecting logs and taking actions", ex);
+                LogRealException(ex);
             }
 
             return string.Empty;
+        }
+
+        private static void LogRealException(Exception ex)
+        {
+            string logMessage = $"Unhandled exception in DaasConsole.exe - {ex} ";
+            EventLog.WriteEntry("Application", logMessage, EventLogEntryType.Information);
+            Console.WriteLine(logMessage);
+            Logger.LogErrorEvent("Unhandled exception in DaasConsole.exe while collecting logs and taking actions", ex);
         }
 
         private static bool IsSessionOption(Options options)
@@ -205,6 +215,23 @@ namespace DaaSConsole
 
         private static string SubmitAndWaitForSession(string toolName, string toolParams, Options options)
         {
+            var alwaysOnEnabled = Environment.GetEnvironmentVariable("WEBSITE_SCM_ALWAYS_ON_ENABLED");
+            if (int.TryParse(alwaysOnEnabled, out int isAlwaysOnEnabled) && isAlwaysOnEnabled == 0)
+            {
+                string sku = Environment.GetEnvironmentVariable("WEBSITE_SKU");
+                if (!string.IsNullOrWhiteSpace(sku) && !sku.ToLower().Contains("elastic"))
+                {
+                    throw new DiagnosticSessionAbortedException("Cannot submit a diagnostic session because 'Always-On' is disabled. Please enable Always-On in site configuration and re-submit the session");
+                }
+            }
+
+            Logger.LogVerboseEvent("Checking if DaaSRunner is running");
+            bool isDaasRunnerRunning = CheckIfDaasRunnerRunning();
+            if (!isDaasRunnerRunning)
+            {
+               throw new DiagnosticSessionAbortedException("DaaSRunner is not running on this instance");
+            }
+
             Console.WriteLine($"Running Diagnosers on { Environment.MachineName}");
 
             var session = new Session()
@@ -283,6 +310,20 @@ namespace DaaSConsole
             }
 
             return sessionId;
+        }
+
+        private static bool CheckIfDaasRunnerRunning()
+        {
+            int counter = 1;
+            bool isDaasRunnerRunning = Process.GetProcessesByName("DaasRunner").Any();
+            while (counter <= 30 && !isDaasRunnerRunning)
+            {
+                Thread.Sleep(3000);
+                isDaasRunnerRunning = Process.GetProcessesByName("DaasRunner").Any();
+                counter++;
+            }
+
+            return isDaasRunnerRunning;
         }
 
         private static string GetSessionDescription()
@@ -369,10 +410,7 @@ namespace DaaSConsole
                 new Argument() {Command = Options.CollectLogs, Usage = "<Diagnoser1>", Description = "Create a new Collect Only session with the requested diagnosers. Default TimeSpanToRunForInSeconds is 30. If a valid BlobSasUri is specified, all data for the session will be stored on the specified blob account. By default this option collects data only on the current instance. To collect the data on all the instances specify -AllInstances."},
                 new Argument() {Command = Options.CollectKillAnalyze, Usage = "<Diagnoser1>", Description = "Create a new Collect Only session with the requested diagnosers, kill the main site's w3wp process to restart w3wp, then analyze the collected logs. Default TimeSpanToRunForInSeconds is 30. If a valid BlobSasUri is specified, all data for the session will be stored on the specified blob account. By default this option collects data only on the current instance. To collect the data on all the instances specify -AllInstances."},
                 new Argument() {Command = Options.ListDiagnosers, Usage = "", Description = "List all available diagnosers"},
-                new Argument() {Command = Options.ListSessions, Usage = "", Description = "List all sessions"},
-                new Argument() {Command = Options.GetSasUri, Usage = "", Description = "Get the blob storage Sas Uri"},
-                new Argument() {Command = Options.Setup, Usage = "", Description = "Start the continuous webjob runner (if it's already started this does nothing)"},
-                new Argument() {Command = Options.GetSetting, Usage = "<SettingName>", Description = "The value of the given setting"},
+                new Argument() {Command = Options.ListSessions, Usage = "", Description = "List all sessions"}
             };
 
             Console.WriteLine("\n Usage: DaasConsole.exe -<parameter1> [param1 args] [-parameter2 ...]\n");

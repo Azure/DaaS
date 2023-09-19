@@ -294,13 +294,14 @@ namespace DaaS.Configuration
 
         private static Settings CreateSettingsInstance()
         {
-            string defaultSettingsFile = GetSettingFilePath();
-            if (!File.Exists(defaultSettingsFile))
+            string defaultSettingsStream;
+            using (Stream stream = typeof(Settings).Assembly.GetManifestResourceStream("DaaS.Configuration.DiagnosticSettings.json"))
             {
-                throw new FileNotFoundException($"Cannot find configuration settings file at {defaultSettingsFile}");
+                using StreamReader reader = new StreamReader(stream);
+                defaultSettingsStream = reader.ReadToEnd();
             }
 
-            var defaultSettings = JsonConvert.DeserializeObject<Settings>(File.ReadAllText(defaultSettingsFile));
+            var defaultSettings = JsonConvert.DeserializeObject<Settings>(defaultSettingsStream);
             var privateSettings = GetPrivateSettings();
             MergeSettings(defaultSettings, privateSettings);
             return defaultSettings;
@@ -414,31 +415,6 @@ namespace DaaS.Configuration
             }
 
             return string.Empty;
-        }
-
-        private static string GetSettingFilePath()
-        {
-            string defaultPath = Path.Combine(
-                Infrastructure.GetDaasInstallationPath(),
-                @"bin\Configuration",
-                DefaultSettingsFileName);
-
-            if (!File.Exists(defaultPath))
-            {
-                var alternatePath = Path.Combine(GetAssemblyDirectory(), "Configuration", DefaultSettingsFileName);
-                Logger.LogInfo($"Could not not find the file {defaultPath}, checking {alternatePath}");
-                defaultPath = alternatePath;
-            }
-
-            return defaultPath;
-        }
-
-        private static string GetAssemblyDirectory()
-        {
-            string codeBase = Assembly.GetExecutingAssembly().CodeBase;
-            UriBuilder uri = new UriBuilder(codeBase);
-            string path = Uri.UnescapeDataString(uri.Path);
-            return Path.GetDirectoryName(path);
         }
 
         private static string GetSandboxProperty(string propertyName)

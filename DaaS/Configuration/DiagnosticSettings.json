@@ -15,6 +15,8 @@
   "MaxSessionCountInThresholdPeriod": 5,
   "HoursBetweenOldSessionsCleanup": 4,
   "DiagnosticToolsPath": null,
+  "LeaseDurationInSeconds": 15,
+  "HeartBeatLifeTimeInSeconds": 300,
   "Diagnosers": [
     {
       "Name": "MemoryDump",
@@ -74,13 +76,12 @@
     },
     {
       "Name": "JAVA Thread Dump",
-      "Description": "Collects JSTACK output of all Java.exe processes running for this WebApp and analyzes the same",
+      "Description": "Collects JSTACK output of all Java.exe (or javaw.exe) processes running for this WebApp and analyzes the same",
       "ProcessCleanupOnCancel": "jStackParser,jstack",
       "RequiresStorageAccount": false,
       "Collector": {
         "Command": "%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
         "Arguments": "-File \"%diagnosticToolsPath%\\javatools\\collectJstack.ps1\" %outputDir%\"",
-        "Warning": "This tool collects data for Web App using Java and we found that java.exe was not running so this tool cannot run. If this is a Java based Web App, make sure that the java process is running by browsing the app and then execute the tool again.",
         "PreValidationMethod": "JavaThreadDumpValidator"
 
       },
@@ -90,31 +91,13 @@
       }
     },
     {
-      "Name": "JAVA Memory Statistics",
-      "Description": "Collects a memory and object statistics report using JMAP of all Java.exe processes running for this app",
-      "ProcessCleanupOnCancel": "jMap",
-      "RequiresStorageAccount": false,
-      "Collector": {
-        "Command": "%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
-        "Arguments": "-File \"%diagnosticToolsPath%\\javatools\\collectJMap.ps1\" \"%outputDir%\" text",
-        "Warning": "This tool collects data for Web App using Java and we found that java.exe was not running so this tool cannot run. If this is a Java based Web App, make sure that the java process is running by browsing the app and then execute the tool again.",
-        "PreValidationMethod": "JavaMemoryStatisticsValidator"
-
-      },
-      "Analyzer": {
-        "Command": "%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
-        "Arguments": "-File \"%diagnosticToolsPath%\\javatools\\analyzeJavaTool.ps1\" \"%logFile%\" \"%outputDir%\" \"jmapAnalysis.html\""
-      }
-    },
-    {
       "Name": "JAVA Flight Recorder",
-      "Description": "Collects a jfr log for the Java.exe process using Java Flight Recorder tool (jcmd.exe)",
+      "Description": "Collects a jfr log for the Java.exe (or javaw.exe) process using Java Flight Recorder tool (jcmd.exe)",
       "ProcessCleanupOnCancel": "jMap,jcmd",
       "RequiresStorageAccount": false,
       "Collector": {
         "Command": "%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
         "Arguments": "-File \"%diagnosticToolsPath%\\javatools\\collectjCmd.ps1\" \"%outputDir%\" text",
-        "Warning": "This tool collects data for Web App using Java and we found that java.exe was not running so this tool cannot run. If this is a Java based Web App, make sure that the java process is running by browsing the app and then execute the tool again.",
         "PreValidationMethod": "JavaFlightRecorderValidator"
       },
       "Analyzer": {
@@ -124,13 +107,12 @@
     },
     {
       "Name": "JAVA Memory Dump",
-      "Description": "Collects a binary memory dump using JMAP of all Java.exe processes running for this app",
+      "Description": "Collects a binary memory dump using JMAP of all Java.exe (or javaw.exe) processes running for this app",
       "ProcessCleanupOnCancel": "jMap",
       "RequiresStorageAccount": false,
       "Collector": {
         "Command": "%SystemRoot%\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
         "Arguments": "-File \"%diagnosticToolsPath%\\javatools\\collectJMap.ps1\" \"%outputDir%\"",
-        "Warning": "This tool collects data for Web App using Java and we found that java.exe was not running so this tool cannot run. If this is a Java based Web App, make sure that the java process is running by browsing the app and then execute the tool again.",
         "PreValidationMethod": "JavaMemoryDumpValidator"
       },
       "Analyzer": {
