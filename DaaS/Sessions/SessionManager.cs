@@ -208,14 +208,13 @@ namespace DaaS.Sessions
                 {
                     if (exceptionContactingStorage != null)
                     {
-                        throw new DiagnosticSessionAbortedException("Storage configuration is invalid", exceptionContactingStorage);
+                        throw new DiagnosticSessionAbortedException($"Storage configuration is invalid - {exceptionContactingStorage.Message}", exceptionContactingStorage);
                     }
                 }
             }
             catch (Exception ex)
             {
-
-                throw new DiagnosticSessionAbortedException("Storage configuration is invalid", ex);
+                throw new DiagnosticSessionAbortedException($"Storage configuration is invalid - {ex.Message}", ex);
             }
         }
 
