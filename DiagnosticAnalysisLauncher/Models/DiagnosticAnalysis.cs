@@ -12,6 +12,9 @@ namespace DiagnosticAnalysisLauncher
 {
     public class DiagnosticAnalysis
     {
+        [JsonProperty("cliSummary", Required = Required.DisallowNull, NullValueHandling = NullValueHandling.Ignore)]
+        public CLISummary CliSummary { get; set; }
+
         public Interpretedresult[] interpretedResults { get; set; }
 
         public Assets assets { get; set; }
@@ -52,6 +55,12 @@ namespace DiagnosticAnalysisLauncher
         public string severity { get; set; }
         public string errorCode { get; set; }
         public IDictionary<string, object> stats { get; set; }
+    }
+
+    public class CLISummary
+    {
+        [JsonProperty("version", Required = Required.DisallowNull, NullValueHandling = NullValueHandling.Ignore)]
+        public string Version { get; set; }
     }
 
     public class Detail
