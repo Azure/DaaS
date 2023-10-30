@@ -1309,5 +1309,10 @@ namespace DaaS.Sessions
 
             return files;
         }
+
+        public Task<StorageAccountValidationResult> ValidateStorageAccount()
+        {
+            throw new NotImplementedException();
+        }
     }
 }

@@ -177,5 +177,11 @@ namespace DaaS.Sessions
             }
            
         }
+
+        public async Task<StorageAccountValidationResult> ValidateStorageAccount()
+        {
+            var response = await InvokeDiagServer<string>($"{baseUri}/validatestorageaccount", null, HttpMethod.Get);
+            return JsonConvert.DeserializeObject<StorageAccountValidationResult>(response);
+        }
     }
 }

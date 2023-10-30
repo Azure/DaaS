@@ -103,6 +103,13 @@ namespace DaaS.Sessions
         /// <returns></returns>
         List<DiagnoserDetails> GetDiagnosers();
 
+
+        /// <summary>
+        /// Validates the configured Storage account. Used in Hyper-V scenarios
+        /// </summary>
+        /// <returns></returns>
+        Task<StorageAccountValidationResult> ValidateStorageAccount();
+
         /// <summary>
         /// This property decides whether SAS URI will be included in the 
         /// Session object or not.
