@@ -95,5 +95,12 @@ namespace DiagnosticsExtension.Controllers
                 return ResponseMessage(Request.CreateErrorResponse(HttpStatusCode.InternalServerError, ex.Message));
             }
         }
+
+        [Route("validatestorageaccount")]
+        [HttpPost]
+        public async Task<IHttpActionResult> ValidateStorageAccount()
+        {
+            return Ok(await _sessionManager.ValidateStorageAccount());
+        }
     }
 }

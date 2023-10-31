@@ -84,4 +84,13 @@ namespace DaaS.Sessions
         }
 
     }
+
+    public class StorageAccountValidationResult
+    {
+        public bool IsStorageConfigured { get; set; }
+        public bool IsValid { get; set; }
+        public string? StorageAccount { get; set; }
+        public string? ValidationError { get; set; }
+        public string? UnderlyingException { get; set; }
+    }
 }
