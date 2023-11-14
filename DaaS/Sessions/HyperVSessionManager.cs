@@ -28,7 +28,7 @@ namespace DaaS.Sessions
 
         private string baseUri;
         public HyperVSessionManager() 
-        { 
+        {
             daasHost = GetIpAddress();
             daasPort = GetDaasPort();
             if (string.IsNullOrEmpty(daasHost) || string.IsNullOrEmpty(daasPort) )
@@ -157,9 +157,8 @@ namespace DaaS.Sessions
             HttpResponseMessage responseMessage = await httpClient.SendAsync(requestMessage, cancellationTokenSource.Token);
             object responseContent = await responseMessage.Content.ReadAsStringAsync();
             try
-            {
+            {                
                 responseMessage.EnsureSuccessStatusCode();
-
                 if (typeof(T).Equals(typeof(string)))
                 {
                     return (T)(responseContent);
@@ -182,6 +181,12 @@ namespace DaaS.Sessions
         {
             var response = await InvokeDiagServer<string>($"{baseUri}/validatestorageaccount", null, HttpMethod.Get);
             return JsonConvert.DeserializeObject<StorageAccountValidationResult>(response);
+        }
+
+        public async Task<bool> UpdateStorageAccount(StorageAccount storageAccount)
+        {
+           var response = await InvokeDiagServer<string>($"{baseUri}/updatestorageaccount", storageAccount, HttpMethod.Post);
+           return JsonConvert.DeserializeObject<bool>(response);      
         }
     }
 }
