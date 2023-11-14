@@ -157,7 +157,7 @@ namespace DaaS.Sessions
             HttpResponseMessage responseMessage = await httpClient.SendAsync(requestMessage, cancellationTokenSource.Token);
             object responseContent = await responseMessage.Content.ReadAsStringAsync();
             try
-            {                
+            {
                 responseMessage.EnsureSuccessStatusCode();
                 if (typeof(T).Equals(typeof(string)))
                 {
