@@ -27,7 +27,7 @@ namespace DaaS.Sessions
         private string daasPort;
 
         private string baseUri;
-        public HyperVSessionManager() 
+        public HyperVSessionManager()
         {
             daasHost = GetIpAddress();
             daasPort = GetDaasPort();
