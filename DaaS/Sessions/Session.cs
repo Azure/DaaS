@@ -93,4 +93,9 @@ namespace DaaS.Sessions
         public string? ValidationError { get; set; }
         public string? UnderlyingException { get; set; }
     }
+
+    public class StorageAccount
+    {
+        public string ConnectionString { get; set; }
+    }
 }

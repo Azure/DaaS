@@ -111,6 +111,14 @@ namespace DaaS.Sessions
         Task<StorageAccountValidationResult> ValidateStorageAccount();
 
         /// <summary>
+        /// Updates the storage account connection if end user configures a new storage account or changes an existing one. Used in Hyper-V scenarios.
+        /// </summary>
+        /// <param name="storageAccount">Connection string of storage account</param>
+        /// <returns>Bool indicating if storage account was configured correctly.</returns>
+        Task<bool> UpdateStorageAccount(StorageAccount storageAccount);
+
+
+        /// <summary>
         /// This property decides whether SAS URI will be included in the 
         /// Session object or not.
         /// </summary>

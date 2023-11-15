@@ -1314,5 +1314,10 @@ namespace DaaS.Sessions
         {
             throw new NotImplementedException();
         }
+
+        public Task<bool> UpdateStorageAccount(StorageAccount storageAccount)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

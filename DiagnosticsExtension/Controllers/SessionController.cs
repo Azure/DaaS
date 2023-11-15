@@ -102,5 +102,12 @@ namespace DiagnosticsExtension.Controllers
         {
             return Ok(await _sessionManager.ValidateStorageAccount());
         }
+
+        [Route("updatestorageaccount")]
+        [HttpPost]
+        public async Task<IHttpActionResult> UpdateStorageAccount([FromBody] StorageAccount storageSettings)
+        {
+            return Ok(await _sessionManager.UpdateStorageAccount(storageSettings));
+        }
     }
 }
