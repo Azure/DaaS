@@ -10,56 +10,10 @@ Class Credentials
 
 }
 
-# https://www.powershellgallery.com/packages/AzureSimpleREST/0.1.16/Content/internal%5Cfunctions%5CGet-AzureRmCachedAccessToken.ps1
-
-Function Get-AzureRmCachedAccessToken() {
-    <#
-    .SYNOPSIS
-        Returns the current Access token from the AzureRM Module. You need to login first with Connect-AzureRmAccount
- 
-    .DESCRIPTION
-        Allows easy retrival of you Azure API Access Token / Bearer Token
-        This makes it much easier to use Invoke-RestMethod because you do not need a service principal
- 
-    .EXAMPLE
-        Get-AzureRmCachedAccessToken
- 
-    .NOTES
-        Website: https://gallery.technet.microsoft.com/scriptcenter/Easily-obtain-AccessToken-3ba6e593/view/Discussions#content
-        Copyright: (c) 2018 Stéphane Lapointe
-        License: MIT https://opensource.org/licenses/MIT
-    #>
-    $ErrorActionPreference = 'Stop'
-
-    if (-not (Get-Module AzureRm.Profile)) {
-        Import-Module AzureRm.Profile
-    }
-    $azureRmProfileModuleVersion = (Get-Module AzureRm.Profile).Version
-    # refactoring performed in AzureRm.Profile v3.0 or later
-    if ($azureRmProfileModuleVersion.Major -ge 3) {
-        $azureRmProfile = [Microsoft.Azure.Commands.Common.Authentication.Abstractions.AzureRmProfileProvider]::Instance.Profile
-        if (-not $azureRmProfile.Accounts.Count) {
-            Write-Error "Ensure you have logged in (Connect-AzureRmAccount) before calling this function."
-        }
-    } else {
-        # AzureRm.Profile < v3.0
-        $azureRmProfile = [Microsoft.WindowsAzure.Commands.Common.AzureRmProfileProvider]::Instance.Profile
-        if (-not $azureRmProfile.Context.Account.Count) {
-            Write-Error "Ensure you have logged in (Connect-AzureRmAccount) before calling this function."
-        }
-    }
-
-    $currentAzureContext = Get-AzureRmContext
-    $profileClient = New-Object Microsoft.Azure.Commands.ResourceManager.Common.RMProfileClient($azureRmProfile)
-    Write-Debug ("Getting access token for tenant" + $currentAzureContext.Subscription.TenantId)
-    $token = $profileClient.AcquireAccessToken($currentAzureContext.Subscription.TenantId)
-    $token.AccessToken
-}
-
 Function GetResourceGroupForWebApp ([string] $webappNameParam)
 {
     $script:ResourceGroupName = ""
-    Get-AzureRmResource | where { ($_.ResourceType -match "Microsoft.Web/sites") -and ($_.ResourceId.ToLower().EndsWith($webappNameParam.ToLower()))} | foreach {        
+    Get-AzResource -Name $webappNameParam.ToLower() -ResourceType "Microsoft.Web/sites" | foreach {
        $script:ResourceGroupName= $_.ResourceGroupName
        return
     }
@@ -70,10 +24,10 @@ Function GetPublishingCredsForWebApp([string] $subscriptionId, [string] $webAppN
 {
     $script:creds = New-Object Credentials
     
-    Select-AzureRmSubscription -SubscriptionId $subscriptionId  | Out-Null
+    Select-AzSubscription -SubscriptionId $subscriptionId | Out-Null
     $rgName = GetResourceGroupForWebApp $webAppName
 
-    $publishProfileString = Invoke-AzureRmResourceAction -ResourceGroupName $rgName `
+    $publishProfileString = Invoke-AzResourceAction -ResourceGroupName $rgName `
      -ResourceType Microsoft.Web/sites `
      -ResourceName $webAppName `
      -Action publishxml `
@@ -96,7 +50,6 @@ Function GetPublishingCredsForWebApp([string] $subscriptionId, [string] $webAppN
     return $script:creds
 }
 
-
 $ProgressPreference = 'SilentlyContinue'
 $sitesFile = $args[0]
 "Using file $sitesFile"
@@ -113,14 +66,19 @@ if ($mode -ne "uninstall"){
         }
 }
 
+$context = Get-AzContext
+if (!$context)
+{
+    Connect-AzAccount
+}
+else
+{
+    Write-Host "Already connected with Az-Account"
+}
 
-#.\build.bat
-#.\publish.bat
+$accessToken = Get-AzAccessToken
+$authorizationHeader = "Bearer " + $accessToken.Token
 
-if ([string]::IsNullOrEmpty($(Get-AzureRmContext).Account)) {Login-AzureRmAccount}
-
-$accessToken = Get-AzureRmCachedAccessToken
-$authorizationHeader = "Bearer " + $accessToken
 foreach($webapp in $allWebSites)
 {
     $webAppName = $webapp.SiteName
@@ -145,10 +103,10 @@ foreach($webapp in $allWebSites)
     }
 
     "    Stopping WebApp" 
-    Invoke-AzureRmResourceAction –ResourceGroupName $rgName -ResourceType Microsoft.Web/sites -ResourceName $webAppName -Action stop -ApiVersion 2015-08-01 -Force
+    Invoke-AzResourceAction –ResourceGroupName $rgName -ResourceType Microsoft.Web/sites -ResourceName $webAppName -Action stop -ApiVersion 2015-08-01 -Force
 
     "    Starting WebApp"
-    Invoke-AzureRmResourceAction -ResourceGroupName $rgName -ResourceType Microsoft.Web/sites -ResourceName $webAppName -Action start -ApiVersion 2015-08-01 -Force
+    Invoke-AzResourceAction -ResourceGroupName $rgName -ResourceType Microsoft.Web/sites -ResourceName $webAppName -Action start -ApiVersion 2015-08-01 -Force
 }
 
 if ($mode -ne "uninstall"){
@@ -158,7 +116,6 @@ if ($mode -ne "uninstall"){
 
 foreach($webapp in $allWebSites)
 {
-
     $webAppName = $webapp.SiteName
     $subscriptionId  = $webapp.SubscriptionId
     
@@ -194,11 +151,11 @@ foreach($webapp in $allWebSites)
 
         # Action Stop
         "    Stopping WebApp" 
-        Invoke-AzureRmResourceAction –ResourceGroupName $rgName -ResourceType Microsoft.Web/sites -ResourceName $webAppName -Action stop -ApiVersion 2015-08-01 -Force
+        Invoke-AzResourceAction –ResourceGroupName $rgName -ResourceType Microsoft.Web/sites -ResourceName $webAppName -Action stop -ApiVersion 2015-08-01 -Force
 
         # Action stop
         "    Starting WebApp"
-        Invoke-AzureRmResourceAction -ResourceGroupName $rgName -ResourceType Microsoft.Web/sites -ResourceName $webAppName -Action start -ApiVersion 2015-08-01 -Force
+        Invoke-AzResourceAction -ResourceGroupName $rgName -ResourceType Microsoft.Web/sites -ResourceName $webAppName -Action start -ApiVersion 2015-08-01 -Force
     }
 
 }

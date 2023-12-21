@@ -315,15 +315,27 @@ namespace DaaSConsole
         private static bool CheckIfDaasRunnerRunning()
         {
             int counter = 1;
-            bool isDaasRunnerRunning = Process.GetProcessesByName("DaasRunner").Any();
+            var isDaasRunnerRunning = IsDaasRunnerRunning();
             while (counter <= 30 && !isDaasRunnerRunning)
             {
                 Thread.Sleep(3000);
-                isDaasRunnerRunning = Process.GetProcessesByName("DaasRunner").Any();
+                isDaasRunnerRunning = IsDaasRunnerRunning();
                 counter++;
             }
 
             return isDaasRunnerRunning;
+        }
+
+        private static bool IsDaasRunnerRunning()
+        {
+            foreach (Process p in Process.GetProcesses())
+            {
+                if (p.ProcessName.ToUpper().StartsWith("DAASRUNNER"))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private static string GetSessionDescription()
