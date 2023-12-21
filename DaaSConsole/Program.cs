@@ -225,13 +225,6 @@ namespace DaaSConsole
                 }
             }
 
-            Logger.LogVerboseEvent("Checking if DaaSRunner is running");
-            bool isDaasRunnerRunning = CheckIfDaasRunnerRunning();
-            if (!isDaasRunnerRunning)
-            {
-               throw new DiagnosticSessionAbortedException("DaaSRunner is not running on this instance");
-            }
-
             Console.WriteLine($"Running Diagnosers on { Environment.MachineName}");
 
             var session = new Session()
@@ -310,32 +303,6 @@ namespace DaaSConsole
             }
 
             return sessionId;
-        }
-
-        private static bool CheckIfDaasRunnerRunning()
-        {
-            int counter = 1;
-            var isDaasRunnerRunning = IsDaasRunnerRunning();
-            while (counter <= 30 && !isDaasRunnerRunning)
-            {
-                Thread.Sleep(3000);
-                isDaasRunnerRunning = IsDaasRunnerRunning();
-                counter++;
-            }
-
-            return isDaasRunnerRunning;
-        }
-
-        private static bool IsDaasRunnerRunning()
-        {
-            foreach (Process p in Process.GetProcesses())
-            {
-                if (p.ProcessName.ToUpper().StartsWith("DAASRUNNER"))
-                {
-                    return true;
-                }
-            }
-            return false;
         }
 
         private static string GetSessionDescription()
