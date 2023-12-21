@@ -1,4 +1,4 @@
-﻿#------- Sample script to install DaaS site extension on multiple sites at once------
+#------- Sample script to install DaaS site extension on multiple sites at once------
 #------------------------------------------------------------------------------------
 # The script reads json from sites.json file and install DaaS site extension on all of 
 # them at once
@@ -76,6 +76,7 @@ else
     Write-Host "Already connected with Az-Account"
 }
 
+if ([string]::IsNullOrEmpty($(Get-AzContext).Account)) {Login-AzAccount}
 $accessToken = Get-AzAccessToken
 $authorizationHeader = "Bearer " + $accessToken.Token
 
@@ -151,7 +152,7 @@ foreach($webapp in $allWebSites)
 
         # Action Stop
         "    Stopping WebApp" 
-        Invoke-AzResourceAction –ResourceGroupName $rgName -ResourceType Microsoft.Web/sites -ResourceName $webAppName -Action stop -ApiVersion 2015-08-01 -Force
+        Invoke-AzResourceAction -ResourceGroupName $rgName -ResourceType Microsoft.Web/sites -ResourceName $webAppName -Action stop -ApiVersion 2015-08-01 -Force
 
         # Action stop
         "    Starting WebApp"
