@@ -13,7 +13,7 @@ Class Credentials
 Function GetResourceGroupForWebApp ([string] $webappNameParam)
 {
     $script:ResourceGroupName = ""
-    Get-AzResource | where { ($_.ResourceType -match "Microsoft.Web/sites") -and ($_.ResourceId.ToLower().EndsWith($webappNameParam.ToLower()))} | foreach {        
+    Get-AzResource -Name $webappNameParam.ToLower() -ResourceType "Microsoft.Web/sites" | foreach {
        $script:ResourceGroupName= $_.ResourceGroupName
        return
     }
@@ -24,7 +24,7 @@ Function GetPublishingCredsForWebApp([string] $subscriptionId, [string] $webAppN
 {
     $script:creds = New-Object Credentials
     
-    Select-AzSubscription -Subscription $subscriptionId  | Out-Null
+    Select-AzSubscription -SubscriptionId $subscriptionId | Out-Null
     $rgName = GetResourceGroupForWebApp $webAppName
 
     $publishProfileString = Invoke-AzResourceAction -ResourceGroupName $rgName `
@@ -50,7 +50,6 @@ Function GetPublishingCredsForWebApp([string] $subscriptionId, [string] $webAppN
     return $script:creds
 }
 
-
 $ProgressPreference = 'SilentlyContinue'
 $sitesFile = $args[0]
 "Using file $sitesFile"
@@ -67,14 +66,20 @@ if ($mode -ne "uninstall"){
         }
 }
 
-
-#.\build.bat
-#.\publish.bat
+$context = Get-AzContext
+if (!$context)
+{
+    Connect-AzAccount
+}
+else
+{
+    Write-Host "Already connected with Az-Account"
+}
 
 if ([string]::IsNullOrEmpty($(Get-AzContext).Account)) {Login-AzAccount}
+$accessToken = Get-AzAccessToken
+$authorizationHeader = "Bearer " + $accessToken.Token
 
-$accessToken = (Get-AzAccessToken).Token
-$authorizationHeader = "Bearer " + $accessToken
 foreach($webapp in $allWebSites)
 {
     $webAppName = $webapp.SiteName
@@ -99,7 +104,7 @@ foreach($webapp in $allWebSites)
     }
 
     "    Stopping WebApp" 
-    Invoke-AzResourceAction -ResourceGroupName $rgName -ResourceType Microsoft.Web/sites -ResourceName $webAppName -Action stop -ApiVersion 2015-08-01 -Force
+    Invoke-AzResourceAction –ResourceGroupName $rgName -ResourceType Microsoft.Web/sites -ResourceName $webAppName -Action stop -ApiVersion 2015-08-01 -Force
 
     "    Starting WebApp"
     Invoke-AzResourceAction -ResourceGroupName $rgName -ResourceType Microsoft.Web/sites -ResourceName $webAppName -Action start -ApiVersion 2015-08-01 -Force
@@ -112,7 +117,6 @@ if ($mode -ne "uninstall"){
 
 foreach($webapp in $allWebSites)
 {
-
     $webAppName = $webapp.SiteName
     $subscriptionId  = $webapp.SubscriptionId
     
