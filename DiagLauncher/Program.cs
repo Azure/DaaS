@@ -53,11 +53,15 @@ namespace DiagLauncher
             }
             else
             {
+                Stopwatch sw = new Stopwatch();
                 var sessionId = CollectLogsAndTakeActions(o.Tool, o.Mode, o.ToolParams, o.SessionId);
                 KillProcessIfNeeded(sessionId, o.Mode);
                 Console.WriteLine("Waiting for completion...");
-                WaitForSessionCompletion(exitIfAnalyzing: false);
-                Console.WriteLine("DiagLauncher completed!");
+                WaitForSessionCompletion(sessionId, exitIfAnalyzing: false);
+
+                string message = $"DiagLauncher completed after {sw.Elapsed.TotalMinutes:0} minutes!";
+                Logger.LogSessionVerboseEvent(message, sessionId); 
+                Console.WriteLine(message);
             }
 
             return 0;
@@ -203,37 +207,46 @@ namespace DiagLauncher
 
             _ = _sessionManager.RunActiveSessionAsync(cts.Token);
 
-            WaitForSessionCompletion(exitIfAnalyzing: true);
+            WaitForSessionCompletion(sessionId, exitIfAnalyzing: true);
             return sessionId;
         }
 
-        private static void WaitForSessionCompletion(bool exitIfAnalyzing)
+        private static void WaitForSessionCompletion(string sessionId, bool exitIfAnalyzing)
         {
             while (true)
             {
                 Thread.Sleep(15000);
-                var activeSession = _sessionManager.GetActiveSessionAsync(isV2Session: true).Result;
-                if (activeSession == null)
-                {
-                    return;
-                }
 
-                bool isSessionAnalyzing = _sessionManager.CheckIfAnyInstanceAnalyzing(activeSession);
-                if (exitIfAnalyzing && isSessionAnalyzing)
+                try
                 {
-                    return;
-                }
-
-                if (activeSession.ActiveInstances != null)
-                {
-                    var currentInstance = activeSession.ActiveInstances.FirstOrDefault(x => x.Name.Equals(Environment.MachineName, StringComparison.OrdinalIgnoreCase));
-                    if (currentInstance != null && (currentInstance.Status == Status.Complete || currentInstance.Status == Status.TimedOut))
+                    var activeSession = _sessionManager.GetActiveSessionAsync(isV2Session: true).Result;
+                    if (activeSession == null)
                     {
                         return;
                     }
-                }
 
-                _sessionManager.CheckIfOrphaningOrTimeoutNeededAsync(activeSession).Wait();
+                    bool isSessionAnalyzing = _sessionManager.CheckIfAnyInstanceAnalyzing(activeSession);
+                    if (exitIfAnalyzing && isSessionAnalyzing)
+                    {
+                        return;
+                    }
+
+                    if (activeSession.ActiveInstances != null)
+                    {
+                        var currentInstance = activeSession.ActiveInstances.FirstOrDefault(x => x.Name.Equals(Environment.MachineName, StringComparison.OrdinalIgnoreCase));
+                        if (currentInstance != null && (currentInstance.Status == Status.Complete || currentInstance.Status == Status.TimedOut))
+                        {
+                            return;
+                        }
+                    }
+
+                    _sessionManager.CheckIfOrphaningOrTimeoutNeededAsync(activeSession).Wait();
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogSessionErrorEvent("Exception while waiting for active session to complete", ex, sessionId);
+                    Console.WriteLine($"Encountered exception while waiting for active session to complete - {ex}");
+                }
             }
         }
 
