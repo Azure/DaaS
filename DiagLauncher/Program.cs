@@ -54,11 +54,13 @@ namespace DiagLauncher
             else
             {
                 Stopwatch sw = new Stopwatch();
+                sw.Start();
                 var sessionId = CollectLogsAndTakeActions(o.Tool, o.Mode, o.ToolParams, o.SessionId);
                 KillProcessIfNeeded(sessionId, o.Mode);
                 Console.WriteLine("Waiting for completion...");
                 WaitForSessionCompletion(sessionId, exitIfAnalyzing: false);
 
+                sw.Stop();
                 string message = $"DiagLauncher completed after {sw.Elapsed.TotalMinutes:0} minutes!";
                 Logger.LogSessionVerboseEvent(message, sessionId); 
                 Console.WriteLine(message);
