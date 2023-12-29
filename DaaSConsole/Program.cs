@@ -93,10 +93,7 @@ namespace DaaSConsole
                     case (Options.CollectKillAnalyze):
                         {
                             string sessionId = CollectLogsAndTakeActions(option, args, ref argNum);
-                            if (!UseDiagLauncher)
-                            {
-                                KillProcessIfNeeded(option, sessionId);
-                            }
+                            KillProcessIfNeeded(option, sessionId);
                             break;
                         }
                     default:
@@ -221,16 +218,6 @@ namespace DaaSConsole
 
         private static string SubmitAndWaitForSession(string toolName, string toolParams, Options options)
         {
-            var alwaysOnEnabled = Environment.GetEnvironmentVariable("WEBSITE_SCM_ALWAYS_ON_ENABLED");
-            if (int.TryParse(alwaysOnEnabled, out int isAlwaysOnEnabled) && isAlwaysOnEnabled == 0)
-            {
-                string sku = Environment.GetEnvironmentVariable("WEBSITE_SKU");
-                if (!string.IsNullOrWhiteSpace(sku) && !sku.ToLower().Contains("elastic"))
-                {
-                    throw new DiagnosticSessionAbortedException("Cannot submit a diagnostic session because 'Always-On' is disabled. Please enable Always-On in site configuration and re-submit the session");
-                }
-            }
-
             var mode = GetModeFromOptions(options);
 
             var session = new Session()
@@ -247,7 +234,7 @@ namespace DaaSConsole
             {
                 sessionId = SessionManager.SubmitNewSessionAsync(session, isV2Session: true).Result;
                 Console.WriteLine($"Session submitted for '{toolName}' with Id - {sessionId}");
-                StartDiagLauncher(session, sessionId, options);
+                StartDiagLauncher(session, sessionId);
                 return sessionId;
             }
 
@@ -322,18 +309,13 @@ namespace DaaSConsole
             return sessionId;
         }
 
-        private static void StartDiagLauncher(Session session,  string sessionId, Options options)
+        private static void StartDiagLauncher(Session session,  string sessionId)
         {
             //
             // Just pass SessionId and mode
             //
 
             string args = $"--sessionId {sessionId}";
-            if (options == Options.CollectKillAnalyze)
-            {
-                args += " --mode CollectKillAnalyze";
-            }
-
             var process = SessionManager.StartDiagLauncher(args, sessionId, session.Description) ?? throw new DiagnosticSessionAbortedException("Failed to start DiagLauncher.exe");
             LogAndWriteToConsole($"DiagLauncher started with ProcessId - {process.Id}", sessionId);
             Console.Write("Waiting...");
