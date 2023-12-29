@@ -15,6 +15,7 @@ using System.Threading.Tasks;
 using DaaS.Configuration;
 using Newtonsoft.Json;
 using System.Collections;
+using System.Diagnostics;
 
 namespace DaaS.Sessions
 {
@@ -72,26 +73,25 @@ namespace DaaS.Sessions
        
         private TimeSpan timeout = TimeSpan.FromSeconds(60);
 
-        Task ISessionManager.CancelOrphanedInstancesIfNeeded()
+        Task ISessionManager.CancelOrphanedInstancesIfNeeded(bool isV2Session)
         {
             throw new NotImplementedException();
         }
 
-        Task<bool> ISessionManager.CheckandCompleteSessionIfNeededAsync(bool forceCompletion)
+        Task<bool> ISessionManager.CheckandCompleteSessionIfNeededAsync(bool isV2Session, bool forceCompletion)
         {
             throw new NotImplementedException();
         }
 
-        public async Task DeleteSessionAsync(string sessionId)
+        public async Task DeleteSessionAsync(string sessionId, bool isV2Session)
         {
             await Task.Run(async () =>
             {
                 await InvokeDiagServer<string>($"{baseUri}/{sessionId}", null, HttpMethod.Delete);
             });
-            
         }
 
-        public async Task<Session> GetActiveSessionAsync(bool isDetailed)
+        public async Task<Session> GetActiveSessionAsync(bool isV2Session, bool isDetailed)
         {
             var response = await InvokeDiagServer<string>($"{baseUri}/active", null, HttpMethod.Get);
             return JsonConvert.DeserializeObject<Session>(response);
@@ -103,7 +103,7 @@ namespace DaaS.Sessions
             return JsonConvert.DeserializeObject<IEnumerable<Session>>(response);
         }
 
-        Task<IEnumerable<Session>> ISessionManager.GetCompletedSessionsAsync()
+        Task<IEnumerable<Session>> ISessionManager.GetCompletedSessionsAsync(bool isV2Session)
         {
             throw new NotImplementedException();
         }
@@ -119,7 +119,7 @@ namespace DaaS.Sessions
             return JsonConvert.DeserializeObject<Session>(response);
         }
 
-        Task<bool> ISessionManager.HasThisInstanceCollectedLogs()
+        Task<bool> ISessionManager.HasThisInstanceCollectedLogs(bool isV2Session)
         {
             throw new NotImplementedException();
         }
@@ -129,7 +129,7 @@ namespace DaaS.Sessions
             throw new NotImplementedException();
         }
 
-        Task ISessionManager.RunToolForSessionAsync(Session activeSession, CancellationToken token)
+        Task ISessionManager.RunToolForSessionAsync(Session activeSession, bool isV2Session, CancellationToken token)
         {
             throw new NotImplementedException();
         }
@@ -139,7 +139,7 @@ namespace DaaS.Sessions
             throw new NotImplementedException();
         }
 
-        public async Task<string> SubmitNewSessionAsync(Session session, bool invokedViaDaasConsole = false)
+        public async Task<string> SubmitNewSessionAsync(Session session, bool isV2Session, bool invokedViaDaasConsole = false)
         {
             return await InvokeDiagServer<string>(baseUri, session, httpMethod: HttpMethod.Post);
         }
@@ -187,6 +187,36 @@ namespace DaaS.Sessions
         {
            var response = await InvokeDiagServer<string>($"{baseUri}/updatestorageaccount", storageAccount, HttpMethod.Post);
            return JsonConvert.DeserializeObject<bool>(response);      
+        }
+
+        public bool IsSessionExisting(string sessionId, bool isV2Session)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Process StartDiagLauncher(string args, string sessionId, string description)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void ThrowIfMultipleDiagLauncherRunning(int processId)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task RunActiveSessionAsync(CancellationToken token)
+        {
+            throw new NotImplementedException();
+        }
+
+        public bool CheckIfAnyInstanceAnalyzing(Session activeSession)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task CheckIfOrphaningOrTimeoutNeededAsync(Session activeSession)
+        {
+            throw new NotImplementedException();
         }
     }
 }

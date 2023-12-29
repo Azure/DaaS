@@ -204,7 +204,7 @@ namespace ClrProflingCollector
                         var timeToCollectStackTraces = DateTime.Now;
                         CollectStackTracerLog(zipFolderPath, processId, Is64bit);
                         stats.TimeToGenerateRawStackTraces = DateTime.Now.Subtract(timeToCollectStackTraces).TotalSeconds;
-                        Logger.LogInfo($"Took [{stats.TimeToGenerateRawStackTraces} s] to generate stacktraces.");
+                        Logger.LogDiagnoserVerboseEvent($"Took [{stats.TimeToGenerateRawStackTraces} s] to generate stacktraces.");
                         Logger.LogStatus("Collected raw stack-traces");
                     }
 
@@ -285,7 +285,7 @@ namespace ClrProflingCollector
             string zipFile = Path.Combine(folderName, zipFileName);
             string newDiagSessionLocation = Path.Combine(zipFolderPath, fileName);
 
-            Logger.LogInfo($"Moving file from {filePath} to {newDiagSessionLocation}");
+            Logger.LogDiagnoserVerboseEvent($"Moving file from {filePath} to {newDiagSessionLocation}");
             File.Copy(filePath, newDiagSessionLocation, true);
 
             try
@@ -297,7 +297,7 @@ namespace ClrProflingCollector
                 Logger.LogDiagnoserErrorEvent($"Failed while deleting file in AddCollectedDataToZip", ex);
             }
 
-            Logger.LogInfo($"Ziping folder {zipFolderPath} to {zipFile}");
+            Logger.LogDiagnoserVerboseEvent($"Ziping folder {zipFolderPath} to {zipFile}");
 
             if (File.Exists(zipFile))
             {

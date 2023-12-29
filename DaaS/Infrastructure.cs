@@ -97,8 +97,9 @@ namespace DaaS
                 }
             };
 
-            process.StartInfo.EnvironmentVariables.Add("DAAS_SESSION_ID",sessionId);
-            process.StartInfo.EnvironmentVariables.Add("DAAS_SESSION_DESCRIPTION", description);
+            process.StartInfo.EnvironmentVariables["DAAS_SESSION_ID"] = sessionId;
+            process.StartInfo.EnvironmentVariables["DAAS_SESSION_DESCRIPTION"] = description;
+
             Logger.LogDiagnostic("Starting process. FileName = {0}, Arguments = {1}, sessionId = {2}", process.StartInfo.FileName, process.StartInfo.Arguments, sessionId);
             process.Start();
             return process;

@@ -16,6 +16,7 @@ using System.Net;
 using DaaS;
 using DaaS.Sessions;
 using DaaS.Diagnostics;
+using System.IO;
 
 namespace DaaSConsole
 {
@@ -25,6 +26,8 @@ namespace DaaSConsole
         {
             InvokedViaAutomation = true
         };
+
+        static readonly bool UseDiagLauncher = ShouldUseDiagLauncher();
 
         enum Options
         {
@@ -90,7 +93,10 @@ namespace DaaSConsole
                     case (Options.CollectKillAnalyze):
                         {
                             string sessionId = CollectLogsAndTakeActions(option, args, ref argNum);
-                            KillProcessIfNeeded(option, sessionId);
+                            if (!UseDiagLauncher)
+                            {
+                                KillProcessIfNeeded(option, sessionId);
+                            }
                             break;
                         }
                     default:
@@ -225,23 +231,34 @@ namespace DaaSConsole
                 }
             }
 
-            Console.WriteLine($"Running Diagnosers on { Environment.MachineName}");
+            var mode = GetModeFromOptions(options);
 
             var session = new Session()
             {
                 Instances = new List<string>() { Environment.MachineName },
                 Tool = toolName,
                 ToolParams = toolParams,
-                Mode = GetModeFromOptions(options),
+                Mode = mode,
                 Description = GetSessionDescription()
             };
+
+            string sessionId = string.Empty;
+            if (UseDiagLauncher)
+            {
+                sessionId = SessionManager.SubmitNewSessionAsync(session, isV2Session: true).Result;
+                Console.WriteLine($"Session submitted for '{toolName}' with Id - {sessionId}");
+                StartDiagLauncher(session, sessionId, options);
+                return sessionId;
+            }
+
+            Console.WriteLine($"Running Diagnosers on { Environment.MachineName}");
 
             //
             // do not await on this call. We just want to
             // submit and check the status in a loop
             //
 
-            var sessionId = SessionManager.SubmitNewSessionAsync(session, invokedViaDaasConsole: true).Result;
+            sessionId = SessionManager.SubmitNewSessionAsync(session, isV2Session:false, invokedViaDaasConsole: true).Result;
             Console.WriteLine($"Session submitted for '{toolName}' with Id - {sessionId}");
             Console.Write("Waiting...");
 
@@ -260,7 +277,7 @@ namespace DaaSConsole
             {
                 Thread.Sleep(10000);
                 Console.Write(".");
-                var activeSession = SessionManager.GetActiveSessionAsync().Result;
+                var activeSession = SessionManager.GetActiveSessionAsync(isV2Session:false).Result;
 
                 //
                 // Either the session got completed, timed out
@@ -303,6 +320,37 @@ namespace DaaSConsole
             }
 
             return sessionId;
+        }
+
+        private static void StartDiagLauncher(Session session,  string sessionId, Options options)
+        {
+            //
+            // Just pass SessionId and mode
+            //
+
+            string args = $"--sessionId {sessionId}";
+            if (options == Options.CollectKillAnalyze)
+            {
+                args += " --mode CollectKillAnalyze";
+            }
+
+            var process = SessionManager.StartDiagLauncher(args, sessionId, session.Description) ?? throw new DiagnosticSessionAbortedException("Failed to start DiagLauncher.exe");
+            LogAndWriteToConsole($"DiagLauncher started with ProcessId - {process.Id}", sessionId);
+            Console.Write("Waiting...");
+
+            while (process.HasExited == false)
+            {
+                Thread.Sleep(10000);
+                Console.Write(".");
+            }
+
+            LogAndWriteToConsole("DiagLauncher completed!", sessionId);
+        }
+
+        private static void LogAndWriteToConsole(string message, string sessionId)
+        {
+            Console.WriteLine(message);
+            Logger.LogSessionVerboseEvent(message, sessionId);
         }
 
         private static string GetSessionDescription()
@@ -413,6 +461,49 @@ namespace DaaSConsole
             Console.WriteLine("       DaasConsole.exe -CollectKillAnalyze \"Memory Dump\"");
             Console.WriteLine();
             Console.WriteLine("To specify a custom folder to get the diagnostic tools from, set the DiagnosticToolsPath setting to the desired location");
+        }
+
+        private static bool ShouldUseDiagLauncher()
+        {
+            try
+            {
+                string diagLauncherPath = Environment.GetEnvironmentVariable(SessionManager.DaasDiagLauncherEnv);
+                if (string.IsNullOrWhiteSpace(diagLauncherPath))
+                {
+                    return false;
+                }
+
+                if (!FileSystemHelpers.FileExists(diagLauncherPath))
+                {
+                    return false;
+                }
+
+                var forceDiagLauncher = Environment.GetEnvironmentVariable("WEBSITE_DAAS_USE_DIAGLAUNCHER");
+                if (!string.IsNullOrWhiteSpace(forceDiagLauncher) 
+                    && bool.TryParse(forceDiagLauncher, out bool shouldForceDiagLauncher)
+                    && shouldForceDiagLauncher)
+                {
+                    return true;
+                }
+
+                var scmHostingConfigPath = Environment.ExpandEnvironmentVariables("%ProgramFiles(x86)%\\SiteExtensions\\kudu\\ScmHostingConfigurations.txt");
+                if (!File.Exists(scmHostingConfigPath))
+                {
+                    return false;
+                }
+
+                string fileContents = File.ReadAllText(scmHostingConfigPath);
+                if (!string.IsNullOrWhiteSpace(fileContents) && fileContents.Contains("UseDaasDiagLauncher=1"))
+                {
+                    return true;
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarningEvent("Exception while checking ScmHostingConfigurations", ex);
+            }
+
+            return false;
         }
     }
 }

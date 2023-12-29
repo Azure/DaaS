@@ -17,7 +17,8 @@ namespace DaaS.Sessions
     public enum Mode
     {
         Collect,
-        CollectAndAnalyze
+        CollectAndAnalyze,
+        CollectKillAnalyze
     }
 
     public class Session

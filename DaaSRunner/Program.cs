@@ -155,17 +155,17 @@ namespace DaaSRunner
 
         }
 
-        private static bool CheckIfTimeToCleanupSymbols()
+        private static bool CheckIfTimeToCleanupSymbols(bool isV2Session)
         {
             try
             {
-                var activeSession = _sessionManager.GetActiveSessionAsync().Result;
+                var activeSession = _sessionManager.GetActiveSessionAsync(isV2Session).Result;
                 if (activeSession != null)
                 {
                     return false;
                 }
 
-                var completedSessions = _sessionManager.GetCompletedSessionsAsync().Result;
+                var completedSessions = _sessionManager.GetCompletedSessionsAsync(isV2Session).Result;
                 var cleanupSymbols = false;
                 var lastCompletedSession = completedSessions.FirstOrDefault();
 
@@ -385,7 +385,6 @@ namespace DaaSRunner
             {
                 RunActiveSession(_cts.Token);
                 RemoveOlderSessionsIfNeeded();
-
                 Thread.Sleep(Settings.Instance.FrequencyToCheckForNewSessionsAtInSeconds * 1000);
             }
         }
@@ -394,7 +393,7 @@ namespace DaaSRunner
         {
             try
             {
-                _sessionManager.DeleteSessionAsync(session.SessionId).Wait();
+                _sessionManager.DeleteSessionAsync(session.SessionId, isV2Session: false).Wait();
             }
             catch (Exception)
             {
@@ -434,10 +433,30 @@ namespace DaaSRunner
                     }
                 }
 
-                if (CheckIfTimeToCleanupSymbols())
+                if (CheckIfTimeToCleanupSymbols(isV2Session: false))
                 {
                     CleanupSymbolsDirectory();
                 }
+
+                CleanV2SessionsIfNeeded();
+            }
+        }
+
+        private static void CleanV2SessionsIfNeeded()
+        {
+            try
+            {
+                var activeSession = _sessionManager.GetActiveSessionAsync(isV2Session: true).Result;
+                if (activeSession == null)
+                {
+                    return;
+                }
+
+                _sessionManager.CheckIfOrphaningOrTimeoutNeededAsync(activeSession).Wait();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarningEvent("Unhandled exception while cleaning up Daas V2 sessions", ex);
             }
         }
 
@@ -445,7 +464,7 @@ namespace DaaSRunner
         {
             try
             {
-                var activeSession = _sessionManager.GetActiveSessionAsync().Result;
+                var activeSession = _sessionManager.GetActiveSessionAsync(isV2Session: false).Result;
                 if (activeSession == null)
                 {
                     return;
@@ -457,14 +476,14 @@ namespace DaaSRunner
                 // Check if all instances are finished with log collection
                 //
 
-                if (_sessionManager.CheckandCompleteSessionIfNeededAsync().Result)
+                if (_sessionManager.CheckandCompleteSessionIfNeededAsync(isV2Session: false).Result)
                 {
                     return;
                 }
 
                 if (DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes > Settings.Instance.OrphanInstanceTimeoutInMinutes)
                 {
-                    _sessionManager.CancelOrphanedInstancesIfNeeded().Wait();
+                    _sessionManager.CancelOrphanedInstancesIfNeeded(isV2Session: false).Wait();
                 }
 
                 var totalSessionRunningTimeInMinutes = DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes;
@@ -490,7 +509,7 @@ namespace DaaSRunner
                             //
 
                             Logger.LogSessionVerboseEvent("Forcefully marking the session as TimedOut as MaxSessionTimeInMinutes limit reached", activeSession.SessionId);
-                            _ = _sessionManager.CheckandCompleteSessionIfNeededAsync(forceCompletion: true).Result;
+                            _ = _sessionManager.CheckandCompleteSessionIfNeededAsync(isV2Session: false, forceCompletion: true).Result;
                         }
                     }
                 }
@@ -503,14 +522,14 @@ namespace DaaSRunner
                         return;
                     }
 
-                    if (_sessionManager.HasThisInstanceCollectedLogs().Result)
+                    if (_sessionManager.HasThisInstanceCollectedLogs(isV2Session: false).Result)
                     {
                         // This instance has already collected logs for this session
                         return;
                     }
 
                     var cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
-                    var sessionTask = _sessionManager.RunToolForSessionAsync(activeSession, cts.Token);
+                    var sessionTask = _sessionManager.RunToolForSessionAsync(activeSession, isV2Session:false, cts.Token);
 
                     var t = new TaskAndCancellationToken
                     {
@@ -556,14 +575,6 @@ namespace DaaSRunner
                     }
                 }
             }
-        }
-
-        private static double GetSleepIntervalBetweenHeartbeats(int instanceCount)
-        {
-            int interval = (instanceCount / 10) * 30;
-            interval = Math.Max(30, interval);
-            interval = Math.Min(180, interval);
-            return Convert.ToDouble(interval);
         }
     }
 

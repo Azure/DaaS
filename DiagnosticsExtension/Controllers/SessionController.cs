@@ -10,6 +10,7 @@ using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Web.Http;
+using System.Web.Http.Results;
 using DaaS.Sessions;
 
 namespace DiagnosticsExtension.Controllers
@@ -37,7 +38,7 @@ namespace DiagnosticsExtension.Controllers
                     session.Description = "InvokedViaDaasApi";
                 }
 
-                string sessionId = await _sessionManager.SubmitNewSessionAsync(session);
+                string sessionId = await _sessionManager.SubmitNewSessionAsync(session, isV2Session: false);
                 return ResponseMessage(Request.CreateResponse(HttpStatusCode.Accepted, sessionId));
             }
             catch (ArgumentException argEx)
@@ -65,7 +66,14 @@ namespace DiagnosticsExtension.Controllers
         [Route("active")]
         public async Task<IHttpActionResult> GetActiveSession()
         {
-            return Ok(await _sessionManager.GetActiveSessionAsync(isDetailed: true));
+            var activeSession = await _sessionManager.GetActiveSessionAsync(isV2Session: false, isDetailed: true);
+            if (activeSession == null)
+            {
+                activeSession = await _sessionManager.GetActiveSessionAsync(isV2Session: true, isDetailed: true);
+                await _sessionManager.CheckIfOrphaningOrTimeoutNeededAsync(activeSession);
+            }
+
+            return Ok(activeSession);
         }
 
         [HttpPost]
@@ -87,8 +95,19 @@ namespace DiagnosticsExtension.Controllers
         {
             try
             {
-                await _sessionManager.DeleteSessionAsync(sessionId);
-                return Ok($"Session {sessionId} deleted successfully");
+                if (_sessionManager.IsSessionExisting(sessionId, isV2Session: false))
+                {
+                    await _sessionManager.DeleteSessionAsync(sessionId, isV2Session: false);
+                    return Ok($"Session {sessionId} deleted successfully");
+                }
+
+                if (_sessionManager.IsSessionExisting(sessionId, isV2Session: true))
+                {
+                    await _sessionManager.DeleteSessionAsync(sessionId, isV2Session: true);
+                    return Ok($"Session {sessionId} deleted successfully");
+                }
+
+                return Content(HttpStatusCode.NotFound, $"Session with Id '{sessionId}' not found");
             }
             catch (Exception ex)
             {

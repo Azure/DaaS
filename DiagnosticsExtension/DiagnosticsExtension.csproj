@@ -371,6 +371,7 @@
     <Compile Include="Controllers\ConnectionStringValidationController.cs" />
     <Compile Include="Controllers\DiagnosersController.cs" />
     <Compile Include="Controllers\SessionController.cs" />
+    <Compile Include="Controllers\SessionsV2Controller.cs" />
     <Compile Include="Models\ConnectionStringValidator\AppSettingRequestBody.cs" />
     <Compile Include="Models\Settings.cs" />
     <Compile Include="Controllers\SettingsController.cs" />
@@ -532,6 +533,7 @@
     <Folder Include="Views\HyperVSessions\" />
     <Folder Include="Views\HyperVSession\" />
     <Folder Include="Views\ResultsViewer\" />
+    <Folder Include="Views\SessionsV2\" />
     <Folder Include="Views\SettingsV2\" />
     <Folder Include="Views\Settings\" />
   </ItemGroup>
