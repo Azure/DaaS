@@ -70,6 +70,12 @@ namespace DaaS
                     {
                         Directory.CreateDirectory(statusFilePath);
                     }
+
+                    if (!Directory.Exists(outputPath))
+                    {
+                        Directory.CreateDirectory(outputPath);
+                    }
+
                     StatusFile = Path.Combine(statusFilePath, "diagstatus.diaglog");
                     ErrorFilePath = Path.Combine(outputPath, $"{Environment.MachineName}_{CallerComponent}.err.diaglog");
                 }

@@ -54,38 +54,48 @@ namespace MemoryDumpCollector
                 else
                 {
                     //
-                    // Determine which processes this process is a child of (since we don't want to call a memory dump on ourselves)
+                    // Post DiagLauncher MemoryDumpCollector.exe will be directly spun up by the main
+                    // site and not the KUDU w3wp. This will cause the below logic to fail as we will
+                    // not be able to find the w3wp for the actual site. Bypass this logic if we are
+                    // invoked directly from the main worker process.
                     //
 
-                    Process parentProcess = Process.GetCurrentProcess();
-                    while (parentProcess != null)
+                    if (IsRunningInScmContext())
                     {
-                        if (parentProcess.ProcessName.Equals(_processName, StringComparison.OrdinalIgnoreCase))
+                        //
+                        // Determine which processes this process is a child of (since we don't want to call a memory dump on ourselves)
+                        //
+
+                        Process parentProcess = Process.GetCurrentProcess();
+                        while (parentProcess != null)
                         {
-                            //
-                            // Don't collect memory dumps of our parent process. Taking the dump can sometimes freeze cdb and the process it's take a dump of
-                            //
+                            if (parentProcess.ProcessName.Equals(_processName, StringComparison.OrdinalIgnoreCase))
+                            {
+                                //
+                                // Don't collect memory dumps of our parent process. Taking the dump can sometimes freeze cdb and the process it's take a dump of
+                                //
 
-                            Logger.LogDiagnoserVerboseEvent("Ignoring parent " + parentProcess.GetPrintableInfo());
-                            _processesToIgnore.Add(parentProcess.Id);
+                                Logger.LogDiagnoserVerboseEvent("Ignoring parent " + parentProcess.GetPrintableInfo());
+                                _processesToIgnore.Add(parentProcess.Id);
+                            }
+                            parentProcess = parentProcess.GetParentProcess();
                         }
-                        parentProcess = parentProcess.GetParentProcess();
+
+                        //
+                        // We don't want to collect memory dumps of ourself and child processes
+                        //
+
+                        var currentProcessAndChildren = Process.GetCurrentProcess().GetAllChildProcesses().ToList();
+                        foreach (var childProcess in currentProcessAndChildren)
+                        {
+                            Logger.LogDiagnoserVerboseEvent("Ignoring childProcess " + childProcess.GetPrintableInfo());
+                            _processesToIgnore.Add(childProcess.Id);
+                        }
                     }
-
-                    //
-                    // We don't want to collect memory dumps of ourself and child processes
-                    //
-
-                    var currentProcessAndChildren = Process.GetCurrentProcess().GetAllChildProcesses().ToList();
-                    foreach (var childProcess in currentProcessAndChildren)
-                    {
-                        Logger.LogDiagnoserVerboseEvent("Ignoring childProcess " + childProcess.GetPrintableInfo());
-                        _processesToIgnore.Add(childProcess.Id);
-                    }
-
-                    Logger.LogDiagnoserVerboseEvent("Ignoring current processId " + Process.GetCurrentProcess().Id);
-                    _processesToIgnore.Add(Process.GetCurrentProcess().Id);
                 }
+
+                Logger.LogDiagnoserVerboseEvent("Ignoring current processId " + Process.GetCurrentProcess().Id);
+                _processesToIgnore.Add(Process.GetCurrentProcess().Id);
 
                 //
                 // We don't want to collect processes spawned by the runner either
@@ -126,6 +136,7 @@ namespace MemoryDumpCollector
                             || p.ProcessName.Equals("procdump64", StringComparison.OrdinalIgnoreCase)
                             || p.ProcessName.Equals("crashmon", StringComparison.OrdinalIgnoreCase)
                             || p.ProcessName.Equals("dbghost", StringComparison.OrdinalIgnoreCase)
+                            || p.ProcessName.Equals("diaglauncher", StringComparison.OrdinalIgnoreCase)
                             )
                             .Select(p => p.Id));
 
@@ -234,6 +245,17 @@ namespace MemoryDumpCollector
                 Logger.LogDiagnoserErrorEvent($"Un-handled exception in MemoryDumpCollector", ex);
                 Console.WriteLine($"Un-handled exception in MemoryDumpCollector {ex}");
             }
+        }
+
+        private static bool IsRunningInScmContext()
+        {
+            var iisSiteName = Environment.GetEnvironmentVariable("WEBSITE_IIS_SITE_NAME");
+            if (string.IsNullOrEmpty(iisSiteName))
+            {
+                return false;
+            }
+
+            return iisSiteName.StartsWith("~");
         }
 
         private static StringBuilder GetProcessInformationToLog()
