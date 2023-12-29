@@ -14,6 +14,7 @@ using CommandLine;
 using DaaS;
 using DaaS.Diagnostics;
 using DaaS.Sessions;
+using Newtonsoft.Json;
 
 namespace DiagLauncher
 {
@@ -187,6 +188,17 @@ namespace DiagLauncher
                 sessionId = _sessionManager.SubmitNewSessionAsync(session, isV2Session: true).Result;
                 Logger.LogSessionVerboseEvent("DiagLauncher submitted a new session", sessionId);
                 Console.WriteLine($"DiagLauncher submitted a new session-{sessionId} for '{tool}'");
+
+                var details = new
+                {
+                    Diagnoser = tool,
+                    InstancesSelected = Environment.MachineName,
+                    Options = mode
+                };
+
+                var detailsString = JsonConvert.SerializeObject(details);
+                Logger.LogDaasConsoleEvent("DiagLauncher started a new Session", detailsString);
+                EventLog.WriteEntry("Application", $"DiagLauncher started with {detailsString} ", EventLogEntryType.Information);
             }
 
             _ = _sessionManager.RunActiveSessionAsync(cts.Token);
