@@ -171,9 +171,9 @@ namespace DaaS
             }
         }
 
-        public static void LogDaasConsoleEvent(string message, string details)
+        public static void LogDaasConsoleEvent(string message, string details, string sessionId)
         {
-            DaasEventSource.Instance.LogDaasConsoleEvent(SiteName, _assemblyVersion, message, details);
+            DaasEventSource.Instance.LogDaasConsoleEvent(SiteName, _assemblyVersion, message, details, sessionId);
             LogDiagnostic("DaasConsole:{0} {1}", message, details);
         }
 

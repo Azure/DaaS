@@ -234,37 +234,28 @@ namespace DaaSConsole
             {
                 sessionId = SessionManager.SubmitNewSessionAsync(session, isV2Session: true).Result;
                 Console.WriteLine($"Session submitted for '{toolName}' with Id - {sessionId}");
+                LogDaasConsoleEvent(sessionId, toolName, options.ToString(), useDiagLauncher: true);
                 StartDiagLauncher(session, sessionId);
                 return sessionId;
             }
 
-            Console.WriteLine($"Running Diagnosers on { Environment.MachineName}");
+            Console.WriteLine($"Running Diagnosers on {Environment.MachineName}");
 
             //
             // do not await on this call. We just want to
             // submit and check the status in a loop
             //
 
-            sessionId = SessionManager.SubmitNewSessionAsync(session, isV2Session:false, invokedViaDaasConsole: true).Result;
+            sessionId = SessionManager.SubmitNewSessionAsync(session, isV2Session: false, invokedViaDaasConsole: true).Result;
             Console.WriteLine($"Session submitted for '{toolName}' with Id - {sessionId}");
             Console.Write("Waiting...");
-
-            var details = new
-            {
-                Diagnoser = toolName,
-                InstancesSelected = Environment.MachineName,
-                Options = options.ToString()
-            };
-
-            var detailsString = JsonConvert.SerializeObject(details);
-            Logger.LogDaasConsoleEvent("DaasConsole started a new Session", detailsString);
-            EventLog.WriteEntry("Application", $"DaasConsole started with {detailsString} ", EventLogEntryType.Information);
+            LogDaasConsoleEvent(sessionId, toolName, options.ToString(), useDiagLauncher:false);
 
             while (true)
             {
                 Thread.Sleep(10000);
                 Console.Write(".");
-                var activeSession = SessionManager.GetActiveSessionAsync(isV2Session:false).Result;
+                var activeSession = SessionManager.GetActiveSessionAsync(isV2Session: false).Result;
 
                 //
                 // Either the session got completed, timed out
@@ -301,7 +292,7 @@ namespace DaaSConsole
                     //
                     // Exit the loop once data has been collected and Analyzer
                     // has been started
-                    
+
                     break;
                 }
             }
@@ -309,11 +300,30 @@ namespace DaaSConsole
             return sessionId;
         }
 
+        private static void LogDaasConsoleEvent(string sessionId, string toolName, string options, bool useDiagLauncher)
+        {
+            var details = new
+            {
+                Diagnoser = toolName,
+                InstancesSelected = Environment.MachineName,
+                Options = options.ToString(),
+                UseDiagLauncher = useDiagLauncher
+            };
+
+            var detailsString = JsonConvert.SerializeObject(details);
+
+            Logger.LogDaasConsoleEvent("DaasConsole started a new Session", detailsString, sessionId);
+            EventLog.WriteEntry("Application", $"DaasConsole started with {detailsString} ", EventLogEntryType.Information);
+        }
+
         private static void StartDiagLauncher(Session session,  string sessionId)
         {
             //
-            // Just pass SessionId and mode
+            // Just pass SessionId
             //
+
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
 
             string args = $"--sessionId {sessionId}";
             var process = SessionManager.StartDiagLauncher(args, sessionId, session.Description) ?? throw new DiagnosticSessionAbortedException("Failed to start DiagLauncher.exe");
@@ -323,10 +333,10 @@ namespace DaaSConsole
             while (process.HasExited == false)
             {
                 Thread.Sleep(10000);
-                Console.Write(".");
             }
 
-            LogAndWriteToConsole("DiagLauncher completed!", sessionId);
+            sw.Stop();
+            LogAndWriteToConsole($"DiagLauncher completed after {sw.Elapsed.TotalMinutes:0} minutes!", sessionId);
         }
 
         private static void LogAndWriteToConsole(string message, string sessionId)
