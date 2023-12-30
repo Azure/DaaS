@@ -203,7 +203,7 @@ namespace DiagLauncher
                 };
 
                 var detailsString = JsonConvert.SerializeObject(details);
-                Logger.LogDaasConsoleEvent("DiagLauncher started a new Session", detailsString);
+                Logger.LogDaasConsoleEvent("DiagLauncher started a new Session", detailsString, sessionId);
                 EventLog.WriteEntry("Application", $"DiagLauncher started with {detailsString} ", EventLogEntryType.Information);
             }
 

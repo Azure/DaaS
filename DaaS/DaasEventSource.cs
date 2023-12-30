@@ -53,10 +53,10 @@ namespace DaaS
             WriteEvent(1004, SiteName, Version, Message, Details);
         }
 
-        [Event(1005, Level = EventLevel.Informational)]
-        public void LogDaasConsoleEvent(string SiteName, string Version, string Message, string Details)
+        [Event(1005, Level = EventLevel.Informational, Version = 2)]
+        public void LogDaasConsoleEvent(string SiteName, string Version, string Message, string Details, string SessionId)
         {
-            WriteEvent(1005, SiteName, Version, Message, Details);
+            WriteEvent(1005, SiteName, Version, Message, Details, SessionId);
         }
 
         [Event(1006, Level = EventLevel.Warning)]
