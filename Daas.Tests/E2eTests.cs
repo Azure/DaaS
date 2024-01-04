@@ -252,7 +252,8 @@ namespace Daas.Test
                 counter++;
             }
 
-            Assert.True(siteResponse.IsSuccessStatusCode, "Site is not warmed up");
+            var responseCode = siteResponse.StatusCode;
+            Assert.True(siteResponse.IsSuccessStatusCode, $"Site '{_websiteClient.BaseAddress}' is not warmed up. Status Code returned is {responseCode}");
         }
 
         private static void CheckSessionAsserts(Session session)
