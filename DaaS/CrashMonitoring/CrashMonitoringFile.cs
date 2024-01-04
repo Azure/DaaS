@@ -11,20 +11,18 @@ namespace DaaS
 {
     public class CrashMonitoringFile
     {
-        public string FileName { get; set; }
-        public string RelativePath { get; set; }
-        public DateTime Created { get; set; }
+        public string Name { get; set; }
+        public DateTimeOffset? CreatedOn { get; set; }
         public string ExitCode { get; set; } = string.Empty;
         public Uri Uri { get; set; }
 
-        public CrashMonitoringFile(string fileName, string relativePath, Uri uri, DateTime created)
+        public CrashMonitoringFile(string name, Uri uri, DateTimeOffset? createdOn)
         {
-            FileName = fileName;
-            RelativePath = relativePath;
-            Created = created;
+            Name = name;
+            CreatedOn = createdOn;
             Uri = uri;
 
-            var fileArray = FileName.Split('_');
+            var fileArray = Name.Split('_');
             var exitCodeIndex = fileArray.Length - 3;
             if (exitCodeIndex > 0)
             {

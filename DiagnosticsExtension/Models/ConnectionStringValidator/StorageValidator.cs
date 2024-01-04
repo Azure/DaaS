@@ -7,18 +7,17 @@
 
 using DiagnosticsExtension.Controllers;
 using DiagnosticsExtension.Models.ConnectionStringValidator.Exceptions;
-using Microsoft.WindowsAzure.Storage;
-using Microsoft.WindowsAzure.Storage.Blob;
+using Microsoft.Azure.Storage;
+using Microsoft.Azure.Storage.Blob;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace DiagnosticsExtension.Models.ConnectionStringValidator
 {
     public class StorageValidator : IConnectionStringValidator
     {
-        public string ProviderName => "Microsoft.WindowsAzure.Storage";
+        public string ProviderName => "Microsoft.Azure.Storage";
 
         public ConnectionStringType Type => ConnectionStringType.StorageAccount;
 

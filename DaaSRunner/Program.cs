@@ -18,6 +18,7 @@ using System.Threading.Tasks;
 using System.Collections.Concurrent;
 using System.Net;
 using DaaS.Configuration;
+using DaaS.Storage;
 
 namespace DaaSRunner
 {
@@ -41,9 +42,11 @@ namespace DaaSRunner
 
         private static DateTime _lastSessionCleanupTime = DateTime.UtcNow;
 
-        private static readonly ISessionManager _sessionManager = new SessionManager();
+        private static readonly ISessionManager _sessionManager = new SessionManager(new AzureStorageService());
         private static readonly ConcurrentDictionary<string, TaskAndCancellationToken> _runningSessions = new ConcurrentDictionary<string, TaskAndCancellationToken>();
+
         private static readonly CancellationTokenSource _cts = new CancellationTokenSource();
+        private static readonly IStorageService storageService = new AzureStorageService();
 
         static void Main(string[] args)
         {
@@ -80,49 +83,30 @@ namespace DaaSRunner
 
             InitializeThreadsForCpuMonitoring();
 
-            // Queue a one time operation to clear any *.diaglog files on the Blob
-            ThreadPool.QueueUserWorkItem(new WaitCallback(_DaaS.RemoveOlderFilesFromBlob));
-
             StartSessionRunner();
-        }
-
-        private static void ValidateSasUri()
-        {
-            var sasUri = _DaaS.BlobStorageSasUri;
-            if (string.IsNullOrWhiteSpace(sasUri))
-            {
-                return;
-            }
-
-            var result = DaaS.Storage.BlobController.ValidateBlobSasUri(sasUri, out Exception _);
-            Logger.LogVerboseEvent($"BlobStorageSasUri is Valid={result}");
         }
 
         private static void ValidateStorageConfiguration(object state)
         {
             try
             {
-                string connectionString = _DaaS.StorageConnectionString;
-                if (!string.IsNullOrWhiteSpace(connectionString))
+                var isValid = storageService.ValidateStorageConfiguration(out string _, out Exception exceptionContactingStorage);
+                if (!isValid)
                 {
-                    ValidateConnectionString();
-                }
-                else
-                {
-                    ValidateSasUri();
+                    if (exceptionContactingStorage != null)
+                    {
+                        Logger.LogErrorEvent("Invalid storage configuration", exceptionContactingStorage);
+                    }
+                    else
+                    {
+                        Logger.LogErrorEvent("Invalid storage configuration", "Storage configuration is invalid");
+                    }
                 }
             }
             catch (Exception ex)
             {
-                Logger.LogErrorEvent("Encountered exception while validating SAS keys", ex);
+                Logger.LogErrorEvent("Encountered exception while validating storage configuration", ex);
             }
-
-        }
-
-        private static void ValidateConnectionString()
-        {
-            bool isValid = _DaaS.IsValidStorageConnectionString(out string storageException);
-            Logger.LogVerboseEvent($"StorageConnectionString is Valid={isValid}", storageException);
         }
 
         private static void CheckAnalysisForCpuMonitoring()
@@ -155,17 +139,17 @@ namespace DaaSRunner
 
         }
 
-        private static bool CheckIfTimeToCleanupSymbols(bool isV2Session)
+        private static bool CheckIfTimeToCleanupSymbols()
         {
             try
             {
-                var activeSession = _sessionManager.GetActiveSessionAsync(isV2Session).Result;
+                var activeSession = _sessionManager.GetActiveSessionAsync().Result;
                 if (activeSession != null)
                 {
                     return false;
                 }
 
-                var completedSessions = _sessionManager.GetCompletedSessionsAsync(isV2Session).Result;
+                var completedSessions = _sessionManager.GetCompletedSessionsAsync().Result;
                 var cleanupSymbols = false;
                 var lastCompletedSession = completedSessions.FirstOrDefault();
 
@@ -300,7 +284,7 @@ namespace DaaSRunner
             Logger.LogCpuMonitoringVerboseEvent($"Stopping a monitoring session", sessionId);
 
             MonitoringSessionController sessionController = new MonitoringSessionController();
-            var sessionStopped = sessionController.StopMonitoringSession();
+            var sessionStopped = sessionController.StopMonitoringSessionAsync().Result;
             if (!sessionStopped)
             {
                 Logger.LogCpuMonitoringVerboseEvent($"Failed while stopping the session", sessionId);
@@ -393,7 +377,7 @@ namespace DaaSRunner
         {
             try
             {
-                _sessionManager.DeleteSessionAsync(session.SessionId, isV2Session: false).Wait();
+                _sessionManager.DeleteSessionAsync(session.SessionId).Wait();
             }
             catch (Exception)
             {
@@ -433,30 +417,10 @@ namespace DaaSRunner
                     }
                 }
 
-                if (CheckIfTimeToCleanupSymbols(isV2Session: false))
+                if (CheckIfTimeToCleanupSymbols())
                 {
                     CleanupSymbolsDirectory();
                 }
-
-                CleanV2SessionsIfNeeded();
-            }
-        }
-
-        private static void CleanV2SessionsIfNeeded()
-        {
-            try
-            {
-                var activeSession = _sessionManager.GetActiveSessionAsync(isV2Session: true).Result;
-                if (activeSession == null)
-                {
-                    return;
-                }
-
-                _sessionManager.CheckIfOrphaningOrTimeoutNeededAsync(activeSession).Wait();
-            }
-            catch (Exception ex)
-            {
-                Logger.LogWarningEvent("Unhandled exception while cleaning up Daas V2 sessions", ex);
             }
         }
 
@@ -464,7 +428,7 @@ namespace DaaSRunner
         {
             try
             {
-                var activeSession = _sessionManager.GetActiveSessionAsync(isV2Session: false).Result;
+                var activeSession = _sessionManager.GetActiveSessionAsync().Result;
                 if (activeSession == null)
                 {
                     return;
@@ -476,14 +440,14 @@ namespace DaaSRunner
                 // Check if all instances are finished with log collection
                 //
 
-                if (_sessionManager.CheckandCompleteSessionIfNeededAsync(isV2Session: false).Result)
+                if (_sessionManager.CheckandCompleteSessionIfNeededAsync().Result)
                 {
                     return;
                 }
 
                 if (DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes > Settings.Instance.OrphanInstanceTimeoutInMinutes)
                 {
-                    _sessionManager.CancelOrphanedInstancesIfNeeded(isV2Session: false).Wait();
+                    _sessionManager.CancelOrphanedInstancesIfNeeded().Wait();
                 }
 
                 var totalSessionRunningTimeInMinutes = DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes;
@@ -509,7 +473,7 @@ namespace DaaSRunner
                             //
 
                             Logger.LogSessionVerboseEvent("Forcefully marking the session as TimedOut as MaxSessionTimeInMinutes limit reached", activeSession.SessionId);
-                            _ = _sessionManager.CheckandCompleteSessionIfNeededAsync(isV2Session: false, forceCompletion: true).Result;
+                            _ = _sessionManager.CheckandCompleteSessionIfNeededAsync(forceCompletion: true).Result;
                         }
                     }
                 }
@@ -522,14 +486,14 @@ namespace DaaSRunner
                         return;
                     }
 
-                    if (_sessionManager.HasThisInstanceCollectedLogs(isV2Session: false).Result)
+                    if (_sessionManager.HasThisInstanceCollectedLogs().Result)
                     {
                         // This instance has already collected logs for this session
                         return;
                     }
 
                     var cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
-                    var sessionTask = _sessionManager.RunToolForSessionAsync(activeSession, isV2Session:false, cts.Token);
+                    var sessionTask = _sessionManager.RunToolForSessionAsync(activeSession, cts.Token);
 
                     var t = new TaskAndCancellationToken
                     {

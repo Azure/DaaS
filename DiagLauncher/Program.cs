@@ -14,13 +14,14 @@ using CommandLine;
 using DaaS;
 using DaaS.Diagnostics;
 using DaaS.Sessions;
+using DaaS.Storage;
 using Newtonsoft.Json;
 
 namespace DiagLauncher
 {
     internal class Program
     {
-        static readonly ISessionManager _sessionManager = new SessionManager()
+        static readonly ISessionManager _sessionManager = new SessionManager(new AzureStorageService())
         {
             InvokedViaAutomation = true
         };
@@ -37,9 +38,9 @@ namespace DiagLauncher
                 errs => { return 0; });
         }
 
-        private static object RunDiagnosticTool(Options o)
+        private static object RunDiagnosticTool(Options options)
         {
-            if (o.ListDiagnosers)
+            if (options.ListDiagnosers)
             {
                 Console.WriteLine("Listing diagnosers...");
                 Console.WriteLine();
@@ -55,15 +56,12 @@ namespace DiagLauncher
             {
                 Stopwatch sw = new Stopwatch();
                 sw.Start();
-                var sessionId = CollectLogsAndTakeActions(o.Tool, o.Mode, o.ToolParams, o.SessionId);
-                KillProcessIfNeeded(sessionId, o.Mode);
-                Console.WriteLine("Waiting for completion...");
-                WaitForSessionCompletion(sessionId, exitIfAnalyzing: false);
-
+                var sessionId = CollectLogsAndTakeActions(options.Tool, options.Mode, options.ToolParams, options.SessionId);
                 sw.Stop();
                 string message = $"DiagLauncher completed after {sw.Elapsed.TotalMinutes:0} minutes!";
-                Logger.LogSessionVerboseEvent(message, sessionId); 
+                Logger.LogSessionVerboseEvent(message, sessionId);
                 Console.WriteLine(message);
+                KillProcessIfNeeded(sessionId, options.Mode);
             }
 
             return 0;
@@ -90,7 +88,6 @@ namespace DiagLauncher
                 Logger.LogSessionVerboseEvent($"DaasLauncher killed process {mainSiteW3wpProcess.ProcessName} with pid {mainSiteW3wpProcess.Id}", sessionId);
             }
         }
-
 
         private static Process GetMainSiteW3wpProcess(string sessionId)
         {
@@ -138,7 +135,7 @@ namespace DiagLauncher
             try
             {
                 ThrowIfRequiredSettingsMissing();
-                return SubmitAndWaitForSession(tool, mode, toolParams, sessionId);
+                return SubmitAndWaitForSession(tool, toolParams, sessionId);
             }
             catch (AggregateException ae)
             {
@@ -156,6 +153,59 @@ namespace DiagLauncher
             return string.Empty;
         }
 
+        private static string SubmitAndWaitForSession(string tool, string toolParams, string sessionId)
+        {
+            //
+            // If customers are configuring Auto-healing via ARM,
+            // DaasRunner may not be copied already. Copying to the
+            // webjobs folder is necessary for v1 sessions to function
+            //
+
+            CopyDaasRunnerIfNeeded(sessionId);
+
+            if (string.IsNullOrWhiteSpace(sessionId))
+            {
+
+                //
+                // This is the code path to take when DiagLauncher is invoked via Auto-Heal
+                // directly. In this case, DiagLauncher will create a new V1 session and submit
+                //
+
+                var session = new Session()
+                {
+                    Instances = new List<string>() { Environment.MachineName },
+                    Tool = tool,
+                    ToolParams = toolParams,
+
+                    //
+                    // Do not pass CollectKillAnalyze as mode to the Session. The UI code
+                    // does not know how to handle 'CollectKillAnalyze'
+                    // 
+
+                    Mode = Mode.CollectAndAnalyze,
+                    Description = GetSessionDescription(),
+                };
+
+                sessionId = _sessionManager.SubmitNewSessionAsync(session).Result;
+                Logger.LogSessionVerboseEvent("DiagLauncher submitted a new V1 session", sessionId);
+                Console.WriteLine($"DiagLauncher submitted a new V1 session-{sessionId} for '{tool}'");
+
+                var details = new
+                {
+                    Diagnoser = tool,
+                    InstancesSelected = Environment.MachineName,
+                    Options = "CollectKillAnalyze"
+                };
+
+                var detailsString = JsonConvert.SerializeObject(details);
+                Logger.LogDaasConsoleEvent("DiagLauncher started a new V1 Session", detailsString, sessionId);
+                EventLog.WriteEntry("Application", $"DiagLauncher started with {detailsString} ", EventLogEntryType.Information);
+            }
+
+            WaitForV1SessionCompletion(sessionId);
+            return sessionId;
+        }
+
         private static void ThrowIfRequiredSettingsMissing()
         {
             var alwaysOnEnabled = Environment.GetEnvironmentVariable("WEBSITE_SCM_ALWAYS_ON_ENABLED");
@@ -169,66 +219,64 @@ namespace DiagLauncher
             }
         }
 
-        private static string SubmitAndWaitForSession(string tool, string mode, string toolParams, string sessionId)
+        private static void CopyDaasRunnerIfNeeded(string sessionId)
         {
-            _sessionManager.ThrowIfMultipleDiagLauncherRunning(Process.GetCurrentProcess().Id);
-            CancellationTokenSource cts = new CancellationTokenSource();
-
-            if (string.IsNullOrWhiteSpace(sessionId))
+            var existingDaasRunner = EnvironmentVariables.DaasRunner;
+            if (FileSystemHelpers.FileExists(existingDaasRunner))
             {
-
-                //
-                // This is the code path to take when DiagLauncher is invoked via Auto-Heal
-                // directly. In this case, DiagLauncher will create a new session and submit
-                //
-
-                var session = new Session()
-                {
-                    Instances = new List<string>() { Environment.MachineName },
-                    Tool = tool,
-                    ToolParams = toolParams,
-                    Mode = GetToolMode(mode),
-                    Description = GetSessionDescription(),
-                };
-
-                sessionId = _sessionManager.SubmitNewSessionAsync(session, isV2Session: true).Result;
-                Logger.LogSessionVerboseEvent("DiagLauncher submitted a new session", sessionId);
-                Console.WriteLine($"DiagLauncher submitted a new session-{sessionId} for '{tool}'");
-
-                var details = new
-                {
-                    Diagnoser = tool,
-                    InstancesSelected = Environment.MachineName,
-                    Options = mode
-                };
-
-                var detailsString = JsonConvert.SerializeObject(details);
-                Logger.LogDaasConsoleEvent("DiagLauncher started a new Session", detailsString, sessionId);
-                EventLog.WriteEntry("Application", $"DiagLauncher started with {detailsString} ", EventLogEntryType.Information);
+                Logger.LogSessionVerboseEvent("DaasRunner already exists as a webjob", sessionId);
+                return;
             }
 
-            _ = _sessionManager.RunActiveSessionAsync(cts.Token);
-
-            WaitForSessionCompletion(sessionId, exitIfAnalyzing: true);
-            return sessionId;
+            SessionController sessionController = new SessionController();
+            sessionController.StartSessionRunner();
         }
 
-        private static void WaitForSessionCompletion(string sessionId, bool exitIfAnalyzing)
+        private static void WaitForV1SessionCompletion(string sessionId)
         {
+            Logger.LogSessionVerboseEvent($"Entering WaitForV1SessionCompletion method", sessionId);
+
             while (true)
             {
                 Thread.Sleep(15000);
 
                 try
                 {
-                    var activeSession = _sessionManager.GetActiveSessionAsync(isV2Session: true).Result;
+                    var activeSession = _sessionManager.GetActiveSessionAsync().Result;
                     if (activeSession == null)
                     {
                         return;
                     }
 
-                    bool isSessionAnalyzing = _sessionManager.CheckIfAnyInstanceAnalyzing(activeSession);
-                    if (exitIfAnalyzing && isSessionAnalyzing)
+                    if (activeSession.ActiveInstances != null)
+                    {
+                        var currentInstance = activeSession.ActiveInstances.FirstOrDefault(x => x.Name.Equals(Environment.MachineName, StringComparison.OrdinalIgnoreCase));
+                        if (currentInstance != null && (currentInstance.Status == Status.Complete || currentInstance.Status == Status.TimedOut || currentInstance.Status == Status.Analyzing))
+                        {
+                            return;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogSessionErrorEvent("Exception while waiting for active session to complete", ex, sessionId);
+                    Console.WriteLine($"Encountered exception while waiting for active session to complete - {ex}");
+                }
+            }
+        }
+
+        private static void WaitForSessionCompletion(string sessionId)
+        {
+            Logger.LogSessionVerboseEvent($"Entering WaitForSessionCompletion method", sessionId);
+
+            while (true)
+            {
+                Thread.Sleep(15000);
+
+                try
+                {
+                    var activeSession = _sessionManager.GetActiveSessionAsync().Result;
+                    if (activeSession == null)
                     {
                         return;
                     }
@@ -241,8 +289,6 @@ namespace DiagLauncher
                             return;
                         }
                     }
-
-                    _sessionManager.CheckIfOrphaningOrTimeoutNeededAsync(activeSession).Wait();
                 }
                 catch (Exception ex)
                 {

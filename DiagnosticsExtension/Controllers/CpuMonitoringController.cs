@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Threading.Tasks;
 using System.Web.Http;
 using DaaS;
 
@@ -82,7 +83,7 @@ namespace DiagnosticsExtension.Controllers
 
         [HttpPost]
         [Route("activesessiondetails")]
-        public HttpResponseMessage GetActiveSessionDetails()
+        public async Task<HttpResponseMessage> GetActiveSessionDetails()
         {
             ActiveMonitoringSession activeSession = new ActiveMonitoringSession();
             var monitoringController = new MonitoringSessionController();
@@ -94,7 +95,7 @@ namespace DiagnosticsExtension.Controllers
                     activeSession.Session = new MonitoringSessionResponse(session);
                     var sessionLogs = monitoringController.GetActiveSessionMonitoringLogs();
                     activeSession.MonitoringLogs = sessionLogs.ToList();
-                    activeSession.Session.FilesCollected = monitoringController.GetCollectedLogsForSession(activeSession.Session);
+                    activeSession.Session.FilesCollected = await monitoringController.GetCollectedLogsForSessionAsync(activeSession.Session);
                 }
 
                 return Request.CreateResponse(HttpStatusCode.OK, activeSession);
@@ -108,12 +109,12 @@ namespace DiagnosticsExtension.Controllers
 
         [HttpPost]
         [Route("stop")]
-        public HttpResponseMessage StopMonitoringSession()
+        public async Task<HttpResponseMessage> StopMonitoringSession()
         {
             var monitoringController = new MonitoringSessionController();
             try
             {
-                var monitoringSessionStopped = monitoringController.StopMonitoringSession();
+                var monitoringSessionStopped = await monitoringController.StopMonitoringSessionAsync();
                 return Request.CreateResponse(HttpStatusCode.OK, monitoringSessionStopped);
             }
             catch (Exception ex)

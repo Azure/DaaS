@@ -9,11 +9,12 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
-using Microsoft.WindowsAzure.Storage;
-using Microsoft.WindowsAzure.Storage.Blob;
+using System.Text.RegularExpressions;
+using Azure.Storage;
+using Azure.Storage.Blobs;
+using Azure.Storage.Sas;
 using Newtonsoft.Json;
 
 namespace DaaS.Configuration
@@ -69,7 +70,7 @@ namespace DaaS.Configuration
                     return GetBlobSasUri(StorageConnectionString);
                 }
 
-                return AccountSasUri;
+                return string.Empty;
             }
         }
 
@@ -455,31 +456,49 @@ namespace DaaS.Configuration
 
         }
 
+        //private static string GenerateBlobSasUri(string connectionString)
+        //{
+        //    BlobServiceClient blobServiceClient = new BlobServiceClient(connectionString);
+
+        //    var accountSasBuilder = new AccountSasBuilder
+        //    {
+        //        ResourceTypes = AccountSasResourceTypes.All,
+        //        Services = AccountSasServices.Blobs,
+        //        Protocol = SasProtocol.Https,
+        //        ExpiresOn = DateTimeOffset.UtcNow.AddMonths(1),
+        //    };
+
+        //    var matches = Regex.Matches(connectionString, @"([^=]+)=([^\;]+);?");
+        //    var parts = matches.Cast<Match>().ToDictionary(value => value.Groups[1].ToString(), value => value.Groups[2].ToString());
+
+        //    if (!parts.ContainsKey("AccountKey") || !parts.ContainsKey("AccountName"))
+        //    {
+        //        throw new Exception("ConnectionString is not properly formed");
+        //    }
+
+        //    var accountKey = parts["AccountKey"];
+        //    var accountName = parts["AccountName"];
+
+        //    accountSasBuilder.SetPermissions(AccountSasPermissions.All);
+
+        //    var storageSharedKeyCredential = new StorageSharedKeyCredential(accountName, accountKey);
+
+        //    string sasToken = accountSasBuilder.ToSasQueryParameters(storageSharedKeyCredential).ToString();
+
+        //    return blobServiceClient.Uri + ContainerName + "?" + sasToken;
+        //}
+
         private static string GenerateBlobSasUri(string connectionString)
         {
-            CloudStorageAccount storageAccount = CloudStorageAccount.Parse(connectionString);
-            CloudBlobClient blobClient = storageAccount.CreateCloudBlobClient();
-            CloudBlobContainer container = blobClient.GetContainerReference(ContainerName);
-            container.CreateIfNotExists();
-
-            //
-            // Set the expiry time and permissions for the container. In this case no start
-            // time is specified, so the shared access signature becomes valid immediately.
-            //
-
-            SharedAccessBlobPolicy sasConstraints = new SharedAccessBlobPolicy
+            var blobContainerClient = new BlobContainerClient(connectionString, ContainerName);
+            var blobSasBuilder = new BlobSasBuilder()
             {
-                SharedAccessExpiryTime = DateTime.UtcNow.AddMonths(1),
-                Permissions = SharedAccessBlobPermissions.Write | SharedAccessBlobPermissions.Read | SharedAccessBlobPermissions.List | SharedAccessBlobPermissions.Delete
+                BlobContainerName = ContainerName,
+                ExpiresOn = DateTime.UtcNow.AddMonths(1)
             };
 
-            //
-            // Generate the shared access signature on the container, setting the constraints
-            // directly on the signature.
-            //
-
-            string sasContainerToken = container.GetSharedAccessSignature(sasConstraints);
-            return container.Uri + sasContainerToken;
+            blobSasBuilder.SetPermissions(BlobAccountSasPermissions.All);
+            return blobContainerClient.GenerateSasUri(blobSasBuilder).ToString();
         }
     }
 }

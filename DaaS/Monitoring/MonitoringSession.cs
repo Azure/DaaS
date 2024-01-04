@@ -65,7 +65,15 @@ namespace DaaS
         {
             get
             {
-                return Settings.Instance.BlobSasUri;
+                var blobSasUri = Settings.Instance.BlobSasUri;
+                if (!string.IsNullOrWhiteSpace(blobSasUri))
+                {
+                    return blobSasUri;
+                }
+                else
+                {
+                    return Settings.Instance.AccountSasUri;
+                }
             }
         }
     }

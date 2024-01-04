@@ -5,8 +5,9 @@
 // </copyright>
 // -----------------------------------------------------------------------
 
+using Azure;
 using DaaS.Diagnostics;
-using Microsoft.WindowsAzure.Storage;
+using Microsoft.Azure.Storage;
 using Newtonsoft.Json;
 using System;
 using System.Diagnostics;
@@ -216,6 +217,19 @@ namespace DaaS
              return string.Empty;
         }
 
+        private static string GetRequestFailedExceptionDetails(RequestFailedException requestFailedException)
+        {
+            try
+            {
+                return $"ErrorCode = { requestFailedException.ErrorCode} , Status = {requestFailedException.Status}";
+            }
+            catch (Exception)
+            {
+            }
+
+            return string.Empty;
+        }
+
         private static string GetExceptionDetails(Exception exception)
         {
             var builder = new StringBuilder();
@@ -223,11 +237,22 @@ namespace DaaS
             { 
                 builder.AppendLine(GetStorageExceptionDetails(storageEx));
             }
-            else if (exception is DiagnosticSessionAbortedException diagnosticSessionAbortedException 
-                && diagnosticSessionAbortedException.InnerException != null 
-                && diagnosticSessionAbortedException.InnerException is StorageException storageException)
+            else if (exception is RequestFailedException requestFailedEx)
             {
-                builder.AppendLine(GetStorageExceptionDetails(storageException));
+                builder.AppendLine(GetRequestFailedExceptionDetails(requestFailedEx));
+            }
+            else if (exception is DiagnosticSessionAbortedException diagnosticSessionAbortedException 
+                && diagnosticSessionAbortedException.InnerException != null)
+            {
+                if (diagnosticSessionAbortedException.InnerException is StorageException storageException)
+                {
+                    builder.AppendLine(GetStorageExceptionDetails(storageException));
+                }
+
+                if (diagnosticSessionAbortedException.InnerException is RequestFailedException requestFailedException)
+                {
+                    builder.AppendLine(GetRequestFailedExceptionDetails(requestFailedException));
+                }
             }
 
             else if (exception is AggregateException aggregateException)

@@ -8,7 +8,6 @@
 using DaaS.Configuration;
 using DaaS.Diagnostics;
 using DaaS.Storage;
-using Microsoft.WindowsAzure.Storage.Blob;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -28,49 +27,28 @@ namespace DaaS.Sessions
 
         private static readonly AlertingStorageQueue _alertingStorageQueue = new AlertingStorageQueue();
         private static IOperationLock _sessionLockFile;
+        
+        private readonly IStorageService _storageService;
 
         private readonly List<string> _allSessionsDirs = new List<string>()
         {
             SessionDirectories.ActiveSessionsDir,
-            SessionDirectories.CompletedSessionsDir,
-            SessionDirectories.ActiveSessionsV2Dir,
-            SessionDirectories.CompletedSessionsV2Dir
+            SessionDirectories.CompletedSessionsDir
         };
 
-        public SessionManager()
+        public SessionManager(IStorageService storageService)
         {
+            _storageService = storageService;
             EnsureSessionDirectories();
         }
 
         #region ISessionManager methods
 
-        public async Task<Session> GetActiveSessionAsync(bool isV2Session, bool isDetailed = false)
+        public async Task<Session> GetActiveSessionAsync(bool isDetailed = false)
         {
-            var activeSessions = await LoadSessionsAsync(isV2Session ? SessionDirectories.ActiveSessionsV2Dir : SessionDirectories.ActiveSessionsDir, isDetailed);
+            var activeSessions = await LoadSessionsAsync(SessionDirectories.ActiveSessionsDir, isDetailed);
             var activeSession = activeSessions.FirstOrDefault();
             return activeSession;
-        }
-
-        public async Task CheckIfOrphaningOrTimeoutNeededAsync(Session activeSession)
-        {
-            if (activeSession == null)
-            {
-                return;
-            }
-
-           if (CheckIfTimeLimitExceeded(activeSession))
-            {
-                Logger.LogSessionErrorEvent("Allowed time limit exceeded for the session", $"Session was started at {activeSession.StartTime}", activeSession.SessionId);
-                await MarkSessionAsCompleteAsync(activeSession, isV2Session: true, forceCompletion: true);
-            }
-            else
-            {
-                if (DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes > Settings.Instance.OrphanInstanceTimeoutInMinutes)
-                {
-                    await CancelOrphanedInstancesIfNeeded(isV2Session: true);
-                    await CheckandCompleteSessionIfNeededAsync(isV2Session: true);
-                }
-            }
         }
 
         public async Task<IEnumerable<Session>> GetAllSessionsAsync(bool isDetailed = false)
@@ -78,9 +56,9 @@ namespace DaaS.Sessions
             return (await LoadSessionsAsync(_allSessionsDirs, isDetailed)).OrderByDescending(x => x.StartTime);
         }
 
-        public async Task<IEnumerable<Session>> GetCompletedSessionsAsync(bool isV2Session)
+        public async Task<IEnumerable<Session>> GetCompletedSessionsAsync()
         {
-            return (await LoadSessionsAsync(isV2Session ? SessionDirectories.CompletedSessionsV2Dir : SessionDirectories.CompletedSessionsDir)).OrderByDescending(x => x.StartTime);
+            return (await LoadSessionsAsync(SessionDirectories.CompletedSessionsDir)).OrderByDescending(x => x.StartTime);
         }
 
         public async Task<Session> GetSessionAsync(string sessionId, bool isDetailed = false)
@@ -89,7 +67,7 @@ namespace DaaS.Sessions
                 .Where(x => x.SessionId == sessionId).FirstOrDefault();
         }
 
-        public async Task<string> SubmitNewSessionAsync(Session session, bool isV2Session, bool invokedViaDaasConsole = false)
+        public async Task<string> SubmitNewSessionAsync(Session session, bool invokedViaDaasConsole = false)
         {
             string sessionId = string.Empty;
             var computeMode = Environment.GetEnvironmentVariable("WEBSITE_COMPUTE_MODE");
@@ -108,30 +86,19 @@ namespace DaaS.Sessions
                 }
             }
 
-            var activeSession = await GetActiveSessionAsync(isV2Session);
+            var activeSession = await GetActiveSessionAsync();
             if (activeSession != null)
             {
-                if (isV2Session && IsSameSession(session, activeSession))
-                {
-                    //
-                    // For V2 sessions, multiple instances will try to submit the same session.
-                    // If we find an existing active session with the same session id, we will
-                    // assume that it is the same session
-                    //
-
-                    return activeSession.SessionId;
-                }
-
                 throw new AccessViolationException($"There is already an existing session for {activeSession.Tool}");
             }
 
-            await ThrowIfSessionInvalid(session, isV2Session);
+            await ThrowIfSessionInvalid(session);
 
             //
             // Acquire lock on the Active Session file
             //
 
-            var activeSessionLock = AcquireActiveSessionLock(isV2Session);
+            var activeSessionLock = AcquireActiveSessionLock();
             if (activeSessionLock == null)
             {
                 //
@@ -145,14 +112,14 @@ namespace DaaS.Sessions
             string existingSessionMessage = string.Empty;
             try
             {
-                var existingActiveSession = await GetActiveSessionAsync(isV2Session);
+                var existingActiveSession = await GetActiveSessionAsync();
                 if (existingActiveSession == null)
                 {
                     //
                     // Save session only if there is no existing active session
                     //
 
-                    sessionId = await SaveSessionAsync(session, isV2Session, invokedViaDaasConsole);
+                    sessionId = await SaveSessionAsync(session, invokedViaDaasConsole);
                 }
                 else
                 {
@@ -182,41 +149,7 @@ namespace DaaS.Sessions
             return sessionId;
         }
 
-        public bool CheckIfAnyInstanceAnalyzing(Session activeSession)
-        {
-            if (activeSession == null || activeSession.ActiveInstances == null || activeSession.ActiveInstances.Count == 0)
-            {
-                return false;
-            }
-
-            var currentInstance = activeSession.ActiveInstances.FirstOrDefault(x => x.Name.Equals(Environment.MachineName, StringComparison.OrdinalIgnoreCase));
-            if (currentInstance != null && currentInstance.Status == Status.Analyzing)
-            {
-                return true;
-            }
-
-            return false;
-        }
-
-        private bool CheckIfTimeLimitExceeded(Session activeSession)
-        {
-            var duration = DateTime.UtcNow.Subtract(activeSession.StartTime);
-            if (duration.TotalMinutes > Settings.Instance.MaxSessionTimeInMinutes)
-            {
-                return true;
-            }
-
-            return false;
-        }
-
-        private bool IsSameSession(Session session, Session activeSession)
-        {
-            return !string.IsNullOrWhiteSpace(session.SessionId)
-                && activeSession.SessionId.Equals(session.SessionId, StringComparison.OrdinalIgnoreCase)
-                && session.Tool == activeSession.Tool;
-        }
-
-        private async Task ThrowIfSessionInvalid(Session session, bool isV2Session)
+        private async Task ThrowIfSessionInvalid(Session session)
         {
             if (session.Instances == null || !session.Instances.Any())
             {
@@ -240,7 +173,7 @@ namespace DaaS.Sessions
             {
                 var maxSessionsPerDay = Infrastructure.Settings.MaxSessionsPerDay;
 
-                var completedSessions = await GetCompletedSessionsAsync(isV2Session);
+                var completedSessions = await GetCompletedSessionsAsync();
                 var completedSessionsLastDay = completedSessions.Where(x => x.StartTime > DateTime.UtcNow.AddDays(-1)).Count();
 
                 if (completedSessionsLastDay >= maxSessionsPerDay)
@@ -269,7 +202,7 @@ namespace DaaS.Sessions
             }
         }
 
-        private static void ThrowIfInvalidStorageConfiguration(Diagnoser diagnoser)
+        private void ThrowIfInvalidStorageConfiguration(Diagnoser diagnoser)
         {
             if (!diagnoser.RequiresStorageAccount)
             {
@@ -278,12 +211,12 @@ namespace DaaS.Sessions
 
             try
             {
-                if (string.IsNullOrWhiteSpace(Settings.Instance.BlobSasUri))
+                if (string.IsNullOrWhiteSpace(Settings.Instance.StorageConnectionString) && string.IsNullOrWhiteSpace(Settings.Instance.AccountSasUri))
                 {
                     throw new ArgumentException($"The tool '{diagnoser.Name}' requires that WEBSITE_DAAS_STORAGE_CONNECTIONSTRING setting must be specified");
                 }
 
-                if (!BlobController.ValidateBlobSasUri(Settings.Instance.BlobSasUri, out Exception exceptionContactingStorage))
+                if (!_storageService.ValidateStorageConfiguration(out string storageAccount, out Exception exceptionContactingStorage))
                 {
                     if (exceptionContactingStorage != null)
                     {
@@ -297,15 +230,15 @@ namespace DaaS.Sessions
             }
         }
 
-        public async Task<bool> HasThisInstanceCollectedLogs(bool isV2Session)
+        public async Task<bool> HasThisInstanceCollectedLogs()
         {
-            var activeSession = await GetActiveSessionAsync(isV2Session);
+            var activeSession = await GetActiveSessionAsync();
             return activeSession.ActiveInstances != null
                 && activeSession.ActiveInstances.Any(x => x.Name.Equals(Infrastructure.GetInstanceId(),
                 StringComparison.OrdinalIgnoreCase) && x.Status == Status.Complete);
         }
 
-        public async Task RunToolForSessionAsync(Session activeSession, bool isV2Session, CancellationToken token)
+        public async Task RunToolForSessionAsync(Session activeSession, CancellationToken token)
         {
             try
             {
@@ -322,12 +255,13 @@ namespace DaaS.Sessions
                 {
                     DiagnosticToolResponse resp = null;
                     Collector collector = GetCollectorForSession(activeSession.Tool);
-                    await SetCurrentInstanceAsStartedAsync(activeSession, isV2Session);
+                    await SetCurrentInstanceAsStartedAsync(activeSession);
 
                     try
                     {
                         resp = await collector.CollectLogsAsync(
                             activeSession,
+                            _storageService,
                             token);
                     }
                     catch (Exception ex)
@@ -340,31 +274,44 @@ namespace DaaS.Sessions
                     //
                     // Add the tool output to the active session
                     //
-                    await AppendCollectorResponseToSessionAsync(activeSession, isV2Session, resp);
+                    await AppendCollectorResponseToSessionAsync(activeSession, resp);
                 }
 
-                await AnalyzeAndUpdateSessionAsync(token, sessionId, isV2Session);
-
-                //
-                // Mark current instance as Complete
-                //
-                await SetCurrentInstanceAsCompleteAsync(activeSession, isV2Session);
-
-                //
-                // Cleanup all the temporary collected data
-                //
-                CleanupTempDataForSession(activeSession.SessionId);
-
-                //
-                // Check if all the instances have finished running the session
-                // and set the Session State to Complete
-                //
-                await CheckandCompleteSessionIfNeededAsync(isV2Session);
+                await AnalyzeAndCompleteSessionAsync(activeSession, sessionId, token);
             }
             catch (Exception ex)
             {
                 Logger.LogSessionErrorEvent("Exception while running tool", ex, activeSession.SessionId);
             }
+        }
+
+        public async Task AnalyzeAndCompleteSessionAsync(Session activeSession, string sessionId, CancellationToken token)
+        {
+            //
+            // Mark current instance as Analyzing
+            //
+            await SetCurrentInstanceAsAnalyzingAsync(activeSession);
+
+            //
+            // Fire Analysis task
+            //
+            await AnalyzeAndUpdateSessionAsync(token, sessionId);
+
+            //
+            // Mark current instance as Complete
+            //
+            await SetCurrentInstanceAsCompleteAsync(activeSession);
+
+            //
+            // Cleanup all the temporary collected data
+            //
+            CleanupTempDataForSession(activeSession.SessionId);
+
+            //
+            // Check if all the instances have finished running the session
+            // and set the Session State to Complete
+            //
+            await CheckandCompleteSessionIfNeededAsync();
         }
 
         private void CleanupTempDataForSession(string sessionId)
@@ -373,9 +320,9 @@ namespace DaaS.Sessions
             DeleteFolderSafe(Path.Combine(DaasDirectory.ReportsTempDir, sessionId), sessionId);
         }
 
-        public async Task<bool> CheckandCompleteSessionIfNeededAsync(bool isV2Session, bool forceCompletion = false)
+        public async Task<bool> CheckandCompleteSessionIfNeededAsync(bool forceCompletion = false)
         {
-            var activeSession = await GetActiveSessionAsync(isV2Session);
+            var activeSession = await GetActiveSessionAsync();
             if (activeSession == null)
             {
                 return true;
@@ -384,7 +331,7 @@ namespace DaaS.Sessions
             if (AllInstancesFinished(activeSession) || forceCompletion)
             {
                 Logger.LogSessionVerboseEvent("All instances have status as Complete", activeSession.SessionId);
-                await MarkSessionAsCompleteAsync(activeSession, isV2Session, forceCompletion: forceCompletion);
+                await MarkSessionAsCompleteAsync(activeSession, forceCompletion: forceCompletion);
                 return true;
             }
 
@@ -402,19 +349,19 @@ namespace DaaS.Sessions
                 activeSession.Instances.Any(x => x.Equals(Infrastructure.GetInstanceId(), StringComparison.OrdinalIgnoreCase));
         }
 
-        public bool IsSessionExisting(string sessionId, bool isV2Session)
+        public bool IsSessionExisting(string sessionId)
         {
-            var sessionFile = Path.Combine(isV2Session ? SessionDirectories.CompletedSessionsV2Dir : SessionDirectories.CompletedSessionsDir, sessionId + ".json");
+            var sessionFile = Path.Combine(SessionDirectories.CompletedSessionsDir, sessionId + ".json");
             return FileSystemHelpers.FileExists(sessionFile);
         }
 
-        public async Task DeleteSessionAsync(string sessionId, bool isV2Session)
+        public async Task DeleteSessionAsync(string sessionId)
         {
             EnsureSessionDirectories();
 
             await Task.Run(async () =>
             {
-                var sessionFile = Path.Combine(isV2Session ? SessionDirectories.CompletedSessionsV2Dir : SessionDirectories.CompletedSessionsDir, sessionId + ".json");
+                var sessionFile = Path.Combine(SessionDirectories.CompletedSessionsDir, sessionId + ".json");
                 if (!FileSystemHelpers.FileExists(sessionFile))
                 {
                     throw new ArgumentException($"Session {sessionId} does not exist");
@@ -461,7 +408,7 @@ namespace DaaS.Sessions
             }
         }
 
-        private static async Task DeleteLogsFromBlob(Session session)
+        private async Task DeleteLogsFromBlob(Session session)
         {
             if (session.ActiveInstances == null)
             {
@@ -477,12 +424,12 @@ namespace DaaS.Sessions
             }
         }
 
-        private static async Task DeleteLogFromBlob(LogFile log, string sessionId)
+        private async Task DeleteLogFromBlob(LogFile log, string sessionId)
         {
             try
             {
-                var fileBlob = BlobController.GetBlobForFile(log.PartialPath);
-                await fileBlob.DeleteIfExistsAsync(DeleteSnapshotsOption.None, null, null, null);
+                await _storageService.DeleteFileAsync(log.PartialPath);
+                
             }
             catch (Exception ex)
             {
@@ -506,9 +453,9 @@ namespace DaaS.Sessions
             return Settings.Instance.IsSandBoxAvailable();
         }
 
-        public async Task CancelOrphanedInstancesIfNeeded(bool isV2Session)
+        public async Task CancelOrphanedInstancesIfNeeded()
         {
-            var activeSession = await GetActiveSessionAsync(isV2Session);
+            var activeSession = await GetActiveSessionAsync();
             if (activeSession == null)
             {
                 return;
@@ -580,7 +527,7 @@ namespace DaaS.Sessions
                 }
 
                 return latestSessionFromDisk;
-            }, activeSession.SessionId, isV2Session: isV2Session, callerMethodName: "CancelOrphanedInstancesIfNeeded");
+            }, activeSession.SessionId, callerMethodName: "CancelOrphanedInstancesIfNeeded");
         }
 
         public bool IncludeSasUri { get; set; }
@@ -597,9 +544,9 @@ namespace DaaS.Sessions
             return Infrastructure.Settings.Diagnosers.FirstOrDefault(x => x.Name == toolName);
         }
 
-        private async Task AnalyzeAndUpdateSessionAsync(CancellationToken token, string sessionId, bool isV2Session)
+        private async Task AnalyzeAndUpdateSessionAsync(CancellationToken token, string sessionId)
         {
-            var activeSession = await GetActiveSessionAsync(isV2Session);
+            var activeSession = await GetActiveSessionAsync();
             if (activeSession == null)
             {
                 Logger.LogSessionWarningEvent("Failed while analyzing the session", "ActiveSession is NULL. Another instance might have completed the session", sessionId);
@@ -656,7 +603,7 @@ namespace DaaS.Sessions
                 }
 
                 return latestSessionFromDisk;
-            }, activeSession.SessionId, isV2Session: isV2Session, callerMethodName: "AnalyzeAndUpdateSessionAsync");
+            }, activeSession.SessionId, callerMethodName: "AnalyzeAndUpdateSessionAsync");
         }
 
         private List<string> GetAnalyzerErrors(Session activeSession)
@@ -805,7 +752,7 @@ namespace DaaS.Sessions
             return messages;
         }
 
-        private async Task AppendCollectorResponseToSessionAsync(Session activeSession, bool isV2Session, DiagnosticToolResponse response)
+        private async Task AppendCollectorResponseToSessionAsync(Session activeSession, DiagnosticToolResponse response)
         {
             try
             {
@@ -844,7 +791,6 @@ namespace DaaS.Sessions
                             activeInstance.CollectorErrors = activeInstance.CollectorErrors.Union(response.Errors).Distinct().ToList();
                         }
 
-                        activeInstance.Status = Status.Analyzing;
                         Logger.LogSessionVerboseEvent($"Set ActiveInstance status to Analyzing", latestSessionFromDisk.SessionId);
                     }
                     catch (Exception ex)
@@ -853,7 +799,7 @@ namespace DaaS.Sessions
                     }
 
                     return latestSessionFromDisk;
-                }, activeSession.SessionId, isV2Session, callerMethodName: "AppendCollectorResponseToSessionAsync");
+                }, activeSession.SessionId, callerMethodName: "AppendCollectorResponseToSessionAsync");
             }
             catch (Exception ex)
             {
@@ -861,11 +807,11 @@ namespace DaaS.Sessions
             }
         }
 
-        private async Task UpdateActiveSessionAsync(Func<Session, Session> updateSession, string sessionId, bool isV2Session, string callerMethodName)
+        private async Task UpdateActiveSessionAsync(Func<Session, Session> updateSession, string sessionId, string callerMethodName)
         {
             try
             {
-                _sessionLockFile = await AcquireSessionLockAsync(sessionId,isV2Session, callerMethodName);
+                _sessionLockFile = await AcquireSessionLockAsync(sessionId, callerMethodName);
 
                 if (_sessionLockFile == null)
                 {
@@ -882,7 +828,7 @@ namespace DaaS.Sessions
                 // and others wait while this instance has the lock
                 //
 
-                Session latestSessionFromDisk = await GetActiveSessionAsync(isV2Session);
+                Session latestSessionFromDisk = await GetActiveSessionAsync();
                 if (latestSessionFromDisk == null)
                 {
                     return;
@@ -894,7 +840,7 @@ namespace DaaS.Sessions
                     return;
                 }
 
-                await UpdateActiveSessionFileAsync(sessionAfterMergingLatestUpdates, isV2Session);
+                await UpdateActiveSessionFileAsync(sessionAfterMergingLatestUpdates);
             }
             catch (Exception ex)
             {
@@ -1037,8 +983,13 @@ namespace DaaS.Sessions
             string path = string.Empty;
             try
             {
+                var blobSasUri = Settings.Instance.BlobSasUri;
+                if (string.IsNullOrWhiteSpace(blobSasUri))
+                {
+                    blobSasUri = Settings.Instance.AccountSasUri;
+                }
 
-                var blobUriSections = Settings.Instance.BlobSasUri.Split('?');
+                var blobUriSections = blobSasUri.Split('?');
                 if (blobUriSections.Length >= 2)
                 {
                     path = blobUriSections[0] + "/" + relativePath.ConvertBackSlashesToForwardSlashes() + "?" +
@@ -1057,35 +1008,26 @@ namespace DaaS.Sessions
             return path;
         }
 
-        private async Task<string> SaveSessionAsync(Session session, bool isV2Session, bool invokedViaDaasConsole)
+        private async Task<string> SaveSessionAsync(Session session, bool invokedViaDaasConsole)
         {
             try
             {
                 session.StartTime = DateTime.UtcNow;
-                if (isV2Session && !string.IsNullOrWhiteSpace(session.SessionId))
-                {
-                    //
-                    // For V2 sessions, session id is generated by the client
-                    //
-                }
-                else
-                {
-                    session.SessionId = GetSessionId(session.StartTime);
-                }
+                session.SessionId = GetSessionId(session.StartTime);
 
                 session.Status = Status.Active;
 
                 var diagnoser = GetDiagnoserForSession(session);
                 if (diagnoser != null && diagnoser.RequiresStorageAccount)
                 {
-                    session.BlobStorageHostName = BlobController.GetBlobStorageHostName();
+                    session.BlobStorageHostName = _storageService.GetBlobStorageHostName();
                 }
 
                 session.DefaultScmHostName = Settings.Instance.DefaultScmHostName;
                 await WriteJsonAsync(session,
-                    Path.Combine(isV2Session ? SessionDirectories.ActiveSessionsV2Dir : SessionDirectories.ActiveSessionsDir, session.SessionId + ".json"));
+                    Path.Combine(SessionDirectories.ActiveSessionsDir, session.SessionId + ".json"));
 
-                LogSessionDetailsSafe(session, invokedViaDaasConsole, isV2Session);
+                LogSessionDetailsSafe(session, invokedViaDaasConsole);
                 return session.SessionId;
             }
             catch (Exception ex)
@@ -1096,7 +1038,7 @@ namespace DaaS.Sessions
             return string.Empty;
         }
 
-        private static void LogSessionDetailsSafe(Session session, bool invokedViaDaasConsole, bool isV2Session)
+        private static void LogSessionDetailsSafe(Session session, bool invokedViaDaasConsole)
         {
             try
             {
@@ -1109,8 +1051,7 @@ namespace DaaS.Sessions
                     invokedViaDaasConsole,
                     session.Description,
                     ConnectionStringConfigured = !string.IsNullOrWhiteSpace(Settings.Instance.StorageConnectionString),
-                    SasUriConfigured = !string.IsNullOrWhiteSpace(Settings.Instance.AccountSasUri),
-                    isV2Session
+                    SasUriConfigured = !string.IsNullOrWhiteSpace(Settings.Instance.AccountSasUri)
                 };
 
                 Logger.LogNewSession(
@@ -1172,9 +1113,9 @@ namespace DaaS.Sessions
             }
         }
 
-        private async Task<IOperationLock> AcquireSessionLockAsync(string sessionId, bool isV2Session, string callerMethodName)
+        private async Task<IOperationLock> AcquireSessionLockAsync(string sessionId, string callerMethodName)
         {
-            IOperationLock sessionLock = new SessionLockFile(GetActiveSessionLockPath(sessionId, isV2Session));
+            IOperationLock sessionLock = new SessionLockFile(GetActiveSessionLockPath(sessionId));
             int loopCount = 0;
 
             Logger.LogSessionVerboseEvent($"Acquiring SessionLock by {callerMethodName}", sessionId);
@@ -1196,9 +1137,9 @@ namespace DaaS.Sessions
             return sessionLock;
         }
 
-        private IOperationLock AcquireActiveSessionLock(bool isV2Session)
+        private IOperationLock AcquireActiveSessionLock()
         {
-            string lockFilePath = Path.Combine(isV2Session ? SessionDirectories.ActiveSessionsV2Dir: SessionDirectories.ActiveSessionsDir, "activesession.json.lock");
+            string lockFilePath = Path.Combine(SessionDirectories.ActiveSessionsDir, "activesession.json.lock");
             IOperationLock sessionLock = new SessionLockFile(lockFilePath);
             Logger.LogSessionVerboseEvent($"Acquiring ActiveSessionLock by AcquireActiveSessionLock", "NEW_SESSION_ID");
             if (sessionLock.Lock("AcquireActiveSessionLock"))
@@ -1210,42 +1151,36 @@ namespace DaaS.Sessions
             return null;
         }
 
-        private async Task UpdateActiveSessionFileAsync(Session activeSesion, bool isV2Session)
+        private async Task UpdateActiveSessionFileAsync(Session activeSesion)
         {
-            if (isV2Session)
-            {
-                await WriteJsonAsync(activeSesion,
-                Path.Combine(SessionDirectories.ActiveSessionsV2Dir, activeSesion.SessionId + ".json"));
-                return;
-            }
-
             await WriteJsonAsync(activeSesion,
                 Path.Combine(SessionDirectories.ActiveSessionsDir, activeSesion.SessionId + ".json"));
         }
 
-        private string GetActiveSessionLockPath(string sessionId, bool isV2Session)
+        private string GetActiveSessionLockPath(string sessionId)
         {
-            if (isV2Session)
-            {
-                return Path.Combine(SessionDirectories.ActiveSessionsV2Dir, sessionId + ".json.lock");
-            }
-
             return Path.Combine(SessionDirectories.ActiveSessionsDir, sessionId + ".json.lock");
         }
 
-        private async Task SetCurrentInstanceAsCompleteAsync(Session activeSession, bool isV2Session)
+        private async Task SetCurrentInstanceAsCompleteAsync(Session activeSession)
         {
             Logger.LogSessionVerboseEvent("Setting current instance as Complete", activeSession.SessionId);
-            await SetCurrentInstanceStatusAsync(activeSession, isV2Session, Status.Complete);
+            await SetCurrentInstanceStatusAsync(activeSession, Status.Complete);
         }
 
-        private async Task SetCurrentInstanceAsStartedAsync(Session activeSession, bool isV2Session)
+        private async Task SetCurrentInstanceAsStartedAsync(Session activeSession)
         {
             Logger.LogSessionVerboseEvent("Setting current instance as Started", activeSession.SessionId);
-            await SetCurrentInstanceStatusAsync(activeSession, isV2Session, Status.Started);
+            await SetCurrentInstanceStatusAsync(activeSession, Status.Started);
         }
 
-        private async Task SetCurrentInstanceStatusAsync(Session activeSession, bool isV2Session, Status sessionStatus)
+        private async Task SetCurrentInstanceAsAnalyzingAsync(Session activeSession)
+        {
+            Logger.LogSessionVerboseEvent("Setting current instance as Analyzing", activeSession.SessionId);
+            await SetCurrentInstanceStatusAsync(activeSession, Status.Analyzing);
+        }
+
+        private async Task SetCurrentInstanceStatusAsync(Session activeSession, Status sessionStatus)
         {
             try
             {
@@ -1265,7 +1200,7 @@ namespace DaaS.Sessions
 
                     activeInstance.Status = sessionStatus;
                     return latestSessionFromDisk;
-                }, activeSession.SessionId, isV2Session, callerMethodName: "SetCurrentInstanceStatusAsync:" + sessionStatus.ToString());
+                }, activeSession.SessionId, callerMethodName: "SetCurrentInstanceStatusAsync:" + sessionStatus.ToString());
             }
             catch (Exception ex)
             {
@@ -1313,7 +1248,7 @@ namespace DaaS.Sessions
                 StringComparer.OrdinalIgnoreCase);
         }
 
-        private async Task MarkSessionAsCompleteAsync(Session activeSession, bool isV2Session, bool forceCompletion = false)
+        private async Task MarkSessionAsCompleteAsync(Session activeSession, bool forceCompletion = false)
         {
             if (activeSession == null || string.IsNullOrWhiteSpace(activeSession.SessionId))
             {
@@ -1335,10 +1270,10 @@ namespace DaaS.Sessions
                     latestSessionFromDisk.EndTime = DateTime.UtcNow;
                     return latestSessionFromDisk;
 
-                }, sessionId, isV2Session: isV2Session, callerMethodName: "MarkSessionAsCompleteAsync");
+                }, sessionId, callerMethodName: "MarkSessionAsCompleteAsync");
 
-                string activeSessionFile = Path.Combine(isV2Session ? SessionDirectories.ActiveSessionsV2Dir : SessionDirectories.ActiveSessionsDir, sessionId + ".json");
-                string completedSessionFile = Path.Combine(isV2Session ? SessionDirectories.CompletedSessionsV2Dir : SessionDirectories.CompletedSessionsDir, sessionId + ".json");
+                string activeSessionFile = Path.Combine(SessionDirectories.ActiveSessionsDir, sessionId + ".json");
+                string completedSessionFile = Path.Combine(SessionDirectories.CompletedSessionsDir, sessionId + ".json");
 
                 if (!File.Exists(activeSessionFile))
                 {
@@ -1361,7 +1296,7 @@ namespace DaaS.Sessions
                 //
 
                 Logger.LogSessionVerboseEvent($"Cleaning up the lock file from Active session folder", sessionId);
-                FileSystemHelpers.DeleteFileSafe(GetActiveSessionLockPath(sessionId, isV2Session));
+                FileSystemHelpers.DeleteFileSafe(GetActiveSessionLockPath(sessionId));
                 Logger.LogSessionVerboseEvent($"Session is complete after {DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes} minutes", sessionId);
                 LogMessageToAlertingQueue(activeSession);
             }
@@ -1395,7 +1330,7 @@ namespace DaaS.Sessions
             }
             catch (Exception ex)
             {
-                Logger.LogSessionErrorEvent("Unhandled exception while writing to AlertingStorageQueue for session", ex, session.SessionId.ToString());
+                Logger.LogSessionWarningEvent("Unhandled exception while writing to AlertingStorageQueue for session", ex, session.SessionId.ToString());
             }
         }
 
@@ -1421,12 +1356,12 @@ namespace DaaS.Sessions
 
         public async Task RunActiveSessionAsync(CancellationToken cancellationToken)
         {
-            var activeSession = await GetActiveSessionAsync(isV2Session: true) ?? throw new Exception("Failed to find the active session");
+            var activeSession = await GetActiveSessionAsync() ?? throw new Exception("Failed to find the active session");
 
             if (ShouldCollectOnCurrentInstance(activeSession))
             {
-                await SetCurrentInstanceAsStartedAsync(activeSession, isV2Session: true);
-                await RunToolForSessionAsync(activeSession, isV2Session: true, cancellationToken);
+                await SetCurrentInstanceAsStartedAsync(activeSession);
+                await RunToolForSessionAsync(activeSession, cancellationToken);
             }
             else
             {

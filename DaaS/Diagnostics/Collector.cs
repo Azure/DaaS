@@ -14,7 +14,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using DaaS.Configuration;
 using DaaS.Sessions;
-using Microsoft.WindowsAzure.Storage.Blob;
+using DaaS.Storage;
 
 namespace DaaS.Diagnostics
 {
@@ -41,7 +41,7 @@ namespace DaaS.Diagnostics
             RequiresStorageAccount = diagnoser.RequiresStorageAccount;
         }
 
-        internal async Task<DiagnosticToolResponse> CollectLogsAsync(Session session, CancellationToken ct)
+        internal async Task<DiagnosticToolResponse> CollectLogsAsync(Session session, IStorageService storageService, CancellationToken ct)
         {
             var resp = new DiagnosticToolResponse();
 
@@ -101,7 +101,7 @@ namespace DaaS.Diagnostics
                 log.Name = Path.GetFileName(log.TempPath);
             }
 
-            await CopyLogsToPermanentLocationAsync(resp, session, ct);
+            await CopyLogsToPermanentLocationAsync(resp, session, storageService, ct);
 
             Logger.LogSessionVerboseEvent($"Copied {resp.Logs.Count()} logs to permanent storage", session.SessionId);
 
@@ -221,11 +221,11 @@ namespace DaaS.Diagnostics
             return args;
         }
 
-        private async Task CopyLogsToPermanentLocationAsync(DiagnosticToolResponse resp, Session activeSession, CancellationToken cancellationToken)
+        private async Task CopyLogsToPermanentLocationAsync(DiagnosticToolResponse resp, Session activeSession, IStorageService storageService, CancellationToken cancellationToken)
         {
             if (RequiresStorageAccount)
             {
-                await CopyLogsToBlobStorageAsync(resp, activeSession, cancellationToken);
+                await CopyLogsToBlobStorageAsync(resp, activeSession, storageService, cancellationToken);
             }
             else
             {
@@ -233,7 +233,7 @@ namespace DaaS.Diagnostics
             }
         }
 
-        private async Task CopyLogsToBlobStorageAsync(DiagnosticToolResponse resp, Session activeSession, CancellationToken cancellationToken)
+        private async Task CopyLogsToBlobStorageAsync(DiagnosticToolResponse resp, Session activeSession, IStorageService storageService, CancellationToken cancellationToken)
         {
             if (resp.Logs == null || !resp.Logs.Any())
             {
@@ -250,14 +250,8 @@ namespace DaaS.Diagnostics
 
                 try
                 {
-                    var blob = Storage.BlobController.GetBlobForFile(logPath);
-                    BlobRequestOptions blobRequestOptions = new BlobRequestOptions()
-                    {
-                        ServerTimeout = TimeSpan.FromMinutes(10)
-                    };
-
                     Logger.LogSessionVerboseEvent($"Uploading {logPath} to blob storage", activeSession.SessionId);
-                    await blob.UploadFromFileAsync(log.TempPath, null, blobRequestOptions, null, cancellationToken);
+                    await storageService.UploadFileAsync(log.TempPath, logPath, cancellationToken);
                     log.PartialPath = ConvertBackSlashesToForwardSlashes(logPath);
                     Logger.LogSessionVerboseEvent($"Uploaded {logPath} to blob storage", activeSession.SessionId);
                 }

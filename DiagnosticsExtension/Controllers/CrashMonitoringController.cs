@@ -11,18 +11,26 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using System.Web.Http;
 using DaaS;
+using DaaS.Storage;
 
 namespace DiagnosticsExtension.Controllers
 {
     [RoutePrefix("api/CrashMonitoring")]
     public class CrashMonitoringController : ApiController
     {
+        private readonly IStorageService _storageService;
+
+        public CrashMonitoringController(IStorageService storageService) 
+        {
+            _storageService = storageService;
+        }
+
         [Route("memorydumps")]
         public async Task<HttpResponseMessage> Get()
         {
             try
             {
-                var controller = new CrashController();
+                var controller = new CrashController(_storageService);
                 var files = await controller.GetCrashDumpsAsync();
                 return Request.CreateResponse(HttpStatusCode.OK, files);
             }
@@ -38,7 +46,7 @@ namespace DiagnosticsExtension.Controllers
         {
             try
             {
-                var controller = new CrashController();
+                var controller = new CrashController(_storageService);
                 var files = await controller.GetCrashDumpsAsync(includeFullUri:true);
                 return Request.CreateResponse(HttpStatusCode.OK, files);
             }
@@ -46,7 +54,6 @@ namespace DiagnosticsExtension.Controllers
             {
                 return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, ex);
             }
-
         }
 
     }

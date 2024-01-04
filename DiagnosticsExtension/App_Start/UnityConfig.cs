@@ -8,6 +8,7 @@
 using System;
 using System.Web.Http;
 using DaaS.Sessions;
+using DaaS.Storage;
 using Unity;
 using Unity.WebApi;
 
@@ -18,6 +19,7 @@ namespace DiagnosticsExtension
         public static void RegisterComponents()
         {
             var container = new UnityContainer();
+            container.RegisterType<IStorageService, AzureStorageService>(TypeLifetime.Singleton);
             string isolationMode = Environment.GetEnvironmentVariable("WEBSITE_ISOLATION");
             if (!string.IsNullOrWhiteSpace(isolationMode) && isolationMode.Equals("hyperv", StringComparison.CurrentCultureIgnoreCase))
             {

@@ -7,8 +7,8 @@
 
 using DiagnosticsExtension.Models;
 using DiagnosticsExtension.Models.ConnectionStringValidator;
-using Microsoft.WindowsAzure.Storage;
-using MySql.Data.MySqlClient;
+using Microsoft.Azure.Storage;
+using Microsoft.Azure.Storage.Blob;
 using Newtonsoft.Json;
 using Npgsql;
 using StackExchange.Redis;
@@ -497,9 +497,22 @@ namespace DiagnosticsExtension.Controllers
                     }
                     else if (CloudStorageAccount.TryParse(connectionString, out CloudStorageAccount csa))
                     {
-                        data.IsAzureStorage = true;
-                        var cloudTableClient = csa.CreateCloudTableClient();
-                        var tableNames = await cloudTableClient.ListTablesSegmentedAsync(null);
+                        CloudBlobClient client = csa.CreateCloudBlobClient();
+                        client.GetServiceProperties();
+                        IEnumerable<CloudBlobContainer> containerList = client.ListContainers();
+
+                        //
+                        // Control plane API allows listing containers even for private storage
+                        // But listing blob will not be allowed if the storage is private
+                        // Therefore, this check is needed to verify if we can access blobs
+                        //
+
+                        foreach (var container in containerList)
+                        {
+                            container.ListBlobs();
+                            break;
+                        }
+
                         data.Succeeded = true;
                     }
                     else
