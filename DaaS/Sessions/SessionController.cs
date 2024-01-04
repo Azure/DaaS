@@ -8,15 +8,16 @@
 using System;
 using System.IO;
 using System.Linq;
-using DaaS.Storage;
 using System.Diagnostics;
 using DaaS.Configuration;
-using Microsoft.WindowsAzure.Storage;
+using Azure.Storage.Blobs;
 
 namespace DaaS.Sessions
 {
     public class SessionController
     {
+        const string ContainerName = "memorydumps";
+
         private static readonly object _daasVersionUpdateLock = new object();
         private static bool _daasVersionCheckInProgress = false;
 
@@ -24,7 +25,13 @@ namespace DaaS.Sessions
         {
             get
             {
-                return Settings.Instance.BlobSasUri;
+                var blobSasUri = Settings.Instance.BlobSasUri;
+                if (!string.IsNullOrEmpty(blobSasUri))
+                {
+                    return blobSasUri;
+                }
+
+                return Settings.Instance.AccountSasUri;
             }
         }
 
@@ -39,11 +46,6 @@ namespace DaaS.Sessions
         public bool IsSandboxAvailable()
         {
             return Settings.Instance.IsSandBoxAvailable();
-        }
-
-        public void RemoveOlderFilesFromBlob(object state)
-        {
-            BlobController.RemoveOlderFilesFromBlob();
         }
 
         public void StartSessionRunner()
@@ -125,8 +127,8 @@ namespace DaaS.Sessions
 
             try
             {
-                var account = CloudStorageAccount.Parse(connectionString);
-                account.CreateCloudBlobClient();
+                var containerClient = new BlobContainerClient(connectionString, ContainerName);
+                containerClient.Exists();
                 return true;
             }
             catch (Exception ex)

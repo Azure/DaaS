@@ -11,23 +11,19 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using Newtonsoft.Json;
-
 using System.Net;
 using DaaS;
 using DaaS.Sessions;
-using DaaS.Diagnostics;
-using System.IO;
+using DaaS.Storage;
 
 namespace DaaSConsole
 {
     class Program
     {
-        static readonly SessionManager SessionManager = new SessionManager()
+        static readonly SessionManager SessionManager = new SessionManager(new AzureStorageService())
         {
             InvokedViaAutomation = true
         };
-
-        static readonly bool UseDiagLauncher = ShouldUseDiagLauncher();
 
         enum Options
         {
@@ -230,14 +226,7 @@ namespace DaaSConsole
             };
 
             string sessionId = string.Empty;
-            if (UseDiagLauncher)
-            {
-                sessionId = SessionManager.SubmitNewSessionAsync(session, isV2Session: true).Result;
-                Console.WriteLine($"Session submitted for '{toolName}' with Id - {sessionId}");
-                LogDaasConsoleEvent(sessionId, toolName, options.ToString(), useDiagLauncher: true);
-                StartDiagLauncher(session, sessionId);
-                return sessionId;
-            }
+            CopyDaasRunnerIfNeeded();
 
             Console.WriteLine($"Running Diagnosers on {Environment.MachineName}");
 
@@ -246,16 +235,16 @@ namespace DaaSConsole
             // submit and check the status in a loop
             //
 
-            sessionId = SessionManager.SubmitNewSessionAsync(session, isV2Session: false, invokedViaDaasConsole: true).Result;
+            sessionId = SessionManager.SubmitNewSessionAsync(session, invokedViaDaasConsole: true).Result;
             Console.WriteLine($"Session submitted for '{toolName}' with Id - {sessionId}");
             Console.Write("Waiting...");
-            LogDaasConsoleEvent(sessionId, toolName, options.ToString(), useDiagLauncher:false);
+            LogDaasConsoleEvent(sessionId, toolName, options.ToString());
 
             while (true)
             {
                 Thread.Sleep(10000);
                 Console.Write(".");
-                var activeSession = SessionManager.GetActiveSessionAsync(isV2Session: false).Result;
+                var activeSession = SessionManager.GetActiveSessionAsync().Result;
 
                 //
                 // Either the session got completed, timed out
@@ -300,49 +289,33 @@ namespace DaaSConsole
             return sessionId;
         }
 
-        private static void LogDaasConsoleEvent(string sessionId, string toolName, string options, bool useDiagLauncher)
+        private static void CopyDaasRunnerIfNeeded()
+        {
+            var existingDaasRunner = EnvironmentVariables.DaasRunner;
+            if (FileSystemHelpers.FileExists(existingDaasRunner))
+            {
+                Logger.LogVerboseEvent("DaasRunner already exists as a webjob");
+                Console.WriteLine("DaasRunner already exists as a webjob");
+                return;
+            }
+
+            SessionController sessionController = new SessionController();
+            sessionController.StartSessionRunner();
+        }
+
+        private static void LogDaasConsoleEvent(string sessionId, string toolName, string options)
         {
             var details = new
             {
                 Diagnoser = toolName,
                 InstancesSelected = Environment.MachineName,
                 Options = options.ToString(),
-                UseDiagLauncher = useDiagLauncher
             };
 
             var detailsString = JsonConvert.SerializeObject(details);
 
             Logger.LogDaasConsoleEvent("DaasConsole started a new Session", detailsString, sessionId);
             EventLog.WriteEntry("Application", $"DaasConsole started with {detailsString} ", EventLogEntryType.Information);
-        }
-
-        private static void StartDiagLauncher(Session session,  string sessionId)
-        {
-            //
-            // Just pass SessionId
-            //
-
-            Stopwatch sw = new Stopwatch();
-            sw.Start();
-
-            string args = $"--sessionId {sessionId}";
-            var process = SessionManager.StartDiagLauncher(args, sessionId, session.Description) ?? throw new DiagnosticSessionAbortedException("Failed to start DiagLauncher.exe");
-            LogAndWriteToConsole($"DiagLauncher started with ProcessId - {process.Id}", sessionId);
-            Console.Write("Waiting...");
-
-            while (process.HasExited == false)
-            {
-                Thread.Sleep(10000);
-            }
-
-            sw.Stop();
-            LogAndWriteToConsole($"DiagLauncher completed after {sw.Elapsed.TotalMinutes:0} minutes!", sessionId);
-        }
-
-        private static void LogAndWriteToConsole(string message, string sessionId)
-        {
-            Console.WriteLine(message);
-            Logger.LogSessionVerboseEvent(message, sessionId);
         }
 
         private static string GetSessionDescription()
@@ -453,49 +426,6 @@ namespace DaaSConsole
             Console.WriteLine("       DaasConsole.exe -CollectKillAnalyze \"Memory Dump\"");
             Console.WriteLine();
             Console.WriteLine("To specify a custom folder to get the diagnostic tools from, set the DiagnosticToolsPath setting to the desired location");
-        }
-
-        private static bool ShouldUseDiagLauncher()
-        {
-            try
-            {
-                string diagLauncherPath = Environment.GetEnvironmentVariable(SessionManager.DaasDiagLauncherEnv);
-                if (string.IsNullOrWhiteSpace(diagLauncherPath))
-                {
-                    return false;
-                }
-
-                if (!FileSystemHelpers.FileExists(diagLauncherPath))
-                {
-                    return false;
-                }
-
-                var forceDiagLauncher = Environment.GetEnvironmentVariable("WEBSITE_DAAS_USE_DIAGLAUNCHER");
-                if (!string.IsNullOrWhiteSpace(forceDiagLauncher) 
-                    && bool.TryParse(forceDiagLauncher, out bool shouldForceDiagLauncher)
-                    && shouldForceDiagLauncher)
-                {
-                    return true;
-                }
-
-                var scmHostingConfigPath = Environment.ExpandEnvironmentVariables("%ProgramFiles(x86)%\\SiteExtensions\\kudu\\ScmHostingConfigurations.txt");
-                if (!File.Exists(scmHostingConfigPath))
-                {
-                    return false;
-                }
-
-                string fileContents = File.ReadAllText(scmHostingConfigPath);
-                if (!string.IsNullOrWhiteSpace(fileContents) && fileContents.Contains("UseDaasDiagLauncher=1"))
-                {
-                    return true;
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.LogWarningEvent("Exception while checking ScmHostingConfigurations", ex);
-            }
-
-            return false;
         }
     }
 }

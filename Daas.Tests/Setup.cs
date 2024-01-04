@@ -85,5 +85,30 @@ namespace Daas.Test
 
             return client;
         }
+
+        internal static HttpClient GetWebSiteHttpClient(IConfiguration configuration)
+        {
+            string kuduEndpoint = configuration["KUDU_ENDPOINT"];
+            string webSiteEndpoint = kuduEndpoint.Replace("scm.", string.Empty);
+            if (string.IsNullOrWhiteSpace(webSiteEndpoint))
+            {
+                throw new ArgumentNullException(nameof(webSiteEndpoint));
+            }
+
+            if (!webSiteEndpoint.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            {
+                webSiteEndpoint = $"https://{webSiteEndpoint}";
+            }
+
+            HttpClientHandler handler = new HttpClientHandler();
+            handler.ServerCertificateCustomValidationCallback += (sender, cert, chain, sslPolicyErrors) => true;
+
+            var client = new HttpClient(handler)
+            {
+                BaseAddress = new Uri(webSiteEndpoint),
+            };
+
+            return client;
+        }
     }
 }

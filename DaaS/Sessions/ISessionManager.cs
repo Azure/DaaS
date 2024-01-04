@@ -23,7 +23,7 @@ namespace DaaS.Sessions
         /// </summary>
         /// <param name="session"></param>
         /// <returns></returns>
-        Task<string> SubmitNewSessionAsync(Session session, bool isV2Session, bool invokedViaDaasConsole = false);
+        Task<string> SubmitNewSessionAsync(Session session, bool invokedViaDaasConsole = false);
 
         /// <summary>
         /// Lists all DaaS sessions, complete as well as active
@@ -35,7 +35,7 @@ namespace DaaS.Sessions
         /// Lists all the complete DaaS sessions
         /// </summary>
         /// <returns></returns>
-        Task<IEnumerable<Session>> GetCompletedSessionsAsync(bool isV2Session);
+        Task<IEnumerable<Session>> GetCompletedSessionsAsync();
 
         /// <summary>
         /// Get a specific DaaS session
@@ -49,7 +49,7 @@ namespace DaaS.Sessions
         /// Gets the active diagnostic session object
         /// </summary>
         /// <returns></returns>
-        Task<Session> GetActiveSessionAsync(bool isV2Session, bool isDetailed = false);
+        Task<Session> GetActiveSessionAsync(bool isDetailed = false);
 
         /// <summary>
         /// Once a DaaS session is submitted, this method should be
@@ -58,7 +58,7 @@ namespace DaaS.Sessions
         /// <param name="activeSession"></param>
         /// <param name="token"></param>
         /// <returns></returns>
-        Task RunToolForSessionAsync(Session activeSession,bool isV2Session, CancellationToken token);
+        Task RunToolForSessionAsync(Session activeSession, CancellationToken token);
 
         /// <summary>
         /// Checks if the current instance is specified in the list of instances to collect
@@ -73,7 +73,7 @@ namespace DaaS.Sessions
         /// session or not
         /// </summary>
         /// <returns></returns>
-        Task<bool> HasThisInstanceCollectedLogs(bool isV2Session);
+        Task<bool> HasThisInstanceCollectedLogs();
 
         /// <summary>
         /// Marks a diagnostic session as complete if all instances have finished collecting
@@ -81,7 +81,7 @@ namespace DaaS.Sessions
         /// </summary>
         /// <param name="forceCompletion"></param>
         /// <returns></returns>
-        Task<bool> CheckandCompleteSessionIfNeededAsync(bool isV2Session, bool forceCompletion = false);
+        Task<bool> CheckandCompleteSessionIfNeededAsync(bool forceCompletion = false);
 
         /// <summary>
         /// Gets the diagnostic tool from the session. Validates the tool params and throws an exception if an
@@ -90,7 +90,7 @@ namespace DaaS.Sessions
         /// <param name="activeSession"></param>
         /// <returns></returns>
 
-        Task DeleteSessionAsync(string sessionId, bool isV2Session);
+        Task DeleteSessionAsync(string sessionId);
 
         /// <summary>
         /// Checks if a Session exists or not
@@ -98,13 +98,13 @@ namespace DaaS.Sessions
         /// <param name="sessionId"></param>
         /// <returns></returns>
 
-        bool IsSessionExisting(string sessionId, bool isV2Session);
+        bool IsSessionExisting(string sessionId);
 
         /// <summary>
         /// Used to Cancel all those instances that have not picked up the session within the desired timeout
         /// </summary>
         /// <returns></returns>
-        Task CancelOrphanedInstancesIfNeeded(bool isV2Session);
+        Task CancelOrphanedInstancesIfNeeded();
 
         /// <summary>
         /// Get all diagnosers from the DaaS configuration
@@ -146,20 +146,6 @@ namespace DaaS.Sessions
         /// <param name="token"></param>
         /// <returns></returns>
         Task RunActiveSessionAsync(CancellationToken token);
-
-        /// <summary>
-        /// Checks if any instance is analyzing the diagnostic session
-        /// </summary>
-        /// <param name="activeSession"></param>
-        /// <returns></returns>
-        bool CheckIfAnyInstanceAnalyzing(Session activeSession);
-
-        /// <summary>
-        /// Completes a stuck session if needed
-        /// </summary>
-        /// <param name="activeSession"></param>
-        /// <returns></returns>
-        Task CheckIfOrphaningOrTimeoutNeededAsync(Session activeSession);
 
         /// <summary>
         /// This property decides whether SAS URI will be included in the 

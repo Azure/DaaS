@@ -22,6 +22,8 @@ namespace DaaS
         const int ANALYSIS_HEARTBEAT_EXPIRATION_IN_MINUTES = 2;
         const int MAX_ANALYSISTIME_ON_SAME_INSTANCE = 5;
 
+        private static IStorageService storageService = new AzureStorageService();
+
         public static string GetAnalysisFolderPath(out bool errorEncountered)
         {
             errorEncountered = false;
@@ -205,8 +207,7 @@ namespace DaaS
             try
             {
                 string filePath = Path.Combine(path, Path.GetFileName(request.LogFileName));
-                var blob = BlobController.GetBlobForFile(filePath);
-                blob.DownloadToFile(dumpFileInTempDirectory, FileMode.Append);
+                storageService.DownloadFileAsync(filePath, dumpFileInTempDirectory).Wait();
                 Logger.LogCpuMonitoringVerboseEvent($"Copied file from {request.LogFileName} to {dumpFileInTempDirectory} ", request.SessionId);
             }
             catch (Exception ex)

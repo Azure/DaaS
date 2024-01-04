@@ -108,11 +108,13 @@
     <Compile Include="LockFile.cs" />
     <Compile Include="Sessions\SessionController.cs" />
     <Compile Include="Infrastructure.cs" />
-    <Compile Include="Storage\BlobController.cs" />
+    <Compile Include="Storage\AzureStorageService.cs" />
     <Compile Include="Helper.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Storage\FileSystem.cs" />
     <Compile Include="Storage\AlertingStorageQueue.cs" />
+    <Compile Include="Storage\IStorageService.cs" />
+    <Compile Include="Storage\StorageFile.cs" />
     <Compile Include="Utilities.cs" />
     <Compile Include="Utility.cs" />
     <Compile Include="ZipArchiveExtensions.cs" />
@@ -126,8 +128,17 @@
   </ItemGroup>
   <ItemGroup />
   <ItemGroup>
+    <PackageReference Include="Azure.Storage.Blobs">
+      <Version>12.19.1</Version>
+    </PackageReference>
+    <PackageReference Include="Azure.Storage.Queues">
+      <Version>12.17.1</Version>
+    </PackageReference>
     <PackageReference Include="Microsoft.AspNet.WebApi.Client">
       <Version>5.2.9</Version>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Azure.Storage.Common">
+      <Version>11.2.3</Version>
     </PackageReference>
     <PackageReference Include="Microsoft.Data.Services.Client">
       <Version>5.8.5</Version>
@@ -141,8 +152,8 @@
     <PackageReference Include="System.IO.Abstractions">
       <Version>2.1.0.247</Version>
     </PackageReference>
-    <PackageReference Include="WindowsAzure.Storage">
-      <Version>9.3.3</Version>
+    <PackageReference Include="System.Memory">
+      <Version>4.5.5</Version>
     </PackageReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

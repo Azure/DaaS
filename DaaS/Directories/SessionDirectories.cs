@@ -15,9 +15,5 @@ namespace DaaS
         private static readonly string sessionsDir = Path.Combine(daasPath, "Sessions");
         internal static string CompletedSessionsDir { get; } = Path.Combine(sessionsDir, "Complete");
         internal static string ActiveSessionsDir { get; } = Path.Combine(sessionsDir, "Active");
-
-        private static readonly string sessionsV2Dir = Path.Combine(daasPath, "SessionsV2");
-        internal static string CompletedSessionsV2Dir { get; } = Path.Combine(sessionsV2Dir, "Complete");
-        internal static string ActiveSessionsV2Dir { get; } = Path.Combine(sessionsV2Dir, "Active");
     }
 }

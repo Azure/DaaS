@@ -148,7 +148,7 @@ namespace DaaS
 
                     processesMonitored.Add($"{ProcessList[id].Name}({id}):{cpuPercent:0} %");
 
-                    bool terminateMonitoring = rule.ShouldTerminateRule(AppendToMonitoringLog);                    
+                    bool terminateMonitoring = rule.ShouldTerminateRule(AppendToMonitoringLog);
                     if (terminateMonitoring)
                     {
                         return true;

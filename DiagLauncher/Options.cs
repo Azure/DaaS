@@ -25,6 +25,5 @@ namespace DiagLauncher
 
         [Option('l', "listdiagnosers", Required = false, HelpText = "List all available diagnosers")]
         public bool ListDiagnosers { get; set; }
-        
     }
 }

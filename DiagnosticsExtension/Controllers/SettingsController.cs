@@ -1,14 +1,21 @@
 ﻿using DiagnosticsExtension.Models;
-using Microsoft.WindowsAzure.Storage;
 using System;
 using System.Net.Http;
 using System.Web.Http;
 using DaaS.Storage;
+using Microsoft.Azure.Storage;
 
 namespace DiagnosticsExtension.Controllers
 {
     public class SettingsController : ApiController
     {
+        private readonly IStorageService _storageService;
+
+        public SettingsController(IStorageService storageService) 
+        {
+            _storageService = storageService;
+        }
+
         [HttpPost]
         [Route("api/settings")]
         public Settings Post()
@@ -37,29 +44,15 @@ namespace DiagnosticsExtension.Controllers
                 sasUriResponse.IsValidStorageConnectionString = sessionController.IsValidStorageConnectionString(out string storageConnectionStringEx);
                 sasUriResponse.StorageConnectionStringException = storageConnectionStringEx;
 
-                string blobSasUri = sessionController.BlobStorageSasUri;
-                if (BlobController.ValidateBlobSasUri(blobSasUri, out Exception exceptionCallingStorage))
+                if (_storageService.ValidateStorageConfiguration(out string storageAccount, out Exception exceptionCallingStorage))
                 {
-                    try
-                    {
-                        Uri u = new Uri(blobSasUri);
-                        sasUriResponse.StorageAccount = u.Host;
-                        sasUriResponse.IsValid = true;
-
-                    }
-                    catch (Exception ex)
-                    {
-                        sasUriResponse.Exception = ex.Message;
-                        sasUriResponse.IsValid = false;
-                    }
+                    sasUriResponse.StorageAccount = storageAccount;
+                    sasUriResponse.IsValid = true;
                 }
                 else
                 {
+                    sasUriResponse.StorageAccount = storageAccount;
                     sasUriResponse.IsValid = false;
-                    if (Uri.TryCreate(blobSasUri, UriKind.Absolute, out Uri outUri) && (outUri.Scheme == Uri.UriSchemeHttp || outUri.Scheme == Uri.UriSchemeHttps))
-                    {
-                        sasUriResponse.StorageAccount = outUri.Host;
-                    }
                     if (exceptionCallingStorage != null)
                     {
                         sasUriResponse.Exception = exceptionCallingStorage.Message;

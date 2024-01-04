@@ -10,9 +10,9 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using DaaS.Configuration;
 using DaaS.Storage;
-using Microsoft.WindowsAzure.Storage.Blob;
 using Newtonsoft.Json;
 
 namespace DaaS
@@ -34,6 +34,7 @@ namespace DaaS
         protected readonly string _sessionId;
         protected readonly string _actionToExecute;
         protected readonly string _arguments;
+        private readonly IStorageService _storageService;
         protected readonly bool _monitorScmProcess;
         protected readonly SessionMode _sessionMode;
         protected readonly DateTime _startDate;
@@ -60,6 +61,7 @@ namespace DaaS
             _defaultHostName = session.DefaultHostName;
             _actionToExecute = string.IsNullOrWhiteSpace(session.ActionToExecute) ? EnvironmentVariables.ProcdumpPath : session.ActionToExecute;
             _arguments = string.IsNullOrWhiteSpace(session.ArgumentsToAction) ? " -accepteula -dc \"{MEMORYDUMPCOMMENT}\" -ma {PROCESSID} {OUTPUTPATH}" : session.ArgumentsToAction;
+            _storageService = new AzureStorageService();
         }
 
         protected void ExecuteAction(string dumpFileName, int processId, Action<string, bool> appendToMonitoringLog)
@@ -183,22 +185,17 @@ namespace DaaS
                 string relativeFilePath = Path.Combine(MonitoringSessionController.GetRelativePathForSession(_defaultHostName, _sessionId), fileName);
                 appendToMonitoringLog($"Copying {fileName} from temp folders to Blob Storage", true);
 
-                var blobRequestOptions = new BlobRequestOptions()
-                {
-                    ServerTimeout = TimeSpan.FromMinutes(10)
-                };
-
                 try
                 {
-                    var blockBlob = BlobController.GetBlobForFile(relativeFilePath);
-                    blockBlob.UploadFromFile(sourceFile, null, blobRequestOptions);
-                    if (EnqueueEventToAzureQueue(fileName, blockBlob.Uri.ToString()))
+                    var uri = _storageService.UploadFileAsync(sourceFile, relativeFilePath, CancellationToken.None).Result;
+                    if (EnqueueEventToAzureQueue(fileName, uri.ToString()))
                     {
                         appendToMonitoringLog("Message dropped successfully in Azure Queue for alerting", false);
                     }
                 }
                 catch (Exception ex)
                 {
+                    appendToMonitoringLog("Failed uploading file to blob storage - " + ex.Message, true);
                     Logger.LogCpuMonitoringErrorEvent("Failed uploading file to blob storage", ex, _sessionId);
                     throw;
                 }
@@ -206,6 +203,7 @@ namespace DaaS
             }
             catch (Exception ex)
             {
+                appendToMonitoringLog("Failed copying file to blob storage - " + ex.Message, true);
                 Logger.LogCpuMonitoringErrorEvent("Failed copying file to blob storage", ex, _sessionId);
             }
         }

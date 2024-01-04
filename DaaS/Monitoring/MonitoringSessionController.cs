@@ -7,13 +7,13 @@
 
 using DaaS.Configuration;
 using DaaS.Storage;
-using Microsoft.WindowsAzure.Storage.Blob;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace DaaS
 {
@@ -29,6 +29,8 @@ namespace DaaS
         readonly int MaxSessionDuration = (int)TimeSpan.FromDays(365).TotalHours;
 
         public readonly static string TempFilePath = Path.Combine(EnvironmentVariables.LocalTemp, "Monitoring", "Logs");
+        
+        private readonly static IStorageService storageService = new AzureStorageService();
 
         public static string GetLogsFolderForSession(string sessionId)
         {
@@ -71,7 +73,7 @@ namespace DaaS
                 monitoringSession.StartDate = DateTime.UtcNow;
                 monitoringSession.EndDate = DateTime.MinValue.ToUniversalTime();
                 monitoringSession.SessionId = monitoringSession.StartDate.ToString(Constants.SessionFileNameFormat);
-                monitoringSession.BlobStorageHostName = BlobController.GetBlobStorageHostName();
+                monitoringSession.BlobStorageHostName = storageService.GetBlobStorageHostName();
                 monitoringSession.DefaultHostName = Settings.Instance.DefaultHostName;
                 cpuMonitoringActive = Path.Combine(cpuMonitoringActive, monitoringSession.SessionId + ".json");
 
@@ -168,7 +170,7 @@ namespace DaaS
 
         public void DeleteSession(string sessionId)
         {
-            DeleteFilesFromBlob(sessionId);
+            DeleteFilesFromStorage(sessionId);
 
             string cpuMonitoringCompleted = GetCpuMonitoringPath(MonitoringSessionDirectories.Completed);
             var sessionFilePath = Path.Combine(cpuMonitoringCompleted, sessionId + ".json");
@@ -188,26 +190,25 @@ namespace DaaS
             Logger.LogCpuMonitoringVerboseEvent("Deleted session", sessionId);
         }
 
-        private void DeleteFilesFromBlob(string sessionId)
+        private void DeleteFilesFromStorage(string sessionId)
         {
             try
             {
                 var session = GetSession(sessionId);
-                var fileBlobLegacy = BlobController.GetBlobForFile(GetRelativePathForSession(sessionId));
-                if (fileBlobLegacy != null)
+                if (session == null)
                 {
-                    fileBlobLegacy.DeleteIfExists(DeleteSnapshotsOption.None);
+                    return;
                 }
 
-                var fileBlob = BlobController.GetBlobForFile(GetRelativePathForSession(session.DefaultHostName, sessionId));
-                if (fileBlob != null)
-                {
-                    fileBlob.DeleteIfExists(DeleteSnapshotsOption.None);
-                }
+                string filePathLegacy = GetRelativePathForSession(sessionId);
+                storageService.RemoveDirectory(filePathLegacy);
+
+                string filePath = GetRelativePathForSession(session.DefaultHostName, sessionId);
+                storageService.RemoveDirectory(filePath);
             }
             catch (Exception ex)
             {
-                Logger.LogCpuMonitoringErrorEvent("Failed while deleting files from blob", ex, sessionId);
+                Logger.LogCpuMonitoringErrorEvent("Failed while deleting files from Azure Storage", ex, sessionId);
             }
         }
 
@@ -221,7 +222,7 @@ namespace DaaS
             }
         }
 
-        public bool StopMonitoringSession()
+        public async Task<bool> StopMonitoringSessionAsync()
         {
             Logger.LogCpuMonitoringVerboseEvent($"Inside the StopMonitoringSession method of MonitoringSessionController", string.Empty);
             string cpuMonitoringActivePath = GetCpuMonitoringPath(MonitoringSessionDirectories.Active);
@@ -245,7 +246,7 @@ namespace DaaS
 
                     if (!FileSystemHelpers.FileExists(cpuMonitorCompletedPath))
                     {
-                        monitoringSession.FilesCollected = GetCollectedLogsForSession(monitoringSession);
+                        monitoringSession.FilesCollected = await GetCollectedLogsForSessionAsync(monitoringSession);
                         Logger.LogCpuMonitoringVerboseEvent($"Found {monitoringSession.FilesCollected.Count} files collected by CPU monitoring", monitoringSession.SessionId);
                         SaveSession(monitoringSession);
                         MoveMonitoringLogsToSession(monitoringSession.SessionId);
@@ -279,7 +280,7 @@ namespace DaaS
             return true;
         }
 
-        public List<MonitoringFile> GetCollectedLogsForSession(MonitoringSession session)
+        public async Task<List<MonitoringFile>> GetCollectedLogsForSessionAsync(MonitoringSession session)
         {
             var filesCollected = new List<MonitoringFile>();
             string folderName = GetLogsFolderForSession(session.SessionId);
@@ -289,10 +290,13 @@ namespace DaaS
             try
             {
                 string directoryPath = GetRelativePathForSession(session.DefaultHostName, sessionId);
-                UpdateFilesCollected(sessionId, filesCollected, reports, directoryPath);
-
-                string directoryPathLegacy = GetRelativePathForSession(sessionId);
-                UpdateFilesCollected(sessionId, filesCollected, reports, directoryPathLegacy);
+                var collectedFiles = await GetFilesCollectedAsync(sessionId, directoryPath);
+                foreach (var file in collectedFiles)
+                {
+                    var monitoringFile = new MonitoringFile(Path.GetFileName(file.Name), file.FullPath);
+                    AddReportsToMonitoringFile(sessionId, monitoringFile, reports);
+                    filesCollected.Add(monitoringFile);
+                }
             }
             catch (Exception ex)
             {
@@ -302,35 +306,19 @@ namespace DaaS
             return filesCollected;
         }
 
-        private void UpdateFilesCollected(string sessionId, List<MonitoringFile> filesCollected, List<string> reports, string directoryPath)
+        private async Task<IEnumerable<StorageFile>> GetFilesCollectedAsync(string sessionId, string directoryPath)
         {
             try
             {
-                var dir = BlobController.GetBlobDirectory(directoryPath);
-                if (dir == null)
-                {
-                    //
-                    // The directoryPath does not exist on Blob
-                    //
-
-                    return;
-                }
-
-                foreach (
-                    IListBlobItem item in
-                        dir.ListBlobs(useFlatBlobListing: true))
-                {
-                    var relativePath = item.Uri.ToString().Replace(item.Container.Uri.ToString() + "/", "");
-                    string fileName = item.Uri.Segments.Last();
-                    var monitoringFile = new MonitoringFile(fileName, relativePath);
-                    AddReportsToMonitoringFile(sessionId, monitoringFile, reports);
-                    filesCollected.Add(monitoringFile);
-                }
+                var files = await storageService.GetFilesAsync(directoryPath);
+                return files;
             }
             catch (Exception ex)
             {
                 Logger.LogCpuMonitoringErrorEvent($"Failed while getting the list of logs collected for the session from {directoryPath}", ex, sessionId);
             }
+
+            return new List<StorageFile>();
         }
 
         internal static string GetRelativePathForSession(string defaultHostName, string sessionId)

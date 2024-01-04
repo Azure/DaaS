@@ -19,6 +19,7 @@ namespace DaaS
         private readonly int _intervalDays;
         private readonly TimeSpan _processWarmupTime;
         private readonly int _actionsInInterval;
+        private readonly IStorageService _storageService;
 
         public AlwaysOnCpuRule(MonitoringSession session)
             : base(session)
@@ -26,6 +27,7 @@ namespace DaaS
             _actionsInInterval = session.ActionsInInterval;
             _intervalDays = session.IntervalDays;
             _processWarmupTime = session.ProcessWarmupTime;
+            _storageService = new AzureStorageService();
         }
 
         public void LogStartup(Action<string, bool> appendToMonitoringLog)
@@ -126,18 +128,17 @@ namespace DaaS
         {
             try
             {
-                var blobs = BlobController.GetBlobs(directoryPath).ToList();
-                Logger.LogCpuMonitoringVerboseEvent($"Inside DeleteOldDumps, existing blob count is {blobs.Count()}", _sessionId);
-                if (blobs.Count() <= _maxActions)
+                var files = _storageService.GetFilesAsync(directoryPath).Result;
+                Logger.LogCpuMonitoringVerboseEvent($"Inside DeleteOldDumps, existing blob count is {files.Count()}", _sessionId);
+                if (files.Count() <= _maxActions)
                 {
                     return;
                 }
 
-                foreach (var blob in blobs.OrderByDescending(x => x.Properties.LastModified).Skip(_maxActions - 1))
+                foreach (var file in files.OrderByDescending(x => x.LastModified).Skip(_maxActions - 1))
                 {
-                    string blobName = blob.Name;
-                    blob.Delete();
-                    Logger.LogCpuMonitoringVerboseEvent($"Deleted blob {blobName}", _sessionId);
+                    _storageService.DeleteFileAsync(file.FullPath).Wait();
+                    Logger.LogCpuMonitoringVerboseEvent($"Deleted storage file {file.FullPath}", _sessionId);
                 }
             }
             catch (Exception ex)
