@@ -23,11 +23,13 @@ namespace Daas.Test
     {
         private readonly ITestOutputHelper _output;
         private readonly HttpClient _client;
+        private readonly HttpClient _websiteClient;
 
         public E2eTests(ITestOutputHelper output)
         {
             var configuration = Setup.GetConfiguration();
             _client = Setup.GetHttpClient(configuration);
+            _websiteClient = Setup.GetWebSiteHttpClient(configuration);
             _output = output;
         }
 
@@ -206,6 +208,7 @@ namespace Daas.Test
 
         private async Task<Session> SubmitNewSession(string diagnosticTool)
         {
+            await EnsureSiteWarmedUpAsync();
             var machineName = await GetMachineName();
             var newSession = new Session()
             {
@@ -236,6 +239,20 @@ namespace Daas.Test
             CheckSessionAsserts(session);
 
             return session;
+        }
+
+        private async Task EnsureSiteWarmedUpAsync()
+        {
+            int counter = 0;
+            var siteResponse = await _websiteClient.GetAsync("/");
+            while (!siteResponse.IsSuccessStatusCode && counter < 10)
+            {
+                await Task.Delay(5000);
+                siteResponse = await _websiteClient.GetAsync("/");
+                counter++;
+            }
+
+            Assert.True(siteResponse.IsSuccessStatusCode, "Site is not warmed up");
         }
 
         private static void CheckSessionAsserts(Session session)
