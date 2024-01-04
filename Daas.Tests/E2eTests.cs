@@ -208,7 +208,8 @@ namespace Daas.Test
 
         private async Task<Session> SubmitNewSession(string diagnosticTool)
         {
-            await EnsureSiteWarmedUpAsync();
+            var warmupMessage = await EnsureSiteWarmedUpAsync();
+            _output.WriteLine("Warmup message is: " + warmupMessage);
             var machineName = await GetMachineName();
             var newSession = new Session()
             {
@@ -241,7 +242,7 @@ namespace Daas.Test
             return session;
         }
 
-        private async Task EnsureSiteWarmedUpAsync()
+        private async Task<string> EnsureSiteWarmedUpAsync()
         {
             int counter = 0;
             var siteResponse = await _websiteClient.GetAsync("/");
@@ -253,7 +254,9 @@ namespace Daas.Test
             }
 
             var responseCode = siteResponse.StatusCode;
+            string message = $"Site name is '{_websiteClient.BaseAddress}' and Status Code returned is {responseCode}";
             Assert.True(siteResponse.IsSuccessStatusCode, $"Site '{_websiteClient.BaseAddress}' is not warmed up. Status Code returned is {responseCode}");
+            return message;
         }
 
         private static void CheckSessionAsserts(Session session)

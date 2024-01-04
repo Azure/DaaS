@@ -108,9 +108,6 @@ namespace Daas.Test
                 BaseAddress = new Uri(webSiteEndpoint),
             };
 
-            client.DefaultRequestHeaders.Accept.Clear();
-            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-
             return client;
         }
     }
