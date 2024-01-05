@@ -193,7 +193,6 @@ steps:
     azureSubscription: 'Private Test Sub PUNEETG(6b6db65f-680e-4650-b97d-e82ed6a0f583)'
     ScriptType: 'InlineScript'
     Inline: |
-            
       Function CreateWebApp ([string] $siteName, [string] $kuduEndpointVariableName, [string] $additionalParams)
       {
 
