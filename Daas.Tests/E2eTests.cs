@@ -155,6 +155,24 @@ namespace Daas.Test
         }
 
         [Fact]
+        public async Task SubmitJavaThreadDump()
+        {
+            await SubmitJavaTool("JAVA Thread Dump", "_jstack.log", "_jstack_");
+        }
+
+        [Fact]
+        public async Task SubmitJavaFlighRecorderTrace()
+        {
+            await SubmitJavaTool("JAVA Flight Recorder", "_jcmd.jfr", "_jcmd_");
+        }
+
+        [Fact]
+        public async Task SubmitJavaMemoryDump()
+        {
+            await SubmitJavaTool("JAVA Memory Dump", "_MemoryDump.bin", "_MemoryDump_");
+        }
+
+        [Fact]
         public async Task SubmitProfilerSession()
         {
             await RunProfilerTest(_client, _websiteClient);
@@ -211,6 +229,20 @@ namespace Daas.Test
             }
 
             CheckSessionAsserts(session);
+        }
+
+        private async Task SubmitJavaTool(string toolName, string logFileContains, string reportFileContains, long minDumpSize = 1024 * 1024, long maxDumpSize = 1024 * 1024 * 1024)
+        {
+            var session = await SubmitNewSession(toolName, _clientJava, _websiteClientJava);
+            var log = session.ActiveInstances.FirstOrDefault().Logs.FirstOrDefault();
+            Assert.Contains(logFileContains, log.Name);
+            _output.WriteLine("Log file name is " + log.Name);
+
+            Assert.InRange<long>(log.Size, minDumpSize, maxDumpSize);
+
+            Report htmlReport = log.Reports.FirstOrDefault(r => r.Name.EndsWith(".html") && r.Name.ToLowerInvariant().Contains(reportFileContains));
+            Assert.NotNull(htmlReport);
+            _output.WriteLine("Report file name is " + htmlReport.Name);
         }
 
         private async Task<Session> SubmitNewSession(string diagnosticTool, HttpClient client, HttpClient webSiteClient)
