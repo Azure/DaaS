@@ -231,7 +231,7 @@ namespace Daas.Test
             CheckSessionAsserts(session);
         }
 
-        private async Task SubmitJavaTool(string toolName, string logFileContains, string reportFileContains, long minDumpSize = 1024 * 1024, long maxDumpSize = 1024 * 1024 * 1024)
+        private async Task SubmitJavaTool(string toolName, string logFileContains, string reportFileContains, long minDumpSize = 1024, long maxDumpSize = 1024 * 1024 * 1024)
         {
             var session = await SubmitNewSession(toolName, _clientJava, _websiteClientJava);
             var log = session.ActiveInstances.FirstOrDefault().Logs.FirstOrDefault();
