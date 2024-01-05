@@ -240,7 +240,7 @@ namespace Daas.Test
 
             Assert.InRange<long>(log.Size, minDumpSize, maxDumpSize);
 
-            Report htmlReport = log.Reports.FirstOrDefault(r => r.Name.EndsWith(".html") && r.Name.ToLowerInvariant().Contains(reportFileContains));
+            Report htmlReport = log.Reports.FirstOrDefault(r => r.Name.EndsWith(".html") && r.Name.ToLowerInvariant().Contains(reportFileContains.ToLowerInvariant()));
             Assert.NotNull(htmlReport);
             _output.WriteLine("Report file name is " + htmlReport.Name);
         }
