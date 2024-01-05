@@ -354,18 +354,10 @@ steps:
       $sasUrl = New-AzStorageAccountSASToken -Context $storageAccount.context -Service Blob,Table,Queue -ResourceType Container,Object -Permission "acdlpruw" -ExpiryTime (Get-Date).AddDays(1)
       $sasUrl = "https://daasdevopsstorage.blob.core.windows.net/memorydumps" + $sasurl
 
-      $job1 = Start-Job -ScriptBlock
-      {
-        CreateWebApp $siteName $sasUrl "KUDU_ENDPOINT" ""
-      }
-      $job2 = Start-Job -ScriptBlock
-      {
-        CreateWebApp $siteNameJava $sasUrl "KUDU_ENDPOINT_JAVA" "JAVA"
-      }
-      $job3 = Start-Job -ScriptBlock
-      {
-        CreateWebApp $siteNameX64 $sasUrl "KUDU_ENDPOINT_X64" "X64"
-      }
+      $job1 = Start-Job -ScriptBlock { CreateWebApp $siteName $sasUrl "KUDU_ENDPOINT" "" }
+      $job2 = Start-Job -ScriptBlock { CreateWebApp $siteNameJava $sasUrl "KUDU_ENDPOINT_JAVA" "JAVA" }
+      $job3 = Start-Job -ScriptBlock { CreateWebApp $siteNameX64 $sasUrl "KUDU_ENDPOINT_X64" "X64" }
+
       Wait-Job $job1, $job2, $job3
 
     azurePowerShellVersion: 'LatestVersion'
