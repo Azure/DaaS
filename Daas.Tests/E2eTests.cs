@@ -21,15 +21,26 @@ namespace Daas.Test
 {
     public class E2eTests
     {
+
         private readonly ITestOutputHelper _output;
         private readonly HttpClient _client;
+        private readonly HttpClient _clientX64;
+        private readonly HttpClient _clientJava;
+
         private readonly HttpClient _websiteClient;
+        private readonly HttpClient _websiteClientX64;
+        private readonly HttpClient _websiteClientJava;
 
         public E2eTests(ITestOutputHelper output)
         {
             var configuration = Setup.GetConfiguration();
-            _client = Setup.GetHttpClient(configuration);
-            _websiteClient = Setup.GetWebSiteHttpClient(configuration);
+            _client = Setup.GetHttpClient(configuration, "KUDU_ENDPOINT");
+            _clientX64 = Setup.GetHttpClient(configuration, "KUDU_ENDPOINT_X64");
+            _clientJava = Setup.GetHttpClient(configuration, "KUDU_ENDPOINT_JAVA");
+            
+            _websiteClient = Setup.GetWebSiteHttpClient(configuration, "KUDU_ENDPOINT");
+            _websiteClientX64 = Setup.GetWebSiteHttpClient(configuration, "KUDU_ENDPOINT_X64");
+            _websiteClientJava = Setup.GetWebSiteHttpClient(configuration, "KUDU_ENDPOINT_JAVA");
             _output = output;
         }
 
@@ -113,7 +124,7 @@ namespace Daas.Test
         [Fact]
         public async Task SubmitMemoryDumpSession()
         {
-            var session = await SubmitNewSession("MemoryDump");
+            var session = await SubmitNewSession("MemoryDump", _client, _websiteClient);
             var log = session.ActiveInstances.FirstOrDefault().Logs.FirstOrDefault();
             Assert.Contains(".dmp", log.Name);
             Assert.True(!string.IsNullOrWhiteSpace(session.BlobStorageHostName));
@@ -146,17 +157,13 @@ namespace Daas.Test
         [Fact]
         public async Task SubmitProfilerSession()
         {
-            var session = await SubmitNewSession("Profiler with Thread Stacks");
-            var log = session.ActiveInstances.FirstOrDefault().Logs.FirstOrDefault();
-            Assert.Contains(".zip", log.Name);
+            await RunProfilerTest(_client, _websiteClient);
+        }
 
-            //
-            // Just ensure that size returned is within 1kb - 100MB
-            //
-
-            long minFileSize = 1024; // 1kb
-            long maxFileSize = 100 * 1024 * 1024; // 100MB
-            Assert.InRange(log.Size, minFileSize, maxFileSize);
+        [Fact]
+        public async Task SubmitProfilerSessionX64()
+        {
+            await RunProfilerTest(_clientX64, _websiteClientX64);
         }
 
         [Fact]
@@ -196,21 +203,21 @@ namespace Daas.Test
 
             Assert.True(!string.IsNullOrWhiteSpace(sessionId));
 
-            var session = await GetSessionInformation(sessionId);
+            var session = await GetSessionInformation(sessionId, _client);
             while (session.Status == Status.Active)
             {
                 await Task.Delay(5000);
-                session = await GetSessionInformation(sessionId);
+                session = await GetSessionInformation(sessionId, _client);
             }
 
             CheckSessionAsserts(session);
         }
 
-        private async Task<Session> SubmitNewSession(string diagnosticTool)
+        private async Task<Session> SubmitNewSession(string diagnosticTool, HttpClient client, HttpClient webSiteClient)
         {
-            var warmupMessage = await EnsureSiteWarmedUpAsync();
+            var warmupMessage = await EnsureSiteWarmedUpAsync(webSiteClient);
             _output.WriteLine("Warmup message is: " + warmupMessage);
-            var machineName = await GetMachineName();
+            var machineName = await GetMachineName(client);
             var newSession = new Session()
             {
                 Mode = Mode.CollectAndAnalyze,
@@ -218,7 +225,7 @@ namespace Daas.Test
                 Instances = new List<string> { machineName }
             };
 
-            var response = await _client.PostAsJsonAsync("daas/sessions", newSession);
+            var response = await client.PostAsJsonAsync("daas/sessions", newSession);
             Assert.NotNull(response);
 
             Assert.Equal(System.Net.HttpStatusCode.Accepted, response.StatusCode);
@@ -230,11 +237,11 @@ namespace Daas.Test
 
             string sessionId = JsonConvert.DeserializeObject<string>(sessionIdResponse);
 
-            var session = await GetSessionInformation(sessionId);
+            var session = await GetSessionInformation(sessionId, client);
             while (session.Status == Status.Active)
             {
                 await Task.Delay(15000);
-                session = await GetSessionInformation(sessionId);
+                session = await GetSessionInformation(sessionId, client);
             }
 
             CheckSessionAsserts(session);
@@ -242,20 +249,20 @@ namespace Daas.Test
             return session;
         }
 
-        private async Task<string> EnsureSiteWarmedUpAsync()
+        private async Task<string> EnsureSiteWarmedUpAsync(HttpClient websiteClient)
         {
             int counter = 0;
-            var siteResponse = await _websiteClient.GetAsync("/");
+            var siteResponse = await websiteClient.GetAsync("/");
             while (!siteResponse.IsSuccessStatusCode && counter < 10)
             {
                 await Task.Delay(5000);
-                siteResponse = await _websiteClient.GetAsync("/");
+                siteResponse = await websiteClient.GetAsync("/");
                 counter++;
             }
 
             var responseCode = siteResponse.StatusCode;
-            string message = $"Site name is '{_websiteClient.BaseAddress}' and Status Code returned is {responseCode}";
-            Assert.True(siteResponse.IsSuccessStatusCode, $"Site '{_websiteClient.BaseAddress}' is not warmed up. Status Code returned is {responseCode}");
+            string message = $"Site name is '{websiteClient.BaseAddress}' and Status Code returned is {responseCode}";
+            Assert.True(siteResponse.IsSuccessStatusCode, $"Site '{websiteClient.BaseAddress}' is not warmed up. Status Code returned is {responseCode}");
             return message;
         }
 
@@ -284,9 +291,9 @@ namespace Daas.Test
             Assert.StartsWith("https://", log.RelativePath, StringComparison.OrdinalIgnoreCase);
         }
 
-        private async Task<Session> GetSessionInformation(string sessionId)
+        private async Task<Session> GetSessionInformation(string sessionId, HttpClient client)
         {
-            var sessionResponse = await _client.PostAsync($"daas/sessions/{sessionId}", null);
+            var sessionResponse = await client.PostAsync($"daas/sessions/{sessionId}", null);
             sessionResponse.EnsureSuccessStatusCode();
 
             string sessionString = await sessionResponse.Content.ReadAsStringAsync();
@@ -294,9 +301,9 @@ namespace Daas.Test
             return session;
         }
 
-        private async Task<string> GetMachineName()
+        private async Task<string> GetMachineName(HttpClient client)
         {
-            var machineResponseMessage = await _client.PostAsJsonAsync("api/command", new { command = "hostname", dir = "site" });
+            var machineResponseMessage = await client.PostAsJsonAsync("api/command", new { command = "hostname", dir = "site" });
             machineResponseMessage.EnsureSuccessStatusCode();
 
             string machineNameResponse = await machineResponseMessage.Content.ReadAsStringAsync();
@@ -306,6 +313,22 @@ namespace Daas.Test
             _output.WriteLine("Machine Name is " + machineName);
             return machineName;
         }
+
+        private async Task RunProfilerTest(HttpClient client, HttpClient webSiteClient)
+        {
+            var session = await SubmitNewSession("Profiler with Thread Stacks", client, webSiteClient);
+            var log = session.ActiveInstances.FirstOrDefault().Logs.FirstOrDefault();
+            Assert.Contains(".zip", log.Name);
+
+            //
+            // Just ensure that size returned is within 1kb - 100MB
+            //
+
+            long minFileSize = 1024; // 1kb
+            long maxFileSize = 100 * 1024 * 1024; // 100MB
+            Assert.InRange(log.Size, minFileSize, maxFileSize);
+        }
+
     }
 
     class ApiCommandResponse
