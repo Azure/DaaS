@@ -207,6 +207,7 @@ steps:
 
       Function GetHighestJavaVersion()
       {
+        az login
         $allRuntimes = az webapp list-runtimes
         $runtimes = $allRuntimes | ConvertFrom-Json
         
@@ -235,38 +236,15 @@ steps:
         return $VERSIONARRAY
       }
 
-      Function CreateWebApp ([string] $siteName, [string] $kuduEndpointVariableName, [string] $additionalParams)
+      Function CreateWebApp ([string] $siteName, [string] $storageSasUrl, [string] $kuduEndpointVariableName, [string] $additionalParams)
       {
-      
-      Write-Host "Checking availability of Storage Account"
-      $storageAccountName = "daasdevopsstorage"
-      $checkNameAvail = (Get-AzStorageAccountNameAvailability -Name $storageAccountName) | Select-Object NameAvailable
-      
-      if ($checkNameAvail.NameAvailable) {
-        Write-Host "Storage Account name is available. Creating storage account"
-        $storageAccount = (New-AzStorageAccount -ResourceGroupName $Env:RESOURCE_GROUP `
-          -AccountName $storageAccountName `
-          -Location $Env:LOCATION `
-          -SkuName "Standard_GRS" `
-          -AllowBlobPublicAccess $false)
-      } else {
-        Write-Host "Getting existing storage account"
-        $storageAccount = Get-AzStorageAccount -ResourceGroupName $Env:RESOURCE_GROUP -StorageAccountName $storageAccountName
-      }
-      
-      Write-Host "Generating SAS URI"
-      $sasUrl = New-AzStorageAccountSASToken -Context $storageAccount.context -Service Blob,Table,Queue -ResourceType Container,Object -Permission "acdlpruw" -ExpiryTime (Get-Date).AddDays(1)
-      $sasUrl = "https://daasdevopsstorage.blob.core.windows.net/memorydumps" + $sasurl
-      
-      Write-Host "Creating App Service Plan"
-      New-AzAppServicePlan -Name $siteName -ResourceGroupName $Env:RESOURCE_GROUP -Location $Env:LOCATION -Tier "Basic" -WorkerSize "Small" | Out-Null
-      
-      Write-Host "Creating Web App [$siteName]"
-      New-AzWebApp -Name $siteName -ResourceGroupName $Env:RESOURCE_GROUP -Location $Env:LOCATION -AppServicePlan $siteName | Out-Null
+
+      Write-Host "[$siteName] Creating Web App"
+      New-AzWebApp -Name $siteName -ResourceGroupName $Env:RESOURCE_GROUP -Location $Env:LOCATION -AppServicePlan "DEVOPSTESTPLAN" | Out-Null
       Set-AzWebApp -Name $siteName -ResourceGroupName $Env:RESOURCE_GROUP -AlwaysOn $true | Out-Null
-      
-      Write-Host "Adding AppSettings for WebApp [$siteName]"
-      $setting=@{"MSBUILD_PATH"="%MSBUILD_15_DIR%\\msbuild.exe";"WEBSITE_DAAS_STORAGE_SASURI"= "$sasUrl";"WEBSITE_DAAS_STORAGE_RESOURCEID"= "/resource/subscriptions/6b6db65f-680e-4650-b97d-e82ed6a0f583/resourceGroups/DAAS-DevOps-Testing/providers/Microsoft.Storage/storageAccounts/daasdevopsstorage"}
+
+      Write-Host "[$siteName] Adding AppSettings for WebApp"
+      $setting=@{"MSBUILD_PATH"="%MSBUILD_15_DIR%\\msbuild.exe";"WEBSITE_DAAS_STORAGE_SASURI"= "$storageSasUrl";"WEBSITE_DAAS_STORAGE_RESOURCEID"= "/resource/subscriptions/6b6db65f-680e-4650-b97d-e82ed6a0f583/resourceGroups/DAAS-DevOps-Testing/providers/Microsoft.Storage/storageAccounts/daasdevopsstorage"}
       Set-AzWebApp -AppSettings $setting -Name $siteName -ResourceGroupName $Env:RESOURCE_GROUP | Out-Null
       
       $srcWebApp = Get-AzWebApp -Name $siteName -ResourceGroupName $Env:RESOURCE_GROUP
@@ -282,7 +260,7 @@ steps:
 
       if ($additionalParams -eq "JAVA"){
         $version = GetHighestJavaVersion
-         Write-Host "Found Java Version = " +  $version[0] + " " + $version[1] + " " + $version[2]
+         Write-Host "[$siteName] Found Java Version = " +  $version[0] + " " + $version[1] + " " + $version[2]
 
         $Resource = Get-AzResource -ResourceType Microsoft.Web/sites -ResourceGroupName $Env:RESOURCE_GROUP -ResourceName $siteName
         $Resource.Properties.SiteConfig.JavaVersion = $version[0]
@@ -316,13 +294,13 @@ steps:
         Write-Host "[$siteName] Encountered " + $_.Exception.Response.StatusCode + " while uploading DaaS site extension"
       }
       
-      Write-Host "Stopping Web App [$siteName]"
+      Write-Host "[$siteName] Stopping Web App"
       Invoke-AzResourceAction -ResourceId $srcWebApp.Id -Action stop -Force
       
-      Write-Host "Starting Web App [$siteName]"
+      Write-Host "[$siteName] Starting Web App"
       Invoke-AzResourceAction -ResourceId $srcWebApp.Id -Action start -Force
       
-      Write-Host "Checking DaaS version [$siteName]"
+      Write-Host "[$siteName] Checking DaaS version"
       $retryCount = 0;
       $succeeded = $false
       while( ($retryCount -lt 2) -and ($succeeded -eq $false))
@@ -357,10 +335,33 @@ steps:
       $siteNameJava = $Env:SITE_NAME + "-java"
       $siteNameX64 = $Env:SITE_NAME + "-x64"
 
-      CreateWebApp $siteName "KUDU_ENDPOINT" ""
-      CreateWebApp $siteNameJava "KUDU_ENDPOINT_JAVA" "JAVA"
-      CreateWebApp $siteNameX64 "KUDU_ENDPOINT_X64" "X64"
-   
+      Write-Host "Creating App Service Plan"
+      New-AzAppServicePlan -Name "DEVOPSTESTPLAN" -ResourceGroupName $Env:RESOURCE_GROUP -Location $Env:LOCATION -Tier "Basic" -WorkerSize "Small" | Out-Null
+
+      Write-Host "Checking availability of Storage Account"
+      $storageAccountName = "daasdevopsstorage"
+      $checkNameAvail = (Get-AzStorageAccountNameAvailability -Name $storageAccountName) | Select-Object NameAvailable
+      
+      if ($checkNameAvail.NameAvailable) {
+        Write-Host "Storage Account name is available. Creating storage account"
+        $storageAccount = (New-AzStorageAccount -ResourceGroupName $Env:RESOURCE_GROUP `
+          -AccountName $storageAccountName `
+          -Location $Env:LOCATION `
+          -SkuName "Standard_GRS" `
+          -AllowBlobPublicAccess $false)
+      } else {
+        Write-Host "Getting existing storage account"
+        $storageAccount = Get-AzStorageAccount -ResourceGroupName $Env:RESOURCE_GROUP -StorageAccountName $storageAccountName
+      }
+
+      Write-Host "Generating SAS URI"
+      $sasUrl = New-AzStorageAccountSASToken -Context $storageAccount.context -Service Blob,Table,Queue -ResourceType Container,Object -Permission "acdlpruw" -ExpiryTime (Get-Date).AddDays(1)
+      $sasUrl = "https://daasdevopsstorage.blob.core.windows.net/memorydumps" + $sasurl
+
+      CreateWebApp $siteName $sasUrl "KUDU_ENDPOINT" ""
+      CreateWebApp $siteNameJava $sasUrl "KUDU_ENDPOINT_JAVA" "JAVA"
+      CreateWebApp $siteNameX64 $sasUrl "KUDU_ENDPOINT_X64" "X64"
+
     azurePowerShellVersion: 'LatestVersion'
 
 - task: PublishBuildArtifacts@1
