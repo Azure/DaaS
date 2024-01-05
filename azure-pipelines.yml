@@ -205,6 +205,36 @@ steps:
         Write-Host "Encountered " + $_.Exception + " while cleaning up old resources"
       }
 
+      Function GetHighestJavaVersion()
+      {
+        $allRuntimes = az webapp list-runtimes
+        $runtimes = $allRuntimes | ConvertFrom-Json
+        
+        $highestJavaVersion = 0
+        $highestJavaVersionString = ""
+
+        foreach ($inputString in $runtimes.windows) {
+            if ($inputString.Contains("java") -and $inputString.Contains("TOMCAT")) {
+                # Split the string into components
+                $components = $inputString -split ":"
+                
+                # Extract relevant information
+                $javaVersion = [double]$components[1]
+                $javaContainer = $components[2]
+                $tomcatVersion = $components[3]
+
+                # Check if the current Java version is higher than the stored highest version
+                if ($javaVersion -gt $highestJavaVersion) {
+                    $highestJavaVersion = $javaVersion
+                    $highestJavaVersionString = "$javaVersion,$javaContainer,$tomcatVersion"
+                }
+            }
+        }
+
+        $VERSIONARRAY = $highestJavaVersionString.Split(',')
+        return $VERSIONARRAY
+      }
+
       Function CreateWebApp ([string] $siteName, [string] $kuduEndpointVariableName, [string] $additionalParams)
       {
       
@@ -231,11 +261,11 @@ steps:
       Write-Host "Creating App Service Plan"
       New-AzAppServicePlan -Name $siteName -ResourceGroupName $Env:RESOURCE_GROUP -Location $Env:LOCATION -Tier "Basic" -WorkerSize "Small" | Out-Null
       
-      Write-Host "Creating Web App"
+      Write-Host "Creating Web App [$siteName]"
       New-AzWebApp -Name $siteName -ResourceGroupName $Env:RESOURCE_GROUP -Location $Env:LOCATION -AppServicePlan $siteName | Out-Null
       Set-AzWebApp -Name $siteName -ResourceGroupName $Env:RESOURCE_GROUP -AlwaysOn $true | Out-Null
       
-      Write-Host "Adding AppSettings for WebApp"
+      Write-Host "Adding AppSettings for WebApp [$siteName]"
       $setting=@{"MSBUILD_PATH"="%MSBUILD_15_DIR%\\msbuild.exe";"WEBSITE_DAAS_STORAGE_SASURI"= "$sasUrl";"WEBSITE_DAAS_STORAGE_RESOURCEID"= "/resource/subscriptions/6b6db65f-680e-4650-b97d-e82ed6a0f583/resourceGroups/DAAS-DevOps-Testing/providers/Microsoft.Storage/storageAccounts/daasdevopsstorage"}
       Set-AzWebApp -AppSettings $setting -Name $siteName -ResourceGroupName $Env:RESOURCE_GROUP | Out-Null
       
@@ -248,24 +278,22 @@ steps:
       $accessToken = (Get-AzAccessToken).Token
       $authorizationHeader = "Bearer " + $accessToken
 
-      Write-Host ("KuduEndpoint = " + $kuduEndpoint + ". Going to upload SiteExtension bits now")
+      Write-Host ("[$siteName] KuduEndpoint = " + $kuduEndpoint + ". Going to upload SiteExtension bits now")
 
       if ($additionalParams -eq "JAVA"){
-        # Get the current web app settings
-        $webApp = Get-AzWebApp -ResourceGroupName $Env:RESOURCE_GROUP -Name $siteName
+        $version = GetHighestJavaVersion
+         Write-Host "Found Java Version = " +  $version[0] + " " + $version[1] + " " + $version[2]
 
-        # Enable Settings needed for Java Web App
-        $webApp.SiteConfig.JavaVersion = "11"
-        $webApp.SiteConfig.JavaContainer = "TOMCAT"
-        $webApp.SiteConfig.JavaContainerVersion = "9"
-
-        # Update the web app with the new settings
-        Set-AzWebApp -ResourceGroupName $Env:RESOURCE_GROUP -Name $siteName -SiteConfig $webApp.SiteConfig
+        $Resource = Get-AzResource -ResourceType Microsoft.Web/sites -ResourceGroupName $Env:RESOURCE_GROUP -ResourceName $siteName
+        $Resource.Properties.SiteConfig.JavaVersion = $version[0]
+        $Resource.Properties.SiteConfig.JavaContainer = $version[1]
+        $Resource.Properties.SiteConfig.JavaContainerVersion = $version[2]
+        $Resource | Set-AzResource -Force
       }
 
       if ($additionalParams -eq "X64"){
-        Write-Host ("Setting bitness to x64 for " + $siteName)
-        Set-AzWebApp -Name $siteName -ResourceGroupName $Env:RESOURCE_GROUP -Use32BitWorkerProcess $false
+        Write-Host ("[$siteName] Setting bitness to x64 for " + $siteName)
+        Set-AzWebApp -Name $siteName -ResourceGroupName $Env:RESOURCE_GROUP -Use32BitWorkerProcess $false | Out-Null
       }
       
       $kuduApiUrl = "https://$kuduEndpoint/api/zip/SiteExtensions/DaaS/"
@@ -282,19 +310,19 @@ steps:
           -ContentType "multipart/form-data" | Out-Null
         
         $sw.Stop()
-        Write-Host ("Uploaded site extension in " + $sw.Elapsed)
+        Write-Host ("[$siteName] Uploaded site extension in " + $sw.Elapsed)
       }
       catch {
-        Write-Host "Encountered " + $_.Exception.Response.StatusCode + " while uploading DaaS site extension"
+        Write-Host "[$siteName] Encountered " + $_.Exception.Response.StatusCode + " while uploading DaaS site extension"
       }
       
-      Write-Host "Stopping Web App"
+      Write-Host "Stopping Web App [$siteName]"
       Invoke-AzResourceAction -ResourceId $srcWebApp.Id -Action stop -Force
       
-      Write-Host "Starting Web App"
+      Write-Host "Starting Web App [$siteName]"
       Invoke-AzResourceAction -ResourceId $srcWebApp.Id -Action start -Force
       
-      Write-Host "Checking DaaS version"
+      Write-Host "Checking DaaS version [$siteName]"
       $retryCount = 0;
       $succeeded = $false
       while( ($retryCount -lt 2) -and ($succeeded -eq $false))
@@ -304,20 +332,20 @@ steps:
           $DaaSVersion = Invoke-RestMethod -Uri "https://$kuduEndpoint/daas/api/v2/daasversion" `
           -Headers @{"Authorization"=$authorizationHeader;"If-Match"="*"}
       
-          Write-Host ("DaasVersion is " + $DaaSVersion)
+          Write-Host ("[$siteName] DaasVersion is " + $DaaSVersion)
           $succeeded = $true
         }
         catch 
         {
-          Write-Host "StatusCode: " $_.Exception.Response.StatusCode.value__
-          Write-Host "StatusDescription:" $_.Exception.Response.StatusDescription
+          Write-Host "[$siteName] StatusCode: " $_.Exception.Response.StatusCode.value__
+          Write-Host "[$siteName] StatusDescription:" $_.Exception.Response.StatusDescription
           $retryCount++
         }
       }
       
       if ($succeeded -eq $false)
       {
-        throw "Call to get DaaS Version failed"
+        throw "[$siteName] Call to get DaaS Version failed"
       }
       
       Write-Host "##vso[task.setvariable variable=$kuduEndpointVariableName]$kuduEndpoint"
