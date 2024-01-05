@@ -263,6 +263,9 @@ steps:
         $Resource.Properties.SiteConfig.JavaContainer = "TOMCAT"
         $Resource.Properties.SiteConfig.JavaContainerVersion = "10.0"
         $Resource | Set-AzResource -Force
+
+        # Introduce a delay due to Java Cold-Start
+        Start-Sleep -Seconds 60
       }
 
       if ($additionalParams -eq "X64"){
