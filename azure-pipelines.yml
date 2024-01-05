@@ -193,6 +193,10 @@ steps:
     azureSubscription: 'Private Test Sub PUNEETG(6b6db65f-680e-4650-b97d-e82ed6a0f583)'
     ScriptType: 'InlineScript'
     Inline: |
+            
+      Function CreateWebApp ([string] $siteName, [string] $kuduEndpointVariableName, [string] $additionalParams)
+      {
+
       try {
         Write-Host ("Selected ResourceGroup is " + $Env:RESOURCE_GROUP)
         Write-Host "Removing WebApps"
@@ -226,17 +230,17 @@ steps:
       $sasUrl = "https://daasdevopsstorage.blob.core.windows.net/memorydumps" + $sasurl
       
       Write-Host "Creating App Service Plan"
-      New-AzAppServicePlan -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location $Env:LOCATION -Tier "Basic" -WorkerSize "Small" | Out-Null
+      New-AzAppServicePlan -Name $siteName -ResourceGroupName $Env:RESOURCE_GROUP -Location $Env:LOCATION -Tier "Basic" -WorkerSize "Small" | Out-Null
       
       Write-Host "Creating Web App"
-      New-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -Location $Env:LOCATION -AppServicePlan $Env:SITE_NAME | Out-Null
-      Set-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP -AlwaysOn $true | Out-Null
+      New-AzWebApp -Name $siteName -ResourceGroupName $Env:RESOURCE_GROUP -Location $Env:LOCATION -AppServicePlan $siteName | Out-Null
+      Set-AzWebApp -Name $siteName -ResourceGroupName $Env:RESOURCE_GROUP -AlwaysOn $true | Out-Null
       
       Write-Host "Adding AppSettings for WebApp"
       $setting=@{"MSBUILD_PATH"="%MSBUILD_15_DIR%\\msbuild.exe";"WEBSITE_DAAS_STORAGE_SASURI"= "$sasUrl";"WEBSITE_DAAS_STORAGE_RESOURCEID"= "/resource/subscriptions/6b6db65f-680e-4650-b97d-e82ed6a0f583/resourceGroups/DAAS-DevOps-Testing/providers/Microsoft.Storage/storageAccounts/daasdevopsstorage"}
-      Set-AzWebApp -AppSettings $setting -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP | Out-Null
+      Set-AzWebApp -AppSettings $setting -Name $siteName -ResourceGroupName $Env:RESOURCE_GROUP | Out-Null
       
-      $srcWebApp = Get-AzWebApp -Name $Env:SITE_NAME -ResourceGroupName $Env:RESOURCE_GROUP
+      $srcWebApp = Get-AzWebApp -Name $siteName -ResourceGroupName $Env:RESOURCE_GROUP
       [xml]$publishProfileXml = Get-AzWebAppPublishingProfile -WebApp $srcWebApp
       
       $publishProfile = $publishProfileXml.publishData.publishProfile[0]
@@ -246,6 +250,18 @@ steps:
       $authorizationHeader = "Bearer " + $accessToken
 
       Write-Host ("KuduEndpoint = " + $kuduEndpoint + ". Going to upload SiteExtension bits now")
+
+      if ($additionalParams -eq "JAVA"){
+        Set-AzWebApp -ResourceGroupName $resourceGroupName -Name $siteName `
+        -JavaVersion "11" `
+        -JavaContainer "TOMCAT" `
+        -JavaContainerVersion "9.0"
+      }
+
+      if ($additionalParams -eq "X64"){
+        Write-Host ("Setting bitness to x64 for " + $siteName)
+        Set-AzWebApp -Name $siteName -ResourceGroupName $Env:RESOURCE_GROUP -Use32BitWorkerProcess $false
+      }
       
       $kuduApiUrl = "https://$kuduEndpoint/api/zip/SiteExtensions/DaaS/"
       try {
@@ -299,8 +315,19 @@ steps:
         throw "Call to get DaaS Version failed"
       }
       
-      Write-Host "##vso[task.setvariable variable=KUDU_ENDPOINT]$kuduEndpoint"
+      Write-Host "##vso[task.setvariable variable=$kuduEndpointVariableName]$kuduEndpoint"
       Write-Host "##vso[task.setvariable variable=KUDU_AUTH_TOKEN]$accessToken"
+
+      }
+
+      $siteName = $Env:SITE_NAME
+      $siteNameJava = $Env:SITE_NAME + "-java"
+      $siteNameX64 = $Env:SITE_NAME + "-x64"
+
+      CreateWebApp $siteName "KUDU_ENDPOINT" ""
+      CreateWebApp $siteNameJava "KUDU_ENDPOINT_JAVA" "JAVA"
+      CreateWebApp $siteNameX64 "KUDU_ENDPOINT_X64" "X64"
+   
     azurePowerShellVersion: 'LatestVersion'
 
 - task: PublishBuildArtifacts@1
