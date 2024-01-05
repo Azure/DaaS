@@ -56,7 +56,7 @@ namespace DiagLauncher
             {
                 Stopwatch sw = new Stopwatch();
                 sw.Start();
-                var sessionId = CollectLogsAndTakeActions(options.Tool, options.Mode, options.ToolParams, options.SessionId);
+                var sessionId = CollectLogsAndTakeActions(options.Tool, options.Mode, options.ToolParams);
                 sw.Stop();
                 string message = $"DiagLauncher completed after {sw.Elapsed.TotalMinutes:0} minutes!";
                 Logger.LogSessionVerboseEvent(message, sessionId);
@@ -130,12 +130,12 @@ namespace DiagLauncher
             return mainSiteW3wpProcess;
         }
 
-        private static string CollectLogsAndTakeActions(string tool, string mode, string toolParams, string sessionId)
+        private static string CollectLogsAndTakeActions(string tool, string mode, string toolParams)
         {
             try
             {
                 ThrowIfRequiredSettingsMissing();
-                return SubmitAndWaitForSession(tool, toolParams, sessionId);
+                return SubmitAndWaitForSession(mode, tool, toolParams);
             }
             catch (AggregateException ae)
             {
@@ -153,56 +153,49 @@ namespace DiagLauncher
             return string.Empty;
         }
 
-        private static string SubmitAndWaitForSession(string tool, string toolParams, string sessionId)
+        private static string SubmitAndWaitForSession(string mode, string tool, string toolParams)
         {
+            var sessionMode = GetToolMode(mode);
+
             //
             // If customers are configuring Auto-healing via ARM,
             // DaasRunner may not be copied already. Copying to the
             // webjobs folder is necessary for v1 sessions to function
             //
 
-            CopyDaasRunnerIfNeeded(sessionId);
+            CopyDaasRunnerIfNeeded();
 
-            if (string.IsNullOrWhiteSpace(sessionId))
+            var session = new Session()
             {
+                Instances = new List<string>() { Environment.MachineName },
+                Tool = tool,
+                ToolParams = toolParams,
 
                 //
-                // This is the code path to take when DiagLauncher is invoked via Auto-Heal
-                // directly. In this case, DiagLauncher will create a new V1 session and submit
-                //
+                // Do not pass CollectKillAnalyze as mode to the Session. The UI code
+                // does not know how to handle 'CollectKillAnalyze'
+                // 
 
-                var session = new Session()
-                {
-                    Instances = new List<string>() { Environment.MachineName },
-                    Tool = tool,
-                    ToolParams = toolParams,
+                Mode = sessionMode == Mode.CollectKillAnalyze ? Mode.CollectAndAnalyze : sessionMode,
+                Description = GetSessionDescription(),
+            };
 
-                    //
-                    // Do not pass CollectKillAnalyze as mode to the Session. The UI code
-                    // does not know how to handle 'CollectKillAnalyze'
-                    // 
+            var sessionId = _sessionManager.SubmitNewSessionAsync(session).Result;
+            Logger.LogSessionVerboseEvent("DiagLauncher submitted a new session", sessionId);
+            Console.WriteLine($"DiagLauncher submitted a new session-{sessionId} for '{tool}'");
 
-                    Mode = Mode.CollectAndAnalyze,
-                    Description = GetSessionDescription(),
-                };
+            var details = new
+            {
+                Diagnoser = tool,
+                InstancesSelected = Environment.MachineName,
+                Options = "CollectKillAnalyze"
+            };
 
-                sessionId = _sessionManager.SubmitNewSessionAsync(session).Result;
-                Logger.LogSessionVerboseEvent("DiagLauncher submitted a new V1 session", sessionId);
-                Console.WriteLine($"DiagLauncher submitted a new V1 session-{sessionId} for '{tool}'");
+            var detailsString = JsonConvert.SerializeObject(details);
+            Logger.LogDaasConsoleEvent("DiagLauncher started a new Session", detailsString, sessionId);
+            EventLog.WriteEntry("Application", $"DiagLauncher started with {detailsString} ", EventLogEntryType.Information);
 
-                var details = new
-                {
-                    Diagnoser = tool,
-                    InstancesSelected = Environment.MachineName,
-                    Options = "CollectKillAnalyze"
-                };
-
-                var detailsString = JsonConvert.SerializeObject(details);
-                Logger.LogDaasConsoleEvent("DiagLauncher started a new V1 Session", detailsString, sessionId);
-                EventLog.WriteEntry("Application", $"DiagLauncher started with {detailsString} ", EventLogEntryType.Information);
-            }
-
-            WaitForV1SessionCompletion(sessionId);
+            WaitForSessionCompletion(sessionId);
             return sessionId;
         }
 
@@ -219,50 +212,17 @@ namespace DiagLauncher
             }
         }
 
-        private static void CopyDaasRunnerIfNeeded(string sessionId)
+        private static void CopyDaasRunnerIfNeeded()
         {
             var existingDaasRunner = EnvironmentVariables.DaasRunner;
             if (FileSystemHelpers.FileExists(existingDaasRunner))
             {
-                Logger.LogSessionVerboseEvent("DaasRunner already exists as a webjob", sessionId);
+                Logger.LogVerboseEvent("DaasRunner already exists as a webjob");
                 return;
             }
 
             SessionController sessionController = new SessionController();
             sessionController.StartSessionRunner();
-        }
-
-        private static void WaitForV1SessionCompletion(string sessionId)
-        {
-            Logger.LogSessionVerboseEvent($"Entering WaitForV1SessionCompletion method", sessionId);
-
-            while (true)
-            {
-                Thread.Sleep(15000);
-
-                try
-                {
-                    var activeSession = _sessionManager.GetActiveSessionAsync().Result;
-                    if (activeSession == null)
-                    {
-                        return;
-                    }
-
-                    if (activeSession.ActiveInstances != null)
-                    {
-                        var currentInstance = activeSession.ActiveInstances.FirstOrDefault(x => x.Name.Equals(Environment.MachineName, StringComparison.OrdinalIgnoreCase));
-                        if (currentInstance != null && (currentInstance.Status == Status.Complete || currentInstance.Status == Status.TimedOut || currentInstance.Status == Status.Analyzing))
-                        {
-                            return;
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogSessionErrorEvent("Exception while waiting for active session to complete", ex, sessionId);
-                    Console.WriteLine($"Encountered exception while waiting for active session to complete - {ex}");
-                }
-            }
         }
 
         private static void WaitForSessionCompletion(string sessionId)
@@ -284,7 +244,7 @@ namespace DiagLauncher
                     if (activeSession.ActiveInstances != null)
                     {
                         var currentInstance = activeSession.ActiveInstances.FirstOrDefault(x => x.Name.Equals(Environment.MachineName, StringComparison.OrdinalIgnoreCase));
-                        if (currentInstance != null && (currentInstance.Status == Status.Complete || currentInstance.Status == Status.TimedOut))
+                        if (currentInstance != null && (currentInstance.Status == Status.Complete || currentInstance.Status == Status.TimedOut || currentInstance.Status == Status.Analyzing))
                         {
                             return;
                         }

@@ -20,9 +20,6 @@ namespace DiagLauncher
         [Option('p', "params", HelpText = "Specify any additional tool params that diagnostic tool supports")]
         public string ToolParams { get; set; }
 
-        [Option('s', "sessionId", HelpText = "SessionId to use for the session. Only used when same session being submitted on multiple instances", Hidden = true)]
-        public string SessionId { get; internal set; }
-
         [Option('l', "listdiagnosers", Required = false, HelpText = "List all available diagnosers")]
         public bool ListDiagnosers { get; set; }
     }

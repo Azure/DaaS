@@ -11,6 +11,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Daas.Tests;
 using DaaS.Sessions;
 using DiagnosticsExtension.Controllers;
 using Newtonsoft.Json;
@@ -19,6 +20,7 @@ using Xunit.Abstractions;
 
 namespace Daas.Test
 {
+    [Collection("E2eTests")]
     public class E2eTests
     {
         private readonly ITestOutputHelper _output;
@@ -28,8 +30,11 @@ namespace Daas.Test
         public E2eTests(ITestOutputHelper output)
         {
             var configuration = Setup.GetConfiguration();
-            _client = Setup.GetHttpClient(configuration);
-            _websiteClient = Setup.GetWebSiteHttpClient(configuration);
+            _client = Setup.GetHttpClient(configuration, "KUDU_ENDPOINT");
+
+            
+            _websiteClient = Setup.GetWebSiteHttpClient(configuration, "KUDU_ENDPOINT");
+            
             _output = output;
         }
 
@@ -113,7 +118,7 @@ namespace Daas.Test
         [Fact]
         public async Task SubmitMemoryDumpSession()
         {
-            var session = await SubmitNewSession("MemoryDump");
+            var session = await SessionTestHelpers.SubmitNewSession("MemoryDump", _client, _websiteClient, _output);
             var log = session.ActiveInstances.FirstOrDefault().Logs.FirstOrDefault();
             Assert.Contains(".dmp", log.Name);
             Assert.True(!string.IsNullOrWhiteSpace(session.BlobStorageHostName));
@@ -143,20 +148,12 @@ namespace Daas.Test
             Assert.True(storageResourceIdRegex.IsMatch(htmlReportContent), "The HTML report needs to contain a reference to the Azure Storage resource id containing the dump.");
         }
 
+        
+
         [Fact]
         public async Task SubmitProfilerSession()
         {
-            var session = await SubmitNewSession("Profiler with Thread Stacks");
-            var log = session.ActiveInstances.FirstOrDefault().Logs.FirstOrDefault();
-            Assert.Contains(".zip", log.Name);
-
-            //
-            // Just ensure that size returned is within 1kb - 100MB
-            //
-
-            long minFileSize = 1024; // 1kb
-            long maxFileSize = 100 * 1024 * 1024; // 100MB
-            Assert.InRange(log.Size, minFileSize, maxFileSize);
+            await SessionTestHelpers.RunProfilerTest(_client, _websiteClient, _output);
         }
 
         [Fact]
@@ -196,115 +193,14 @@ namespace Daas.Test
 
             Assert.True(!string.IsNullOrWhiteSpace(sessionId));
 
-            var session = await GetSessionInformation(sessionId);
+            var session = await SessionTestHelpers.GetSessionInformation(sessionId, _client);
             while (session.Status == Status.Active)
             {
                 await Task.Delay(5000);
-                session = await GetSessionInformation(sessionId);
+                session = await SessionTestHelpers.GetSessionInformation(sessionId, _client);
             }
 
-            CheckSessionAsserts(session);
-        }
-
-        private async Task<Session> SubmitNewSession(string diagnosticTool)
-        {
-            var warmupMessage = await EnsureSiteWarmedUpAsync();
-            _output.WriteLine("Warmup message is: " + warmupMessage);
-            var machineName = await GetMachineName();
-            var newSession = new Session()
-            {
-                Mode = Mode.CollectAndAnalyze,
-                Tool = diagnosticTool,
-                Instances = new List<string> { machineName }
-            };
-
-            var response = await _client.PostAsJsonAsync("daas/sessions", newSession);
-            Assert.NotNull(response);
-
-            Assert.Equal(System.Net.HttpStatusCode.Accepted, response.StatusCode);
-
-            string sessionIdResponse = await response.Content.ReadAsStringAsync();
-            Assert.NotNull(sessionIdResponse);
-
-            _output.WriteLine("SessionId Response is " + sessionIdResponse);
-
-            string sessionId = JsonConvert.DeserializeObject<string>(sessionIdResponse);
-
-            var session = await GetSessionInformation(sessionId);
-            while (session.Status == Status.Active)
-            {
-                await Task.Delay(15000);
-                session = await GetSessionInformation(sessionId);
-            }
-
-            CheckSessionAsserts(session);
-
-            return session;
-        }
-
-        private async Task<string> EnsureSiteWarmedUpAsync()
-        {
-            int counter = 0;
-            var siteResponse = await _websiteClient.GetAsync("/");
-            while (!siteResponse.IsSuccessStatusCode && counter < 10)
-            {
-                await Task.Delay(5000);
-                siteResponse = await _websiteClient.GetAsync("/");
-                counter++;
-            }
-
-            var responseCode = siteResponse.StatusCode;
-            string message = $"Site name is '{_websiteClient.BaseAddress}' and Status Code returned is {responseCode}";
-            Assert.True(siteResponse.IsSuccessStatusCode, $"Site '{_websiteClient.BaseAddress}' is not warmed up. Status Code returned is {responseCode}");
-            return message;
-        }
-
-        private static void CheckSessionAsserts(Session session)
-        {
-            Assert.Equal(Status.Complete, session.Status);
-            Assert.False(session.EndTime == DateTime.MinValue || session.StartTime == DateTime.MinValue);
-
-            Assert.True(!string.IsNullOrWhiteSpace(session.Description));
-            Assert.True(!string.IsNullOrWhiteSpace(session.DefaultScmHostName));
-
-            Assert.NotNull(session.ActiveInstances);
-            Assert.NotEmpty(session.ActiveInstances);
-
-            Assert.NotNull(session.ActiveInstances.FirstOrDefault().Logs);
-            Assert.NotNull(session.ActiveInstances.FirstOrDefault().Logs.FirstOrDefault().Reports);
-            Assert.NotNull(session.ActiveInstances.FirstOrDefault().Logs.FirstOrDefault().Reports.FirstOrDefault());
-
-            var log = session.ActiveInstances.FirstOrDefault().Logs.FirstOrDefault();
-            var report = log.Reports.FirstOrDefault();
-
-            Assert.NotNull(report.Name);
-            Assert.NotNull(report.RelativePath);
-
-            Assert.StartsWith("https://", report.RelativePath, StringComparison.OrdinalIgnoreCase);
-            Assert.StartsWith("https://", log.RelativePath, StringComparison.OrdinalIgnoreCase);
-        }
-
-        private async Task<Session> GetSessionInformation(string sessionId)
-        {
-            var sessionResponse = await _client.PostAsync($"daas/sessions/{sessionId}", null);
-            sessionResponse.EnsureSuccessStatusCode();
-
-            string sessionString = await sessionResponse.Content.ReadAsStringAsync();
-            var session = JsonConvert.DeserializeObject<Session>(sessionString);
-            return session;
-        }
-
-        private async Task<string> GetMachineName()
-        {
-            var machineResponseMessage = await _client.PostAsJsonAsync("api/command", new { command = "hostname", dir = "site" });
-            machineResponseMessage.EnsureSuccessStatusCode();
-
-            string machineNameResponse = await machineResponseMessage.Content.ReadAsStringAsync();
-            var apiCommandResponse = JsonConvert.DeserializeObject<ApiCommandResponse>(machineNameResponse);
-            string machineName = apiCommandResponse.Output;
-            machineName = machineName.Replace(Environment.NewLine, "");
-            _output.WriteLine("Machine Name is " + machineName);
-            return machineName;
+            SessionTestHelpers.CheckSessionAsserts(session);
         }
     }
 

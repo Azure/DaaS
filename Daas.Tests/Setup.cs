@@ -26,10 +26,10 @@ namespace Daas.Test
             return config;
         }
 
-        internal static HttpClient GetHttpClient(IConfiguration configuration)
+        internal static HttpClient GetHttpClient(IConfiguration configuration, string kuduEndpointVariableName)
         {
             string authToken = configuration["KUDU_AUTH_TOKEN"];
-            string kuduEndpoint = configuration["KUDU_ENDPOINT"];
+            string kuduEndpoint = configuration[kuduEndpointVariableName];
             string userName = string.Empty;
             string password = string.Empty;
             bool usingPublishProfileCredentails = false;
@@ -86,9 +86,9 @@ namespace Daas.Test
             return client;
         }
 
-        internal static HttpClient GetWebSiteHttpClient(IConfiguration configuration)
+        internal static HttpClient GetWebSiteHttpClient(IConfiguration configuration, string kuduEndpointVariableName)
         {
-            string kuduEndpoint = configuration["KUDU_ENDPOINT"];
+            string kuduEndpoint = configuration[kuduEndpointVariableName];
             string webSiteEndpoint = kuduEndpoint.Replace("scm.", string.Empty);
             if (string.IsNullOrWhiteSpace(webSiteEndpoint))
             {
