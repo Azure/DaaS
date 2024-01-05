@@ -259,13 +259,13 @@ steps:
       Write-Host ("[$siteName] KuduEndpoint = " + $kuduEndpoint + ". Going to upload SiteExtension bits now")
 
       if ($additionalParams -eq "JAVA"){
-        $version = GetHighestJavaVersion
-         Write-Host "[$siteName] Found Java Version = " +  $version[0] + " " + $version[1] + " " + $version[2]
+        #$version = GetHighestJavaVersion
+        #Write-Host "[$siteName] Found Java Version = " +  $version[0] + " " + $version[1] + " " + $version[2]
 
         $Resource = Get-AzResource -ResourceType Microsoft.Web/sites -ResourceGroupName $Env:RESOURCE_GROUP -ResourceName $siteName
-        $Resource.Properties.SiteConfig.JavaVersion = $version[0]
-        $Resource.Properties.SiteConfig.JavaContainer = $version[1]
-        $Resource.Properties.SiteConfig.JavaContainerVersion = $version[2]
+        $Resource.Properties.SiteConfig.JavaVersion = "17"
+        $Resource.Properties.SiteConfig.JavaContainer = "TOMCAT"
+        $Resource.Properties.SiteConfig.JavaContainerVersion = "10.0"
         $Resource | Set-AzResource -Force
       }
 
