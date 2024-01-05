@@ -163,13 +163,13 @@ namespace Daas.Test
         [Fact]
         public async Task SubmitJavaFlighRecorderTrace()
         {
-            await SubmitJavaTool("JAVA Flight Recorder", "_jcmd.jfr", "_jcmd_");
+            await SubmitJavaTool("JAVA Flight Recorder", "_jcmd.jfr", "_jcmd");
         }
 
         [Fact]
         public async Task SubmitJavaMemoryDump()
         {
-            await SubmitJavaTool("JAVA Memory Dump", "_MemoryDump.bin", "_MemoryDump_");
+            await SubmitJavaTool("JAVA Memory Dump", "_MemoryDump.bin", "_MemoryDump");
         }
 
         [Fact]
