@@ -251,10 +251,10 @@ steps:
       Write-Host ("KuduEndpoint = " + $kuduEndpoint + ". Going to upload SiteExtension bits now")
 
       if ($additionalParams -eq "JAVA"){
-        Set-AzWebApp -ResourceGroupName $Env:RESOURCE_GROUP -Name $siteName `
-        -JavaVersion "11" `
-        -JavaContainer "TOMCAT" `
-        -JavaContainerVersion "9.0"
+        # Set-AzWebApp -ResourceGroupName $Env:RESOURCE_GROUP -Name $siteName `
+        # -JavaVersion "11" `
+        # -JavaContainer "TOMCAT" `
+        # -JavaContainerVersion "9.0"
       }
 
       if ($additionalParams -eq "X64"){
