@@ -328,11 +328,13 @@ steps:
 
           Set-AzWebApp -AppSettings $newAppSettings -Name $siteName -ResourceGroupName $Env:RESOURCE_GROUP | Out-Null
 
+          Start-Sleep -Seconds 60
+
           # Warmup the DaaS site
           Write-Host "[$siteName] Checking DaaS version"
           $retryCount = 0;
           $succeeded = $false
-          while( ($retryCount -lt 2) -and ($succeeded -eq $false))
+          while( ($retryCount -lt 5) -and ($succeeded -eq $false))
           {
             try
             {
