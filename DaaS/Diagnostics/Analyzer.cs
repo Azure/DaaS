@@ -19,12 +19,14 @@ namespace DaaS.Diagnostics
         public override string Name { get; internal set; }
         public string Command { get; set; }
         public string Arguments { get; set; }
+        public bool RequiresStorageAccount { get; set; }
 
         internal Analyzer(Diagnoser diagnoser)
         {
             Name = diagnoser.Name;
             Command = diagnoser.Analyzer.Command;
             Arguments = diagnoser.Analyzer.Arguments;
+            RequiresStorageAccount = diagnoser.RequiresStorageAccount;
         }
 
         internal async Task AnalyzeLogsAsync(List<LogFile> logs, Session activeSession, CancellationToken cancellationToken)

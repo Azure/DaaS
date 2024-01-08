@@ -269,10 +269,34 @@ steps:
       }
 
       if ($additionalParams -eq "X64"){
-        Write-Host ("[$siteName] Setting bitness to x64 for " + $siteName)
+        Write-Host ("[$siteName] Setting bitness to x64")
         Set-AzWebApp -Name $siteName -ResourceGroupName $Env:RESOURCE_GROUP -Use32BitWorkerProcess $false | Out-Null
+        Write-Host ("[$siteName] Adding Auto-Heal settings")
+        $autohealRules = @{
+        triggers=@{requests=@{count=50;timeInterval="00:02:00"}};
+        actions=@{actionType="CustomAction";customAction=@{exe="`"%WEBSITE_DAAS_DIAG_LAUNCHER%`"";parameters="-m CollectKillAnalyze -t MemoryDump"}};
+        }
+
+        $Resource = Get-AzResource -ResourceType Microsoft.Web/sites -ResourceGroupName $Env:RESOURCE_GROUP -ResourceName $siteName
+        $Resource.Properties.SiteConfig.AutoHealEnabled = $true
+        $Resource.Properties.SiteConfig.AutoHealRules = $autohealRules
+        $Resource | Set-AzResource -Force
       }
-      
+
+      if ($additionalParams -eq "DOTNET"){
+        Write-Host ("[$siteName] Adding Auto-Heal settings")
+        $autohealRulesDotNet = @{
+        triggers=@{requests=@{count=50;timeInterval="00:02:00"}};
+        actions=@{actionType="CustomAction";customAction=@{exe="`"%WEBSITE_DAAS_DIAG_LAUNCHER%`"";parameters="-m CollectAndAnalyze -t Profiler"}};
+        }
+
+        $Resource = Get-AzResource -ResourceType Microsoft.Web/sites -ResourceGroupName $Env:RESOURCE_GROUP -ResourceName $siteName
+        $Resource.Properties.SiteConfig.AutoHealEnabled = $true
+        $Resource.Properties.SiteConfig.AutoHealRules = $autohealRulesDotNet
+        $Resource | Set-AzResource -Force
+      }
+
+
       $kuduApiUrl = "https://$kuduEndpoint/api/zip/SiteExtensions/DaaS/"
       try {
       
@@ -293,13 +317,17 @@ steps:
         Write-Host "[$siteName] Encountered " + $_.Exception.Response.StatusCode + " while uploading DaaS site extension"
       }
 
-      $srcWebApp = Get-AzWebApp -Name $siteName -ResourceGroupName $Env:RESOURCE_GROUP
-      Write-Host "[$siteName] Stopping Web App"
-      Invoke-AzResourceAction -ResourceId $srcWebApp.Id -Action stop -Force
-      
-      Write-Host "[$siteName] Starting Web App"
-      Invoke-AzResourceAction -ResourceId $srcWebApp.Id -Action start -Force
-      
+      # Invoke a Site change notification by adding a dummy app setting
+
+      $currentAppSettings = Get-AzWebApp -ResourceGroupName $Env:RESOURCE_GROUP -Name $siteName | Select-Object -ExpandProperty SiteConfig
+      $newAppSettings =@{"foo"="bar"}
+      foreach($item in $currentAppSettings.AppSettings){
+            $newAppSettings[$item.Name] = $item.Value
+      }
+
+      Set-AzWebApp -AppSettings $newAppSettings -Name $siteName -ResourceGroupName $Env:RESOURCE_GROUP | Out-Null
+
+      # Warmup the DaaS site
       Write-Host "[$siteName] Checking DaaS version"
       $retryCount = 0;
       $succeeded = $false
@@ -358,7 +386,7 @@ steps:
       $sasUrl = New-AzStorageAccountSASToken -Context $storageAccount.context -Service Blob,Table,Queue -ResourceType Container,Object -Permission "acdlpruw" -ExpiryTime (Get-Date).AddDays(1)
       $sasUrl = "https://daasdevopsstorage.blob.core.windows.net/memorydumps" + $sasurl
 
-      CreateWebApp $siteName $sasUrl "KUDU_ENDPOINT" ""
+      CreateWebApp $siteName $sasUrl "KUDU_ENDPOINT" "DOTNET"
       CreateWebApp $siteNameJava $sasUrl "KUDU_ENDPOINT_JAVA" "JAVA"
       CreateWebApp $siteNameX64 $sasUrl "KUDU_ENDPOINT_X64" "X64"
 

@@ -235,7 +235,7 @@ namespace DaaSConsole
             // submit and check the status in a loop
             //
 
-            sessionId = SessionManager.SubmitNewSessionAsync(session, invokedViaDaasConsole: true).Result;
+            sessionId = SessionManager.SubmitNewSessionAsync(session, isV2Session:false, invokedViaDaasConsole: true).Result;
             Console.WriteLine($"Session submitted for '{toolName}' with Id - {sessionId}");
             Console.Write("Waiting...");
             LogDaasConsoleEvent(sessionId, toolName, options.ToString());
@@ -244,7 +244,7 @@ namespace DaaSConsole
             {
                 Thread.Sleep(10000);
                 Console.Write(".");
-                var activeSession = SessionManager.GetActiveSessionAsync().Result;
+                var activeSession = SessionManager.GetActiveSessionAsync(isV2Session: false).Result;
 
                 //
                 // Either the session got completed, timed out

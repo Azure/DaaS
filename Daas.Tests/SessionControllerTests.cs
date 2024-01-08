@@ -72,7 +72,7 @@ namespace Daas.Test
                 throw new NullReferenceException("activeSession is null");
             }
 
-            await sessionManager.RunToolForSessionAsync(activeSession.Content, cts.Token);
+            await sessionManager.RunToolForSessionAsync(activeSession.Content, isV2Session:false, queueAnalysisRequest:false, cts.Token);
 
             var completedSession = await sessionsController.GetSession(sessionId) as OkNegotiatedContentResult<Session>;
             Assert.NotNull(completedSession);

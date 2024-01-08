@@ -11,9 +11,11 @@ using System.Linq;
 using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Azure.Core;
 using Daas.Tests;
 using DaaS.Sessions;
 using DiagnosticsExtension.Controllers;
+using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using Xunit;
 using Xunit.Abstractions;
@@ -119,41 +121,15 @@ namespace Daas.Test
         public async Task SubmitMemoryDumpSession()
         {
             var session = await SessionTestHelpers.SubmitNewSession("MemoryDump", _client, _websiteClient, _output);
-            var log = session.ActiveInstances.FirstOrDefault().Logs.FirstOrDefault();
-            Assert.Contains(".dmp", log.Name);
-            Assert.True(!string.IsNullOrWhiteSpace(session.BlobStorageHostName));
-
-            //
-            // Just ensure that size returned is within 50MB - 5GB
-            //
-
-            long minDumpSize = 52428800; // 50 MB
-            long maxDumpSize = 5368709120; // 5GB
-            Assert.InRange<long>(log.Size, minDumpSize, maxDumpSize);
-
-            // simple sanity check that verifies the html report contains a reference to the dmp file (for the "Open in VS" scenario")
-            Report htmlReport = log.Reports.FirstOrDefault(r => r.Name.EndsWith(".html"));
-            Assert.NotNull(htmlReport);
-
-            var htmlReportResponse = await _client.GetAsync("api/vfs/" + htmlReport.PartialPath);
-            Assert.True(htmlReportResponse.IsSuccessStatusCode);
-
-            var htmlReportContent = await htmlReportResponse.Content.ReadAsStringAsync();
-
-            var dmpBlobUri = log.RelativePath.Split('?')[0];// remove the SAS token URL params
-            Assert.True(htmlReportContent.Contains(dmpBlobUri), "The HTML report needs to contain a reference to the Azure Storage blob containing the dump.");
-
-            var storageAccountName = session.BlobStorageHostName.Split('.')[0];
-            var storageResourceIdRegex = new Regex($"/subscriptions/[a-z0-9\\-]+/resourceGroups/[\\w0-9\\-_\\(\\)\\.]+/providers/Microsoft\\.Storage/storageAccounts/{storageAccountName}");
-            Assert.True(storageResourceIdRegex.IsMatch(htmlReportContent), "The HTML report needs to contain a reference to the Azure Storage resource id containing the dump.");
+            await SessionTestHelpers.ValidateMemoryDumpAsync(session, _client);
         }
 
-        
 
         [Fact]
         public async Task SubmitProfilerSession()
         {
-            await SessionTestHelpers.RunProfilerTest(_client, _websiteClient, _output);
+            var session = await SessionTestHelpers.RunProfilerTest(_client, _websiteClient, _output);
+            await SessionTestHelpers.ValidateProfilerAsync(session, _client);
         }
 
         [Fact]
@@ -167,6 +143,8 @@ namespace Daas.Test
             var apiCommandResponse = JsonConvert.DeserializeObject<ApiCommandResponse>(daasConsoleResponse);
             _output.WriteLine("ListDiagnosers response is " + apiCommandResponse.Output);
         }
+
+        
 
         [Fact]
         public async Task SubmitMockSessionFromDaasConsole()
@@ -201,6 +179,38 @@ namespace Daas.Test
             }
 
             SessionTestHelpers.CheckSessionAsserts(session);
+        }
+
+        [Fact]
+        public async Task ProfilerInvokedViaAutoHealingDiagLauncher()
+        {
+            var warmupMessage = await SessionTestHelpers.EnsureSiteWarmedUpAsync(_websiteClient);
+            _output.WriteLine("Warmup message is: " + warmupMessage);
+
+            //
+            // For this case, the DevOps pipeline will create an app 'KUDU_ENDPOINT'
+            // that has these autoHeal configuration
+            //
+
+            // $autohealRulesDotNet = @
+            // {
+            //  triggers =@{ requests =@{ count = 50; timeInterval = "00:02:00"} };
+            //  actions =@{ actionType = "CustomAction"; customAction =@{ exe = "`" %WEBSITE_DAAS_DIAG_LAUNCHER%`""; parameters = "-m CollectKillAnalyze -t MemoryDump"}};
+            // }
+
+            await SessionTestHelpers.StressTestWebAppAsync(requestCount: 55, _websiteClient, _output);
+
+            await Task.Delay(5000);
+
+            var session = await SessionTestHelpers.GetActiveSessionAsync(_client, _websiteClient, _output);
+            var sessionId = session.SessionId;
+            while (session.Status == Status.Active)
+            {
+                await Task.Delay(5000);
+                session = await SessionTestHelpers.GetSessionInformation(sessionId, _client);
+            }
+
+            await SessionTestHelpers.ValidateProfilerAsync(session, _client);
         }
     }
 

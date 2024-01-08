@@ -17,6 +17,7 @@ namespace DaaS.Sessions
         Started,
         Complete,
         TimedOut,
-        Analyzing
+        Analyzing,
+        AnalysisQueued
     }
 }

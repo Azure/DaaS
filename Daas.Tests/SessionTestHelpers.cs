@@ -16,6 +16,8 @@ using Daas.Test;
 using Newtonsoft.Json;
 using Xunit;
 using Xunit.Abstractions;
+using System.Text.RegularExpressions;
+using System.Threading;
 
 namespace Daas.Tests
 {
@@ -109,9 +111,9 @@ namespace Daas.Tests
             return session;
         }
 
-        internal static async Task RunProfilerTest(HttpClient client, HttpClient webSiteClient, ITestOutputHelper outputHelper)
+        internal static async Task<Session> RunProfilerTest(HttpClient client, HttpClient webSiteClient, ITestOutputHelper outputHelper)
         {
-            var session = await SessionTestHelpers.SubmitNewSession("Profiler with Thread Stacks", client, webSiteClient, outputHelper);
+            var session = await SubmitNewSession("Profiler with Thread Stacks", client, webSiteClient, outputHelper);
             var log = session.ActiveInstances.FirstOrDefault().Logs.FirstOrDefault();
             Assert.Contains(".zip", log.Name);
 
@@ -122,6 +124,141 @@ namespace Daas.Tests
             long minFileSize = 1024; // 1kb
             long maxFileSize = 100 * 1024 * 1024; // 100MB
             Assert.InRange(log.Size, minFileSize, maxFileSize);
+
+            return session;
+        }
+
+        internal static async Task ValidateMemoryDumpAsync(Session session, HttpClient client)
+        {
+            var log = session.ActiveInstances.FirstOrDefault().Logs.FirstOrDefault();
+            Assert.Contains(".dmp", log.Name);
+            Assert.True(!string.IsNullOrWhiteSpace(session.BlobStorageHostName));
+
+            //
+            // Just ensure that size returned is within 50MB - 5GB
+            //
+
+            long minDumpSize = 52428800; // 50 MB
+            long maxDumpSize = 5368709120; // 5GB
+            Assert.InRange<long>(log.Size, minDumpSize, maxDumpSize);
+
+            // simple sanity check that verifies the html report contains a reference to the dmp file (for the "Open in VS" scenario")
+            Report htmlReport = log.Reports.FirstOrDefault(r => r.Name.EndsWith(".html"));
+            Assert.NotNull(htmlReport);
+
+            var htmlReportResponse = await client.GetAsync("api/vfs/" + htmlReport.PartialPath);
+            Assert.True(htmlReportResponse.IsSuccessStatusCode);
+
+            var htmlReportContent = await htmlReportResponse.Content.ReadAsStringAsync();
+
+            var dmpBlobUri = log.RelativePath.Split('?')[0];// remove the SAS token URL params
+            Assert.True(htmlReportContent.Contains(dmpBlobUri), "The HTML report needs to contain a reference to the Azure Storage blob containing the dump.");
+
+            var storageAccountName = session.BlobStorageHostName.Split('.')[0];
+            var storageResourceIdRegex = new Regex($"/subscriptions/[a-z0-9\\-]+/resourceGroups/[\\w0-9\\-_\\(\\)\\.]+/providers/Microsoft\\.Storage/storageAccounts/{storageAccountName}");
+            Assert.True(storageResourceIdRegex.IsMatch(htmlReportContent), "The HTML report needs to contain a reference to the Azure Storage resource id containing the dump.");
+        }
+
+        internal static async Task ValidateProfilerAsync(Session session, HttpClient client)
+        {
+            var log = session.ActiveInstances.FirstOrDefault().Logs.FirstOrDefault();
+            Assert.Contains(".zip", log.Name);
+
+            //
+            // Just ensure that size returned is within 50MB - 5GB
+            //
+
+            long minDumpSize = 1024 * 1024; // 1MB
+            long maxDumpSize = 100 * 1024 * 1024; // 100 MB
+            Assert.InRange<long>(log.Size, minDumpSize, maxDumpSize);
+
+            // Ensure that HTML report got created
+            Report htmlReport = log.Reports.FirstOrDefault(r => r.Name.EndsWith(".html"));
+            Assert.NotNull(htmlReport);
+
+            var htmlReportResponse = await client.GetAsync("api/vfs/" + htmlReport.PartialPath);
+            Assert.True(htmlReportResponse.IsSuccessStatusCode);
+
+            var htmlReportContent = await htmlReportResponse.Content.ReadAsStringAsync();
+            var hrefString = htmlReportContent.Split(Environment.NewLine.ToCharArray()).FirstOrDefault(x => x.Contains("window.location.href = "));
+
+            Assert.False(string.IsNullOrWhiteSpace(hrefString), "Index.html should contain window.location.href script code");
+        }
+
+        internal static async Task<Session> SubmitDiagLauncherSessionAsync(string toolName, string mode, Status expectedStatus, HttpClient client, HttpClient webSiteClient, ITestOutputHelper outputHelper)
+        {
+            var warmupMessage = await EnsureSiteWarmedUpAsync(webSiteClient);
+            outputHelper.WriteLine("Warmup message is: " + warmupMessage);
+
+            string diagLauncherCommand = $"\"%WEBSITE_DAAS_DIAG_LAUNCHER%\" -t {toolName} -m {mode}";
+            var diagLauncherResponseMessage = await client.PostAsJsonAsync("api/command", new { command = diagLauncherCommand, dir = "data" });
+            diagLauncherResponseMessage.EnsureSuccessStatusCode();
+
+            string diagLauncherResponse = await diagLauncherResponseMessage.Content.ReadAsStringAsync();
+            var apiCommandResponse = JsonConvert.DeserializeObject<ApiCommandResponse>(diagLauncherResponse);
+            outputHelper.WriteLine($"'{diagLauncherCommand}' response is {apiCommandResponse.Output} and Error is {apiCommandResponse.Error}");
+
+            string sessionId = string.Empty;
+            var daasConsoleOutput = apiCommandResponse.Output.Split(new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (var line in daasConsoleOutput)
+            {
+                if (line.StartsWith("Session submitted for "))
+                {
+                    sessionId = line.Split(' ').Last();
+                    break;
+                }
+            }
+
+            outputHelper.WriteLine("SessionId is " + sessionId);
+
+            Assert.True(!string.IsNullOrWhiteSpace(sessionId));
+
+            var session = await GetSessionInformation(sessionId, client);
+            Assert.Equal(expectedStatus, session.Status);
+
+            return session;
+        }
+
+        internal static async Task<Session> GetActiveSessionAsync(HttpClient client, HttpClient webSiteClient, ITestOutputHelper outputHelper)
+        {
+            var warmupMessage = await EnsureSiteWarmedUpAsync(webSiteClient);
+            outputHelper.WriteLine("Warmup message is: " + warmupMessage);
+
+            var response = await client.PostAsJsonAsync("daas/sessions/active", string.Empty);
+            Assert.NotNull(response);
+
+            response.EnsureSuccessStatusCode();
+            string sessionResponse = await response.Content.ReadAsStringAsync();
+
+            var activeSession = JsonConvert.DeserializeObject<Session>(sessionResponse);
+            var sessionId = activeSession.SessionId;
+
+            Assert.True(!string.IsNullOrWhiteSpace(sessionId));
+
+            var session = await GetSessionInformation(sessionId, client);
+            return session;
+        }
+
+        internal static async Task StressTestWebAppAsync(int requestCount, HttpClient webSiteClient, ITestOutputHelper outputHelper)
+        {
+
+            Task[] tasks = new Task[requestCount];
+
+            for (int i = 0; i < requestCount; i++)
+            {
+                tasks[i] = Task.Factory.StartNew(() =>
+                {
+                    MakeSiteRequest(webSiteClient, outputHelper);
+                });
+            }
+
+            await Task.WhenAll(tasks);
+        }
+
+        private static void MakeSiteRequest(HttpClient webSiteClient, ITestOutputHelper outputHelper)
+        {
+            _ = webSiteClient.GetAsync("/").Result;
+            outputHelper.WriteLine("Request Completed at " + DateTime.UtcNow);
         }
 
         private static async Task<string> GetMachineName(HttpClient client, ITestOutputHelper outputHelper)
