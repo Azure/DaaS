@@ -82,7 +82,7 @@ namespace Daas.Test
 
             await SessionTestHelpers.StressTestWebAppAsync(requestCount: 55, _websiteClient, _output);
 
-            await Task.Delay(5000);
+            await Task.Delay(30000);
 
             var session = await SessionTestHelpers.GetActiveSessionAsync(_client, _websiteClient, _output);
             var sessionId = session.SessionId;
