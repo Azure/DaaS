@@ -47,6 +47,7 @@ namespace DaaS.Storage
             {
                 // Download the blob to a local file using DownloadTo method
                 BlobDownloadInfo blobDownloadInfo = await blobClient.DownloadAsync();
+                FileSystemHelpers.CreateDirectoryIfNotExists(Path.GetDirectoryName(destinationFilePath));
 
                 // Save the downloaded content to a local file
                 using (var fileStream = File.OpenWrite(destinationFilePath))

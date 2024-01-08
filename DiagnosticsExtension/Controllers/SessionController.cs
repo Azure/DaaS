@@ -38,7 +38,7 @@ namespace DiagnosticsExtension.Controllers
                     session.Description = "InvokedViaDaasApi";
                 }
 
-                string sessionId = await _sessionManager.SubmitNewSessionAsync(session);
+                string sessionId = await _sessionManager.SubmitNewSessionAsync(session, isV2Session: false);
                 return ResponseMessage(Request.CreateResponse(HttpStatusCode.Accepted, sessionId));
             }
             catch (ArgumentException argEx)
@@ -66,10 +66,11 @@ namespace DiagnosticsExtension.Controllers
         [Route("active")]
         public async Task<IHttpActionResult> GetActiveSession()
         {
-            var activeSession = await _sessionManager.GetActiveSessionAsync(isDetailed: true);
+            var activeSession = await _sessionManager.GetActiveSessionAsync(isV2Session: false, isDetailed: true);
             if (activeSession == null)
             {
-                activeSession = await _sessionManager.GetActiveSessionAsync(isDetailed: true);
+                activeSession = await _sessionManager.GetActiveSessionAsync(isV2Session: true, isDetailed: true);
+                await _sessionManager.CheckIfOrphaningOrTimeoutNeededAsync(activeSession);
             }
 
             return Ok(activeSession);
@@ -94,15 +95,15 @@ namespace DiagnosticsExtension.Controllers
         {
             try
             {
-                if (_sessionManager.IsSessionExisting(sessionId))
+                if (_sessionManager.IsSessionExisting(sessionId, isV2Session: false))
                 {
-                    await _sessionManager.DeleteSessionAsync(sessionId);
+                    await _sessionManager.DeleteSessionAsync(sessionId, isV2Session: false);
                     return Ok($"Session {sessionId} deleted successfully");
                 }
 
-                if (_sessionManager.IsSessionExisting(sessionId))
+                if (_sessionManager.IsSessionExisting(sessionId, isV2Session: true))
                 {
-                    await _sessionManager.DeleteSessionAsync(sessionId);
+                    await _sessionManager.DeleteSessionAsync(sessionId, isV2Session: true);
                     return Ok($"Session {sessionId} deleted successfully");
                 }
 

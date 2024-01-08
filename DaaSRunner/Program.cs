@@ -44,6 +44,7 @@ namespace DaaSRunner
 
         private static readonly ISessionManager _sessionManager = new SessionManager(new AzureStorageService());
         private static readonly ConcurrentDictionary<string, TaskAndCancellationToken> _runningSessions = new ConcurrentDictionary<string, TaskAndCancellationToken>();
+        private static readonly ConcurrentDictionary<string, TaskAndCancellationToken> _runningV2Sessions = new ConcurrentDictionary<string, TaskAndCancellationToken>();
 
         private static readonly CancellationTokenSource _cts = new CancellationTokenSource();
         private static readonly IStorageService storageService = new AzureStorageService();
@@ -139,17 +140,17 @@ namespace DaaSRunner
 
         }
 
-        private static bool CheckIfTimeToCleanupSymbols()
+        private static bool CheckIfTimeToCleanupSymbols(bool isV2Session)
         {
             try
             {
-                var activeSession = _sessionManager.GetActiveSessionAsync().Result;
+                var activeSession = _sessionManager.GetActiveSessionAsync(isV2Session).Result;
                 if (activeSession != null)
                 {
                     return false;
                 }
 
-                var completedSessions = _sessionManager.GetCompletedSessionsAsync().Result;
+                var completedSessions = _sessionManager.GetCompletedSessionsAsync(isV2Session).Result;
                 var cleanupSymbols = false;
                 var lastCompletedSession = completedSessions.FirstOrDefault();
 
@@ -368,6 +369,7 @@ namespace DaaSRunner
             while (true)
             {
                 RunActiveSession(_cts.Token);
+                RunAnalysisQueuedV2Sessions(_cts.Token);
                 RemoveOlderSessionsIfNeeded();
                 Thread.Sleep(Settings.Instance.FrequencyToCheckForNewSessionsAtInSeconds * 1000);
             }
@@ -377,7 +379,7 @@ namespace DaaSRunner
         {
             try
             {
-                _sessionManager.DeleteSessionAsync(session.SessionId).Wait();
+                _sessionManager.DeleteSessionAsync(session.SessionId, isV2Session: false).Wait();
             }
             catch (Exception)
             {
@@ -417,10 +419,116 @@ namespace DaaSRunner
                     }
                 }
 
-                if (CheckIfTimeToCleanupSymbols())
+                if (CheckIfTimeToCleanupSymbols(isV2Session: false))
                 {
                     CleanupSymbolsDirectory();
                 }
+
+                CleanV2SessionsIfNeeded();
+            }
+        }
+
+        private static void CleanV2SessionsIfNeeded()
+        {
+            try
+            {
+                var activeSession = _sessionManager.GetActiveSessionAsync(isV2Session: true).Result;
+                if (activeSession == null)
+                {
+                    return;
+                }
+
+                _sessionManager.CheckIfOrphaningOrTimeoutNeededAsync(activeSession).Wait();
+            }
+            catch (Exception ex)
+            {
+                Logger.LogWarningEvent("Unhandled exception while cleaning up Daas V2 sessions", ex);
+            }
+        }
+
+        private static void RunAnalysisQueuedV2Sessions(CancellationToken stoppingToken)
+        {
+            try
+            {
+                var activeSession = _sessionManager.GetActiveSessionAsync(isV2Session: true).Result;
+                if (activeSession == null)
+                {
+                    return;
+                }
+
+                Logger.LogSessionVerboseEvent("Found an active V2 session", activeSession.SessionId);
+
+                //
+                // Check if all instances are finished with log collection
+                //
+
+                if (_sessionManager.CheckandCompleteSessionIfNeededAsync(isV2Session: true).Result)
+                {
+                    return;
+                }
+
+                if (DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes > Settings.Instance.OrphanInstanceTimeoutInMinutes)
+                {
+                    _sessionManager.CancelOrphanedInstancesIfNeeded(isV2Session: true).Wait();
+                }
+
+                var totalSessionRunningTimeInMinutes = DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes;
+                if (DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes > Settings.Instance.MaxSessionTimeInMinutes)
+                {
+                    if (_runningV2Sessions.ContainsKey(activeSession.SessionId))
+                    {
+                        Logger.LogSessionVerboseEvent("Cancelling session as MaxSessionTimeInMinutes limit reached", activeSession.SessionId);
+                        _runningV2Sessions[activeSession.SessionId].CancellationTokenSource.Cancel();
+                    }
+                    else
+                    {
+                        //
+                        // Allow 5 minutes additional for the instance to gracefully terminate the session and cancel the task
+                        //
+
+                        if (totalSessionRunningTimeInMinutes > (Settings.Instance.MaxSessionTimeInMinutes + 5))
+                        {
+                            //
+                            // If the current instance is not running the session, mark the session as Complete
+                            // when MaxSessionTimeInMinutes is hit. This will ensure any long running sessions will
+                            // get completed and they will not hang indefinitely
+                            //
+
+                            Logger.LogSessionVerboseEvent("Forcefully marking the session as TimedOut as MaxSessionTimeInMinutes limit reached", activeSession.SessionId);
+                            _ = _sessionManager.CheckandCompleteSessionIfNeededAsync(isV2Session: true, forceCompletion: true).Result;
+                        }
+                    }
+                }
+
+                if (_sessionManager.ShouldCollectOnCurrentInstance(activeSession))
+                {
+                    if (_runningV2Sessions.ContainsKey(activeSession.SessionId))
+                    {
+                        // analysis for this session is in progress
+                        return;
+                    }
+
+                    if (!_sessionManager.ShouldAnalyzeOnCurrentInstance(activeSession))
+                    {
+                        return;
+                    }
+
+                    var cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
+                    var sessionTask = _sessionManager.AnalyzeAndCompleteSessionAsync(activeSession, isV2Session: true, activeSession.SessionId, cts.Token);
+
+                    var t = new TaskAndCancellationToken
+                    {
+                        UnderlyingTask = sessionTask,
+                        CancellationTokenSource = cts
+                    };
+
+                    _runningV2Sessions[activeSession.SessionId] = t;
+                    RemoveOldSessionsFromRunningSessionsList("_runningV2Sessions", _runningV2Sessions);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogErrorEvent("Failed in RunAnalysisQueuedV2Sessions", ex);
             }
         }
 
@@ -428,7 +536,7 @@ namespace DaaSRunner
         {
             try
             {
-                var activeSession = _sessionManager.GetActiveSessionAsync().Result;
+                var activeSession = _sessionManager.GetActiveSessionAsync(isV2Session: false).Result;
                 if (activeSession == null)
                 {
                     return;
@@ -440,14 +548,14 @@ namespace DaaSRunner
                 // Check if all instances are finished with log collection
                 //
 
-                if (_sessionManager.CheckandCompleteSessionIfNeededAsync().Result)
+                if (_sessionManager.CheckandCompleteSessionIfNeededAsync(isV2Session: false).Result)
                 {
                     return;
                 }
 
                 if (DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes > Settings.Instance.OrphanInstanceTimeoutInMinutes)
                 {
-                    _sessionManager.CancelOrphanedInstancesIfNeeded().Wait();
+                    _sessionManager.CancelOrphanedInstancesIfNeeded(isV2Session: false).Wait();
                 }
 
                 var totalSessionRunningTimeInMinutes = DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes;
@@ -473,7 +581,7 @@ namespace DaaSRunner
                             //
 
                             Logger.LogSessionVerboseEvent("Forcefully marking the session as TimedOut as MaxSessionTimeInMinutes limit reached", activeSession.SessionId);
-                            _ = _sessionManager.CheckandCompleteSessionIfNeededAsync(forceCompletion: true).Result;
+                            _ = _sessionManager.CheckandCompleteSessionIfNeededAsync(isV2Session: false, forceCompletion: true).Result;
                         }
                     }
                 }
@@ -486,14 +594,14 @@ namespace DaaSRunner
                         return;
                     }
 
-                    if (_sessionManager.HasThisInstanceCollectedLogs().Result)
+                    if (_sessionManager.HasThisInstanceCollectedLogs(isV2Session: false).Result)
                     {
                         // This instance has already collected logs for this session
                         return;
                     }
 
                     var cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
-                    var sessionTask = _sessionManager.RunToolForSessionAsync(activeSession, cts.Token);
+                    var sessionTask = _sessionManager.RunToolForSessionAsync(activeSession, isV2Session:false, queueAnalysisRequest:false, cts.Token);
 
                     var t = new TaskAndCancellationToken
                     {
@@ -502,7 +610,7 @@ namespace DaaSRunner
                     };
 
                     _runningSessions[activeSession.SessionId] = t;
-                    RemoveOldSessionsFromRunningSessionsList();
+                    RemoveOldSessionsFromRunningSessionsList("_runningSessions", _runningSessions);
                 }
             }
             catch (Exception ex)
@@ -511,11 +619,11 @@ namespace DaaSRunner
             }
         }
 
-        private static void RemoveOldSessionsFromRunningSessionsList()
+        private static void RemoveOldSessionsFromRunningSessionsList(string label, ConcurrentDictionary<string, TaskAndCancellationToken> runningSessions)
         {
-            Logger.LogVerboseEvent($"_runningSessions.Count = {_runningSessions.Count}");
+            Logger.LogVerboseEvent($"{label}.Count = {runningSessions.Count}");
 
-            foreach (var entry in _runningSessions)
+            foreach (var entry in runningSessions)
             {
                 string sessionId = string.Empty;
                 if (entry.Value != null && entry.Value.UnderlyingTask != null)
@@ -533,9 +641,9 @@ namespace DaaSRunner
 
                 if (!string.IsNullOrWhiteSpace(sessionId))
                 {
-                    if (_runningSessions.TryRemove(sessionId, out _))
+                    if (runningSessions.TryRemove(sessionId, out _))
                     {
-                        Logger.LogVerboseEvent($"Task for Session '{sessionId}' removed from _runningSessions list");
+                        Logger.LogVerboseEvent($"Task for Session '{sessionId}' removed from {label} list");
                     }
                 }
             }
