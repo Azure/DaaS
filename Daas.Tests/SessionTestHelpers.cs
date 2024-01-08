@@ -47,11 +47,13 @@ namespace Daas.Tests
 
             string sessionId = JsonConvert.DeserializeObject<string>(sessionIdResponse);
 
-            var session = await GetSessionInformation(sessionId, client);
+            await Task.Delay(15000);
+            var session = await GetSessionInformationAsync(sessionId, _client, _output);
             while (session.Status == Status.Active)
             {
                 await Task.Delay(15000);
-                session = await GetSessionInformation(sessionId, client);
+                session = await GetSessionInformationAsync(sessionId, _client, _output);
+                Assert.NotNull(session);
             }
 
             CheckSessionAsserts(session);
@@ -101,14 +103,33 @@ namespace Daas.Tests
             Assert.StartsWith("https://", log.RelativePath, StringComparison.OrdinalIgnoreCase);
         }
 
-        internal static async Task<Session> GetSessionInformation(string sessionId, HttpClient client)
+        internal static async Task<Session> GetSessionInformationAsync(string sessionId, HttpClient client, ITestOutputHelper testOutputHelper)
         {
-            var sessionResponse = await client.PostAsync($"daas/sessions/{sessionId}", null);
-            sessionResponse.EnsureSuccessStatusCode();
+            int retryCount = 5;
 
-            string sessionString = await sessionResponse.Content.ReadAsStringAsync();
-            var session = JsonConvert.DeserializeObject<Session>(sessionString);
-            return session;
+            while (retryCount > 0)
+            {
+                try
+                {
+                    testOutputHelper.WriteLine($"Retry Count = {retryCount}. Getting SessionId {sessionId}");
+                    var sessionResponse = await client.PostAsync($"daas/sessions/{sessionId}", null);
+                    sessionResponse.EnsureSuccessStatusCode();
+
+                    string sessionString = await sessionResponse.Content.ReadAsStringAsync();
+                    var session = JsonConvert.DeserializeObject<Session>(sessionString);
+                    return session;
+                }
+                catch (Exception ex)
+                {
+                    --retryCount;
+                    if (retryCount == 0)
+                    {
+                        throw new Exception($"Passed maximum number of retries for Getting session infomration for {sessionId}. Ex = {ex}");
+                    }
+                }
+            }
+
+            return null;
         }
 
         internal static async Task<Session> RunProfilerTest(HttpClient client, HttpClient webSiteClient, ITestOutputHelper outputHelper)
@@ -213,7 +234,8 @@ namespace Daas.Tests
 
             Assert.True(!string.IsNullOrWhiteSpace(sessionId));
 
-            var session = await GetSessionInformation(sessionId, client);
+            var session = await GetSessionInformationAsync(sessionId, client, outputHelper);
+            Assert.NotNull(session);
             Assert.Equal(expectedStatus, session.Status);
 
             return session;
@@ -232,7 +254,8 @@ namespace Daas.Tests
 
             Assert.True(!string.IsNullOrWhiteSpace(sessionId));
 
-            var session = await GetSessionInformation(sessionId, client);
+            var session = await GetSessionInformationAsync(sessionId, client, outputHelper);
+            Assert.NotNull(session);
             return session;
         }
 

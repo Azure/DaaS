@@ -51,11 +51,12 @@ namespace Daas.Test
         {
             var submittedSession = await SessionTestHelpers.SubmitDiagLauncherSessionAsync("Profiler with Thread Stacks", "CollectKillAnalyze", Status.Active, _client, _websiteClient, _output);
             string sessionId = submittedSession.SessionId;
-            var session = await SessionTestHelpers.GetSessionInformation(sessionId, _client);
+            var session = await SessionTestHelpers.GetSessionInformationAsync(sessionId, _client, _output);
             while (session.Status == Status.Active)
             {
                 await Task.Delay(5000);
-                session = await SessionTestHelpers.GetSessionInformation(sessionId, _client);
+                session = await SessionTestHelpers.GetSessionInformationAsync(sessionId, _client, _output);
+                Assert.NotNull(session);
             }
 
             await SessionTestHelpers.ValidateProfilerAsync(session, _client);
@@ -88,7 +89,8 @@ namespace Daas.Test
             while (session.Status == Status.Active)
             {
                 await Task.Delay(5000);
-                session = await SessionTestHelpers.GetSessionInformation(sessionId, _client);
+                session = await SessionTestHelpers.GetSessionInformationAsync(sessionId, _client, _output);
+                Assert.NotNull(session);
             }
 
             await SessionTestHelpers.ValidateMemoryDumpAsync(session, _client);

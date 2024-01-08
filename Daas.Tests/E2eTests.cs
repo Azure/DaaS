@@ -171,11 +171,14 @@ namespace Daas.Test
 
             Assert.True(!string.IsNullOrWhiteSpace(sessionId));
 
-            var session = await SessionTestHelpers.GetSessionInformation(sessionId, _client);
+            var session = await SessionTestHelpers.GetSessionInformationAsync(sessionId, _client, _output);
+            Assert.NotNull(session);
+
             while (session.Status == Status.Active)
             {
                 await Task.Delay(5000);
-                session = await SessionTestHelpers.GetSessionInformation(sessionId, _client);
+                session = await SessionTestHelpers.GetSessionInformationAsync(sessionId, _client, _output);
+                Assert.NotNull(session);
             }
 
             SessionTestHelpers.CheckSessionAsserts(session);
@@ -207,7 +210,8 @@ namespace Daas.Test
             while (session.Status == Status.Active)
             {
                 await Task.Delay(5000);
-                session = await SessionTestHelpers.GetSessionInformation(sessionId, _client);
+                session = await SessionTestHelpers.GetSessionInformationAsync(sessionId, _client, _output);
+                Assert.NotNull(session);
             }
 
             await SessionTestHelpers.ValidateProfilerAsync(session, _client);
