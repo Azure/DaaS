@@ -211,6 +211,7 @@ namespace Daas.Test
             }
 
             await SessionTestHelpers.ValidateProfilerAsync(session, _client);
+            await SessionTestHelpers.EnsureDiagLauncherFinishedAsync(_client,_output);
         }
     }
 

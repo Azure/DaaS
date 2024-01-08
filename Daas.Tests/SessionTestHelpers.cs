@@ -221,9 +221,6 @@ namespace Daas.Tests
 
         internal static async Task<Session> GetActiveSessionAsync(HttpClient client, HttpClient webSiteClient, ITestOutputHelper outputHelper)
         {
-            var warmupMessage = await EnsureSiteWarmedUpAsync(webSiteClient);
-            outputHelper.WriteLine("Warmup message is: " + warmupMessage);
-
             var response = await client.PostAsJsonAsync("daas/sessions/active", string.Empty);
             Assert.NotNull(response);
 
@@ -273,5 +270,32 @@ namespace Daas.Tests
             outputHelper.WriteLine("Machine Name is " + machineName);
             return machineName;
         }
+
+        internal static async Task EnsureDiagLauncherFinishedAsync(HttpClient client, ITestOutputHelper outputHelper)
+        {
+            bool diagLauncherRunning = true;
+            do
+            {
+                await Task.Delay(10000);
+                var processesResponseMessage = await client.GetAsync("api/processes");
+                processesResponseMessage.EnsureSuccessStatusCode();
+
+                var processesResponse = await processesResponseMessage.Content.ReadAsStringAsync();
+                var processes = JsonConvert.DeserializeObject<KuduProcessEntry[]>(processesResponse);
+                diagLauncherRunning = processes.Any(p => p.name.ToLower().Contains("diaglauncher"));
+                outputHelper.WriteLine($"At {DateTime.UtcNow} diagLauncherRunning = {diagLauncherRunning}");
+            }
+            while (diagLauncherRunning);
+        }
     }
+
+    internal class KuduProcessEntry
+    {
+        public int id { get; set; }
+        public string name { get; set; }
+        public string machineName { get; set; }
+        public string href { get; set; }
+        public string user_name { get; set; }
+    }
+
 }

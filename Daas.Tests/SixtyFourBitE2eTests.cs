@@ -43,6 +43,7 @@ namespace Daas.Test
         {
             var session = await SessionTestHelpers.SubmitDiagLauncherSessionAsync("MemoryDump", "CollectAndAnalyze", Status.Complete, _client, _websiteClient, _output);
             await SessionTestHelpers.ValidateMemoryDumpAsync(session, _client);
+            await SessionTestHelpers.EnsureDiagLauncherFinishedAsync(_client, _output);
         }
 
         [Fact]
@@ -58,6 +59,7 @@ namespace Daas.Test
             }
 
             await SessionTestHelpers.ValidateProfilerAsync(session, _client);
+            await SessionTestHelpers.EnsureDiagLauncherFinishedAsync(_client, _output);
         }
 
         [Fact]
@@ -90,6 +92,8 @@ namespace Daas.Test
             }
 
             await SessionTestHelpers.ValidateMemoryDumpAsync(session, _client);
+
+            await SessionTestHelpers.EnsureDiagLauncherFinishedAsync(_client, _output);
         }
     }
 }
