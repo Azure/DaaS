@@ -243,20 +243,37 @@ namespace Daas.Tests
 
         internal static async Task<Session> GetActiveSessionAsync(HttpClient client, HttpClient webSiteClient, ITestOutputHelper outputHelper)
         {
-            var response = await client.PostAsJsonAsync("daas/sessions/active", string.Empty);
-            Assert.NotNull(response);
+            int retryCount = 5;
+            while (retryCount > 0)
+            {
+                try
+                {
+                    var response = await client.PostAsJsonAsync("daas/sessions/active", string.Empty);
+                    Assert.NotNull(response);
 
-            response.EnsureSuccessStatusCode();
-            string sessionResponse = await response.Content.ReadAsStringAsync();
+                    response.EnsureSuccessStatusCode();
+                    string sessionResponse = await response.Content.ReadAsStringAsync();
 
-            var activeSession = JsonConvert.DeserializeObject<Session>(sessionResponse);
-            var sessionId = activeSession.SessionId;
+                    var activeSession = JsonConvert.DeserializeObject<Session>(sessionResponse);
+                    var sessionId = activeSession.SessionId;
 
-            Assert.True(!string.IsNullOrWhiteSpace(sessionId));
+                    Assert.True(!string.IsNullOrWhiteSpace(sessionId));
 
-            var session = await GetSessionInformationAsync(sessionId, client, outputHelper);
-            Assert.NotNull(session);
-            return session;
+                    var session = await GetSessionInformationAsync(sessionId, client, outputHelper);
+                    Assert.NotNull(session);
+                    return session;
+                }
+                catch (Exception ex)
+                {
+                    --retryCount;
+                    if (retryCount == 0)
+                    {
+                        throw new Exception($"GetActiveSessionAsync failed with {ex}");
+                    }
+                }
+            }
+
+            throw new Exception("GetActiveSessionAsync failed");
         }
 
         internal static async Task StressTestWebAppAsync(int requestCount, HttpClient webSiteClient, ITestOutputHelper outputHelper)
@@ -306,7 +323,7 @@ namespace Daas.Tests
                 }
             }
 
-            throw new Exception($"GetMachineName failed");
+            throw new Exception("GetMachineName failed");
         }
 
         internal static async Task EnsureDiagLauncherFinishedAsync(HttpClient client, ITestOutputHelper outputHelper)
