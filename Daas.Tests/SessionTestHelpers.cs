@@ -48,11 +48,11 @@ namespace Daas.Tests
             string sessionId = JsonConvert.DeserializeObject<string>(sessionIdResponse);
 
             await Task.Delay(15000);
-            var session = await GetSessionInformationAsync(sessionId, _client, _output);
+            var session = await GetSessionInformationAsync(sessionId, client, outputHelper);
             while (session.Status == Status.Active)
             {
                 await Task.Delay(15000);
-                session = await GetSessionInformationAsync(sessionId, _client, _output);
+                session = await GetSessionInformationAsync(sessionId, client, outputHelper);
                 Assert.NotNull(session);
             }
 
@@ -283,15 +283,30 @@ namespace Daas.Tests
 
         private static async Task<string> GetMachineName(HttpClient client, ITestOutputHelper outputHelper)
         {
-            var machineResponseMessage = await client.PostAsJsonAsync("api/command", new { command = "hostname", dir = "site" });
-            machineResponseMessage.EnsureSuccessStatusCode();
+            int retryCount = 5;
+            while (retryCount > 0)
+            {
+                try
+                {
+                    outputHelper.WriteLine($"Retry Count = {retryCount}. Getting Machine name");
+                    var versionResponse = await client.GetAsync($"daas/api/v2/daasversion");
+                    versionResponse.EnsureSuccessStatusCode();
 
-            string machineNameResponse = await machineResponseMessage.Content.ReadAsStringAsync();
-            var apiCommandResponse = JsonConvert.DeserializeObject<ApiCommandResponse>(machineNameResponse);
-            string machineName = apiCommandResponse.Output;
-            machineName = machineName.Replace(Environment.NewLine, "");
-            outputHelper.WriteLine("Machine Name is " + machineName);
-            return machineName;
+                    string versionResponseString = await versionResponse.Content.ReadAsStringAsync();
+                    var versionInfo = JsonConvert.DeserializeObject<DaasVersionResponse>(versionResponseString);
+                    return versionInfo.Instance;
+                }
+                catch (Exception ex)
+                {
+                    --retryCount;
+                    if (retryCount == 0)
+                    {
+                        throw new Exception($"GetMachineName failed with {ex}");
+                    }
+                }
+            }
+
+            throw new Exception($"GetMachineName failed");
         }
 
         internal static async Task EnsureDiagLauncherFinishedAsync(HttpClient client, ITestOutputHelper outputHelper)
@@ -319,6 +334,19 @@ namespace Daas.Tests
         public string machineName { get; set; }
         public string href { get; set; }
         public string user_name { get; set; }
+    }
+
+
+    public class DaasVersionResponse
+    {
+        public string Version { get; set; }
+        public bool IsDaasRunnerRunning { get; set; }
+        public bool DaasWebJobStoppped { get; set; }
+        public bool DaasWebJobDisabled { get; set; }
+        public DateTime DaasRunnerStartDate { get; set; }
+        public string Instance { get; set; }
+        public string DaasConsoleVersion { get; set; }
+        public string DaasRunnerVersion { get; set; }
     }
 
 }
