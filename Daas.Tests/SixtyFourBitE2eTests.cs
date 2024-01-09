@@ -97,5 +97,12 @@ namespace Daas.Test
 
             await SessionTestHelpers.EnsureDiagLauncherFinishedAsync(_client, _output);
         }
+
+        [Fact]
+        public async Task SubmitProfilerSessionV2()
+        {
+            var session = await SessionTestHelpers.SubmitNewSession("Profiler with Thread Stacks", _client, _websiteClient, _output, isV2Session: true);
+            await SessionTestHelpers.ValidateProfilerAsync(session, _client);
+        }
     }
 }

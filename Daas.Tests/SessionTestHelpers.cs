@@ -23,7 +23,7 @@ namespace Daas.Tests
 {
     internal class SessionTestHelpers
     {
-        internal static async Task<Session> SubmitNewSession(string diagnosticTool, HttpClient client, HttpClient webSiteClient, ITestOutputHelper outputHelper)
+        internal static async Task<Session> SubmitNewSession(string diagnosticTool, HttpClient client, HttpClient webSiteClient, ITestOutputHelper outputHelper, bool isV2Session = false)
         {
             var warmupMessage = await EnsureSiteWarmedUpAsync(webSiteClient);
             outputHelper.WriteLine("Warmup message is: " + warmupMessage);
@@ -35,7 +35,7 @@ namespace Daas.Tests
                 Instances = new List<string> { machineName }
             };
 
-            var response = await client.PostAsJsonAsync("daas/sessions", newSession);
+            var response = await client.PostAsJsonAsync(isV2Session ? "daas/sessionsV2" : "daas/sessions", newSession);
             Assert.NotNull(response);
 
             Assert.Equal(System.Net.HttpStatusCode.Accepted, response.StatusCode);

@@ -111,7 +111,7 @@ namespace Daas.Test
             foreach (var file in knownFiles)
             {
                 _output.WriteLine($"Checking for file {file}");
-                //var resp = await _client.GetAsync($"api/vfs/SystemDrive/Program%20Files%20(x86)/SiteExtensions/DaaS/4.0.24116.01/{file}");
+                //var resp = await _client.GetAsync($"api/vfs/SystemDrive/Program%20Files%20(x86)/SiteExtensions/DaaS/9.0.24117.02/{file}");
                 var resp = await _client.GetAsync($"api/vfs/siteextensions/daas/{file}");
                 Assert.True(resp.IsSuccessStatusCode);
             }
@@ -121,6 +121,13 @@ namespace Daas.Test
         public async Task SubmitMemoryDumpSession()
         {
             var session = await SessionTestHelpers.SubmitNewSession("MemoryDump", _client, _websiteClient, _output);
+            await SessionTestHelpers.ValidateMemoryDumpAsync(session, _client);
+        }
+
+        [Fact]
+        public async Task SubmitMemoryDumpSessionV2()
+        {
+            var session = await SessionTestHelpers.SubmitNewSession("MemoryDump", _client, _websiteClient, _output, isV2Session: true);
             await SessionTestHelpers.ValidateMemoryDumpAsync(session, _client);
         }
 

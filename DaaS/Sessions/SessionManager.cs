@@ -133,7 +133,7 @@ namespace DaaS.Sessions
             // Acquire lock on the Active Session file
             //
 
-            var activeSessionLock = AcquireActiveSessionLock(isV2Session);
+            var activeSessionLock = await AcquireActiveSessionLockAsync(isV2Session);
             if (activeSessionLock == null)
             {
                 //
@@ -158,7 +158,21 @@ namespace DaaS.Sessions
                 }
                 else
                 {
-                    existingSessionMessage = $"Existing session '{existingActiveSession.SessionId}' for '{existingActiveSession.Tool}' found";
+                    if (isV2Session && IsSameSession(session, existingActiveSession))
+                    {
+                        //
+                        // For V2 sessions, multiple instances will try to submit the same session.
+                        // If we find an existing active session with the same session id, we will
+                        // assume that it is the same session. Also do not return here, make sure
+                        // that the active session lock gets released.
+                        //
+
+                        sessionId = existingActiveSession.SessionId;
+                    }
+                    else
+                    {
+                        existingSessionMessage = $"Existing session '{existingActiveSession.SessionId}' for '{existingActiveSession.Tool}' found";
+                    }
                 }
 
             }
@@ -1333,15 +1347,44 @@ namespace DaaS.Sessions
             return sessionLock;
         }
 
-        private IOperationLock AcquireActiveSessionLock(bool isV2Session)
+        private async Task<IOperationLock> AcquireActiveSessionLockAsync(bool isV2Session)
         {
             string lockFilePath = Path.Combine(isV2Session ? SessionDirectories.ActiveSessionsV2Dir: SessionDirectories.ActiveSessionsDir, "activesession.json.lock");
             IOperationLock sessionLock = new SessionLockFile(lockFilePath);
-            Logger.LogSessionVerboseEvent($"Acquiring ActiveSessionLock by AcquireActiveSessionLock", "NEW_SESSION_ID");
-            if (sessionLock.Lock("AcquireActiveSessionLock"))
+            if (isV2Session)
             {
-                Logger.LogSessionVerboseEvent($"Acquired ActiveSessionLock by AcquireActiveSessionLock", "NEW_SESSION_ID");
+                //
+                // For V2 sessions, multiple instances will attempt to Create the session at the same time.
+                // Introduce some delay to ensure that we allow the Submit session call to succeed
+                //
+
+                int loopCount = 0;
+                Logger.LogSessionVerboseEvent($"Acquiring ActiveSessionLock by AcquireActiveSessionLock", "NEW_SESSION_ID");
+                while (!sessionLock.Lock("AcquireActiveSessionLock") && loopCount <= 10)
+                {
+                    ++loopCount;
+                    Logger.LogSessionVerboseEvent($"Waiting to aquire ActiveSessionLock", "NEW_SESSION_ID");
+                    await Task.Delay(1000);
+                }
+
+                if (loopCount > 10)
+                {
+                    Logger.LogSessionVerboseEvent($"Deleting the lock file as it seems to be in an orphaned stage", "NEW_SESSION_ID");
+                    sessionLock.Release();
+                    return null;
+                }
+
+                Logger.LogSessionVerboseEvent($"Acquiring ActiveSessionLock by AcquireActiveSessionLock", "NEW_SESSION_ID");
                 return sessionLock;
+            }
+            else
+            {
+                Logger.LogSessionVerboseEvent($"Acquiring ActiveSessionLock by AcquireActiveSessionLock", "NEW_SESSION_ID");
+                if (sessionLock.Lock("AcquireActiveSessionLock"))
+                {
+                    Logger.LogSessionVerboseEvent($"Acquired ActiveSessionLock by AcquireActiveSessionLock", "NEW_SESSION_ID");
+                    return sessionLock;
+                }
             }
 
             return null;
