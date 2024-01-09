@@ -239,11 +239,11 @@ steps:
       $CreateWebApp = {
         param([string] $siteName, [string] $storageSasUrl, [string] $kuduEndpointVariableName, [string] $additionalParams)
 
-          Write-Host "[$siteName] Creating Web App"
+          Write-Host "[$(Get-Date -format 'O')][$siteName] Creating Web App"
           New-AzWebApp -Name $siteName -ResourceGroupName $Env:RESOURCE_GROUP -Location $Env:LOCATION -AppServicePlan "DEVOPSTESTPLAN" | Out-Null
           Set-AzWebApp -Name $siteName -ResourceGroupName $Env:RESOURCE_GROUP -AlwaysOn $true | Out-Null
 
-          Write-Host "[$siteName] Adding AppSettings for WebApp"
+          Write-Host "[$(Get-Date -format 'O')][$siteName] Adding AppSettings for WebApp"
           $setting=@{"MSBUILD_PATH"="%MSBUILD_15_DIR%\\msbuild.exe";"WEBSITE_DAAS_STORAGE_SASURI"= "$storageSasUrl";"WEBSITE_DAAS_STORAGE_RESOURCEID"= "/resource/subscriptions/6b6db65f-680e-4650-b97d-e82ed6a0f583/resourceGroups/DAAS-DevOps-Testing/providers/Microsoft.Storage/storageAccounts/daasdevopsstorage"}
           Set-AzWebApp -AppSettings $setting -Name $siteName -ResourceGroupName $Env:RESOURCE_GROUP | Out-Null
 
@@ -252,11 +252,11 @@ steps:
           $accessToken = (Get-AzAccessToken).Token
           $authorizationHeader = "Bearer " + $accessToken
 
-          Write-Host ("[$siteName] KuduEndpoint = " + $kuduEndpoint + ". Going to upload SiteExtension bits now")
+          Write-Host ("[$(Get-Date -format 'O')][$siteName] KuduEndpoint = " + $kuduEndpoint + ". Going to upload SiteExtension bits now")
 
           if ($additionalParams -eq "JAVA"){
             #$version = GetHighestJavaVersion
-            #Write-Host "[$siteName] Found Java Version = " +  $version[0] + " " + $version[1] + " " + $version[2]
+            #Write-Host "[$(Get-Date -format 'O')][$siteName] Found Java Version = " +  $version[0] + " " + $version[1] + " " + $version[2]
 
             $Resource = Get-AzResource -ResourceType Microsoft.Web/sites -ResourceGroupName $Env:RESOURCE_GROUP -ResourceName $siteName
             $Resource.Properties.SiteConfig.JavaVersion = "17"
@@ -269,9 +269,9 @@ steps:
           }
 
           if ($additionalParams -eq "X64"){
-            Write-Host ("[$siteName] Setting bitness to x64")
+            Write-Host ("[$(Get-Date -format 'O')][$siteName] Setting bitness to x64")
             Set-AzWebApp -Name $siteName -ResourceGroupName $Env:RESOURCE_GROUP -Use32BitWorkerProcess $false | Out-Null
-            Write-Host ("[$siteName] Adding Auto-Heal settings")
+            Write-Host ("[$(Get-Date -format 'O')][$siteName] Adding Auto-Heal settings")
             $autohealRules = @{
             triggers=@{requests=@{count=50;timeInterval="00:02:00"}};
             actions=@{actionType="CustomAction";customAction=@{exe="`"%WEBSITE_DAAS_DIAG_LAUNCHER%`"";parameters="-m CollectKillAnalyze -t MemoryDump"}};
@@ -284,7 +284,7 @@ steps:
           }
 
           if ($additionalParams -eq "DOTNET"){
-            Write-Host ("[$siteName] Adding Auto-Heal settings")
+            Write-Host ("[$(Get-Date -format 'O')][$siteName] Adding Auto-Heal settings")
             $autohealRulesDotNet = @{
             triggers=@{requests=@{count=50;timeInterval="00:02:00"}};
             actions=@{actionType="CustomAction";customAction=@{exe="`"%WEBSITE_DAAS_DIAG_LAUNCHER%`"";parameters="-m CollectAndAnalyze -t Profiler"}};
@@ -313,15 +313,15 @@ steps:
               -ContentType "multipart/form-data" | Out-Null
             
             $sw.Stop()
-            Write-Host ("[$siteName] Uploaded site extension in " + $sw.Elapsed)
+            Write-Host ("[$(Get-Date -format 'O')][$siteName] Uploaded site extension in " + $sw.Elapsed)
           }
           catch {
-            Write-Host "[$siteName] Encountered " + $_.Exception.Response.StatusCode + " while uploading DaaS site extension"
+            Write-Host "[$(Get-Date -format 'O')][$siteName] Encountered " + $_.Exception.Response.StatusCode + " while uploading DaaS site extension"
           }
 
           # Invoke a Site change notification by adding a dummy app setting
 
-          Write-Host "[$siteName] Add dummy app setting"
+          Write-Host "[$(Get-Date -format 'O')][$siteName] Add dummy app setting"
           $currentAppSettings = Get-AzWebApp -ResourceGroupName $Env:RESOURCE_GROUP -Name $siteName | Select-Object -ExpandProperty SiteConfig
           $newAppSettings =@{"foo"="bar"}
           foreach($item in $currentAppSettings.AppSettings){
@@ -333,7 +333,7 @@ steps:
           Start-Sleep -Seconds 60
 
           # Warmup the DaaS site
-          Write-Host "[$siteName] Checking DaaS version"
+          Write-Host "[$(Get-Date -format 'O')][$siteName] Checking DaaS version"
           $retryCount = 0;
           $succeeded = $false
           while( ($retryCount -lt 5) -and ($succeeded -eq $false))
@@ -343,20 +343,20 @@ steps:
               $DaaSVersion = Invoke-RestMethod -Uri "https://$kuduEndpoint/daas/api/v2/daasversion" `
               -Headers @{"Authorization"=$authorizationHeader;"If-Match"="*"}
           
-              Write-Host ("[$siteName] DaasVersion is " + $DaaSVersion)
+              Write-Host ("[$(Get-Date -format 'O')][$siteName] DaasVersion is " + $DaaSVersion)
               $succeeded = $true
             }
             catch 
             {
-              Write-Host "[$siteName] StatusCode: " $_.Exception.Response.StatusCode.value__
-              Write-Host "[$siteName] StatusDescription:" $_.Exception.Response.StatusDescription
+              Write-Host "[$(Get-Date -format 'O')][$siteName] StatusCode: " $_.Exception.Response.StatusCode.value__
+              Write-Host "[$(Get-Date -format 'O')][$siteName] StatusDescription:" $_.Exception.Response.StatusDescription
               $retryCount++
             }
           }
 
           if ($succeeded -eq $false)
           {
-            throw "[$siteName] Call to get DaaS Version failed"
+            throw "[$(Get-Date -format 'O')][$siteName] Call to get DaaS Version failed"
           }
           
           Write-Host "##vso[task.setvariable variable=$kuduEndpointVariableName]$kuduEndpoint"
@@ -390,9 +390,9 @@ steps:
       $sasUrl = New-AzStorageAccountSASToken -Context $storageAccount.context -Service Blob,Table,Queue -ResourceType Container,Object -Permission "acdlpruw" -ExpiryTime (Get-Date).AddDays(1)
       $sasUrl = "https://daasdevopsstorage.blob.core.windows.net/memorydumps" + $sasurl
 
-      Start-Job -Name DOTNETSITE -ScriptBlock $CreateWebApp -ArgumentList ($siteName, $sasUrl, "KUDU_ENDPOINT", "DOTNET")
-      Start-Job -Name JAVASITE -ScriptBlock $CreateWebApp -ArgumentList ($siteNameJava , $sasUrl, "KUDU_ENDPOINT_JAVA", "JAVA")
-      Start-Job -Name DOTNET64BIT -ScriptBlock $CreateWebApp -ArgumentList ($siteNameX64, $sasUrl, "KUDU_ENDPOINT_X64", "X64")
+      Start-Job -Name DOTNETSITE -ScriptBlock $CreateWebApp -ArgumentList ($siteName, $sasUrl, "KUDU_ENDPOINT", "DOTNET") | Out-Null
+      Start-Job -Name JAVASITE -ScriptBlock $CreateWebApp -ArgumentList ($siteNameJava , $sasUrl, "KUDU_ENDPOINT_JAVA", "JAVA") | Out-Null
+      Start-Job -Name DOTNET64BIT -ScriptBlock $CreateWebApp -ArgumentList ($siteNameX64, $sasUrl, "KUDU_ENDPOINT_X64", "X64") | Out-Null
 
       Receive-Job -Wait -AutoRemoveJob -Name DOTNETSITE
       Receive-Job -Wait -AutoRemoveJob -Name JAVASITE
