@@ -23,7 +23,7 @@ namespace Daas.Tests
 {
     internal class SessionTestHelpers
     {
-        internal static async Task<Session> SubmitNewSession(string diagnosticTool, HttpClient client, HttpClient webSiteClient, ITestOutputHelper outputHelper)
+        internal static async Task<Session> SubmitNewSession(string diagnosticTool, HttpClient client, HttpClient webSiteClient, ITestOutputHelper outputHelper, bool isV2Session = false)
         {
             var warmupMessage = await EnsureSiteWarmedUpAsync(webSiteClient);
             outputHelper.WriteLine("Warmup message is: " + warmupMessage);
@@ -35,7 +35,7 @@ namespace Daas.Tests
                 Instances = new List<string> { machineName }
             };
 
-            var response = await client.PostAsJsonAsync("daas/sessions", newSession);
+            var response = await client.PostAsJsonAsync(isV2Session ? "daas/sessionsV2" : "daas/sessions", newSession);
             Assert.NotNull(response);
 
             Assert.Equal(System.Net.HttpStatusCode.Accepted, response.StatusCode);
@@ -248,10 +248,17 @@ namespace Daas.Tests
             {
                 try
                 {
+                    outputHelper.WriteLine($"retryCount = {retryCount}. Getting Active session at  {DateTime.UtcNow:O}");
                     var response = await client.PostAsJsonAsync("daas/sessions/active", string.Empty);
                     Assert.NotNull(response);
 
                     response.EnsureSuccessStatusCode();
+                    if (response.Content == null)
+                    {
+                        outputHelper.WriteLine($"retryCount = {retryCount}. response.Content is NULL");
+                        return null;
+                    }
+
                     string sessionResponse = await response.Content.ReadAsStringAsync();
 
                     var activeSession = JsonConvert.DeserializeObject<Session>(sessionResponse);
@@ -270,6 +277,8 @@ namespace Daas.Tests
                     {
                         throw new Exception($"GetActiveSessionAsync failed with {ex}");
                     }
+
+                    await Task.Delay(2000);
                 }
             }
 
@@ -294,8 +303,8 @@ namespace Daas.Tests
 
         private static void MakeSiteRequest(HttpClient webSiteClient, ITestOutputHelper outputHelper)
         {
-            _ = webSiteClient.GetAsync("/").Result;
-            outputHelper.WriteLine("Request Completed at " + DateTime.UtcNow);
+            var response = webSiteClient.GetAsync("/").Result;
+            outputHelper.WriteLine($"Request completed with {response.StatusCode} at {DateTime.UtcNow:O}");
         }
 
         private static async Task<string> GetMachineName(HttpClient client, ITestOutputHelper outputHelper)

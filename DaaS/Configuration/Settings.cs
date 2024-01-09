@@ -6,13 +6,12 @@
 // -----------------------------------------------------------------------
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Text.RegularExpressions;
-using Azure.Storage;
 using Azure.Storage.Blobs;
 using Azure.Storage.Sas;
 using Newtonsoft.Json;
@@ -34,8 +33,7 @@ namespace DaaS.Configuration
         private string _diagnosticToolsPath;
         private bool? _isSandboxAvailable;
         private string _siteName;
-        private readonly Dictionary<string, StorageAccountConfiguration> _blobStorageConnectionStrings = new Dictionary<string, StorageAccountConfiguration>();
-        private readonly Dictionary<string, string> _queueStorageConnectionStrings = new Dictionary<string, string>();
+        private static readonly ConcurrentDictionary<string, StorageAccountConfiguration> _blobStorageConnectionStrings = new ConcurrentDictionary<string, StorageAccountConfiguration>();
 
         private static string _instanceName;
         private string _tempDir;
@@ -445,15 +443,20 @@ namespace DaaS.Configuration
             }
 
             string sasUri = GenerateBlobSasUri(connectionString);
-            _blobStorageConnectionStrings[connectionString] = new StorageAccountConfiguration()
+            Logger.LogVerboseEvent($"Generated new SAS URI for connectionString");
+
+            var dictValue = new StorageAccountConfiguration()
             {
                 DateAdded = new DateTimeOffset(DateTime.UtcNow),
                 SasUri = sasUri
             };
 
-            Logger.LogVerboseEvent($"Generated new SAS URI for connectionString at {_blobStorageConnectionStrings[connectionString].DateAdded }");
-            return _blobStorageConnectionStrings[connectionString].SasUri;
+            if (_blobStorageConnectionStrings.TryAdd(connectionString, dictValue))
+            {
+                Logger.LogVerboseEvent($"Updated cache for SAS URI for connectionString at {_blobStorageConnectionStrings[connectionString].DateAdded}");
+            }
 
+            return sasUri;
         }
 
         //private static string GenerateBlobSasUri(string connectionString)

@@ -6,16 +6,12 @@
 // -----------------------------------------------------------------------
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using Azure.Core;
 using Daas.Tests;
 using DaaS.Sessions;
 using DiagnosticsExtension.Controllers;
-using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using Xunit;
 using Xunit.Abstractions;
@@ -124,6 +120,13 @@ namespace Daas.Test
             await SessionTestHelpers.ValidateMemoryDumpAsync(session, _client);
         }
 
+        [Fact]
+        public async Task SubmitMemoryDumpSessionV2()
+        {
+            var session = await SessionTestHelpers.SubmitNewSession("MemoryDump", _client, _websiteClient, _output, isV2Session: true);
+            await SessionTestHelpers.ValidateMemoryDumpAsync(session, _client);
+        }
+
 
         [Fact]
         public async Task SubmitProfilerSession()
@@ -203,15 +206,16 @@ namespace Daas.Test
 
             await SessionTestHelpers.StressTestWebAppAsync(requestCount: 55, _websiteClient, _output);
 
-            await Task.Delay(5000);
+            await Task.Delay(20000);
 
             var session = await SessionTestHelpers.GetActiveSessionAsync(_client, _websiteClient, _output);
+            Assert.NotNull(session);
+
             var sessionId = session.SessionId;
             while (session.Status == Status.Active)
             {
-                await Task.Delay(5000);
+                await Task.Delay(15000);
                 session = await SessionTestHelpers.GetSessionInformationAsync(sessionId, _client, _output);
-                Assert.NotNull(session);
             }
 
             await SessionTestHelpers.ValidateProfilerAsync(session, _client);

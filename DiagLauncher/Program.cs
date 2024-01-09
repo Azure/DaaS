@@ -54,6 +54,11 @@ namespace DiagLauncher
             }
             else
             {
+                if (!string.IsNullOrWhiteSpace(options.SessionId))
+                {
+                    Logger.LogSessionVerboseEvent("DiagLauncher started", options.SessionId);
+                }
+
                 Stopwatch sw = new Stopwatch();
                 sw.Start();
                 var sessionId = CollectLogsAndTakeActions(options.Tool, options.Mode, options.ToolParams, options.SessionId);
@@ -207,6 +212,8 @@ namespace DiagLauncher
                 EventLog.WriteEntry("Application", $"DiagLauncher started with {detailsString} ", EventLogEntryType.Information);
             }
 
+            Logger.LogSessionVerboseEvent($"DiagLauncher started for session on instance {Environment.MachineName}", sessionId);
+
             bool queueAnalysisRequest = mode == "CollectKillAnalyze";
             if (queueAnalysisRequest)
             {
@@ -214,7 +221,7 @@ namespace DiagLauncher
                 CopyDaasRunnerIfNeeded(sessionId);
             }
 
-            _ = _sessionManager.RunActiveSessionAsync(queueAnalysisRequest, cts.Token);
+            _sessionManager.RunActiveSessionAsync(queueAnalysisRequest, cts.Token);
 
             WaitForSessionCompletion(sessionId, queueAnalysisRequest);
             return sessionId;

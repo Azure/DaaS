@@ -81,10 +81,14 @@ namespace Daas.Test
             // }
 
             await SessionTestHelpers.StressTestWebAppAsync(requestCount: 55, _websiteClient, _output);
+            _output.WriteLine("Stess test completed at " + DateTime.UtcNow.ToString("O"));
 
-            await Task.Delay(30000);
+            await Task.Delay(15000);
 
+            _output.WriteLine("Getting Active session at " + DateTime.UtcNow.ToString("O"));
             var session = await SessionTestHelpers.GetActiveSessionAsync(_client, _websiteClient, _output);
+            Assert.NotNull(session);
+
             var sessionId = session.SessionId;
             while (session.Status == Status.Active)
             {
@@ -96,6 +100,13 @@ namespace Daas.Test
             await SessionTestHelpers.ValidateMemoryDumpAsync(session, _client);
 
             await SessionTestHelpers.EnsureDiagLauncherFinishedAsync(_client, _output);
+        }
+
+        [Fact]
+        public async Task SubmitProfilerSessionV2()
+        {
+            var session = await SessionTestHelpers.SubmitNewSession("Profiler with Thread Stacks", _client, _websiteClient, _output, isV2Session: true);
+            await SessionTestHelpers.ValidateProfilerAsync(session, _client);
         }
     }
 }

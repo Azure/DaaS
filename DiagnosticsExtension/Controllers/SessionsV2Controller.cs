@@ -10,6 +10,7 @@ using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Web.Http;
+using DaaS;
 using DaaS.Sessions;
 
 namespace DiagnosticsExtension.Controllers
@@ -62,6 +63,7 @@ namespace DiagnosticsExtension.Controllers
 
         private void StartDiagLauncher(Session session, string sessionId)
         {
+            Logger.LogSessionVerboseEvent($"Starting DiagLauncher for session on instance {Environment.MachineName}", sessionId);
             string args = $" --sessionId {sessionId}";
             _sessionManager.StartDiagLauncher(args, sessionId, session.Description);
         }
