@@ -248,9 +248,9 @@ namespace Daas.Tests
             {
                 try
                 {
-                    outputHelper.WriteLine($"retryCount = {retryCount}. Getting Active session at  {DateTime.UtcNow:O}");
                     var response = await client.PostAsJsonAsync("daas/sessions/active", string.Empty);
                     Assert.NotNull(response);
+                    outputHelper.WriteLine($"retryCount = {retryCount}. Get Active session at  {DateTime.UtcNow:O} and response code is {response.StatusCode}");
 
                     response.EnsureSuccessStatusCode();
                     if (response.Content == null)

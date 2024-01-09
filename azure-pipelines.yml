@@ -297,6 +297,8 @@ steps:
           }
 
 
+          Start-Sleep -Seconds 60
+
           $kuduApiUrl = "https://$kuduEndpoint/api/zip/SiteExtensions/DaaS/"
           try {
           
