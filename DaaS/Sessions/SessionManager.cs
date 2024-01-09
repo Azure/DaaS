@@ -27,7 +27,7 @@ namespace DaaS.Sessions
 
         private static readonly AlertingStorageQueue _alertingStorageQueue = new AlertingStorageQueue();
         private static IOperationLock _sessionLockFile;
-        
+
         private readonly IStorageService _storageService;
 
         private readonly List<string> _allSessionsDirs = new List<string>()
@@ -48,7 +48,7 @@ namespace DaaS.Sessions
 
         public async Task<Session> GetActiveSessionAsync(bool isV2Session, bool isDetailed = false)
         {
-            var activeSessions = await LoadSessionsAsync(isV2Session ? SessionDirectories.ActiveSessionsV2Dir : SessionDirectories.ActiveSessionsDir, isDetailed);
+            var activeSessions = await LoadSessionsAsync(isV2Session ? SessionDirectories.ActiveSessionsV2Dir : SessionDirectories.ActiveSessionsDir, isDetailed, shouldRetry: true);
             var activeSession = activeSessions.FirstOrDefault();
             return activeSession;
         }
@@ -60,7 +60,7 @@ namespace DaaS.Sessions
                 return;
             }
 
-           if (CheckIfTimeLimitExceeded(activeSession))
+            if (CheckIfTimeLimitExceeded(activeSession))
             {
                 Logger.LogSessionErrorEvent("Allowed time limit exceeded for the session", $"Session was started at {activeSession.StartTime}", activeSession.SessionId);
                 await MarkSessionAsCompleteAsync(activeSession, isV2Session: true, forceCompletion: true);
@@ -206,7 +206,7 @@ namespace DaaS.Sessions
             }
 
             var currentInstance = activeSession.ActiveInstances.FirstOrDefault(x => x.Name.Equals(Environment.MachineName, StringComparison.OrdinalIgnoreCase));
-            if (currentInstance != null 
+            if (currentInstance != null
                 && (currentInstance.Status == Status.AnalysisQueued || currentInstance.Status == Status.Analyzing))
             {
                 return true;
@@ -450,7 +450,7 @@ namespace DaaS.Sessions
                 activeSession.Instances.Any(x => x.Equals(Infrastructure.GetInstanceId(), StringComparison.OrdinalIgnoreCase)))
             {
                 var activeInstance = activeSession.GetCurrentInstance();
-                if (activeInstance != null )
+                if (activeInstance != null)
                 {
                     if (activeInstance.Status == Status.AnalysisQueued)
                     {
@@ -547,7 +547,7 @@ namespace DaaS.Sessions
             try
             {
                 await _storageService.DeleteFileAsync(log.PartialPath);
-                
+
             }
             catch (Exception ex)
             {
@@ -745,7 +745,7 @@ namespace DaaS.Sessions
         private async Task<List<string>> CacheLogsToTempFolderAsync(List<LogFile> collectedLogs, string sessionId, bool requiresStorageAccount)
         {
             var errors = new List<string>();
-            foreach(var log in collectedLogs)
+            foreach (var log in collectedLogs)
             {
                 if (File.Exists(log.TempPath))
                 {
@@ -1011,7 +1011,7 @@ namespace DaaS.Sessions
         {
             try
             {
-                _sessionLockFile = await AcquireSessionLockAsync(sessionId,isV2Session, callerMethodName);
+                _sessionLockFile = await AcquireSessionLockAsync(sessionId, isV2Session, callerMethodName);
 
                 if (_sessionLockFile == null)
                 {
@@ -1054,12 +1054,12 @@ namespace DaaS.Sessions
             }
         }
 
-        private async Task<List<Session>> LoadSessionsAsync(string directoryToLoadSessionsFrom, bool isDetailed = false)
+        private async Task<List<Session>> LoadSessionsAsync(string directoryToLoadSessionsFrom, bool isDetailed = false, bool shouldRetry = false)
         {
-            return await LoadSessionsAsync(new List<string> { directoryToLoadSessionsFrom }, isDetailed);
+            return await LoadSessionsAsync(new List<string> { directoryToLoadSessionsFrom }, isDetailed, shouldRetry);
         }
 
-        private async Task<List<Session>> LoadSessionsAsync(List<string> directoriesToLoadSessionsFrom, bool isDetailed = false)
+        private async Task<List<Session>> LoadSessionsAsync(List<string> directoriesToLoadSessionsFrom, bool isDetailed = false, bool shouldRetry = false)
         {
             EnsureSessionDirectories();
             var sessions = new List<Session>();
@@ -1070,7 +1070,7 @@ namespace DaaS.Sessions
                 {
                     foreach (var sessionFile in FileSystemHelpers.GetFiles(directory, "*.json", SearchOption.TopDirectoryOnly))
                     {
-                        await LoadSingleSessionAsync(isDetailed, sessions, sessionFile);
+                        await LoadSingleSessionAsync(isDetailed, sessions, sessionFile, shouldRetry);
                     }
                 }
             }
@@ -1082,11 +1082,23 @@ namespace DaaS.Sessions
             return sessions;
         }
 
-        private async Task LoadSingleSessionAsync(bool isDetailed, List<Session> sessions, string sessionFile)
+        private async Task LoadSingleSessionAsync(bool isDetailed, List<Session> sessions, string sessionFile, bool shouldRetry)
         {
             try
             {
-                var session = await FromJsonFileAsync<Session>(sessionFile);
+                Session session = null;
+                if (shouldRetry)
+                {
+                    await RetryHelper.RetryOnExceptionAsync(5, TimeSpan.FromSeconds(1), async () =>
+                    {
+                        session = await FromJsonFileAsync<Session>(sessionFile);
+                    });
+                }
+                else
+                {
+                    session = await FromJsonFileAsync<Session>(sessionFile);
+                }
+
                 if (IncludeSasUri)
                 {
                     UpdateRelativePathForLogs(session);
@@ -1117,7 +1129,7 @@ namespace DaaS.Sessions
             }
             catch (Exception ex)
             {
-                Logger.LogWarningEvent($"Failed while loading session - {Path.GetFileName(sessionFile)}", ex);
+                Logger.LogWarningEvent($"Failed while loading session - {Path.GetFileName(sessionFile)}. RetryCount = {retryCount}", ex);
             }
         }
 
@@ -1349,7 +1361,7 @@ namespace DaaS.Sessions
 
         private async Task<IOperationLock> AcquireActiveSessionLockAsync(bool isV2Session)
         {
-            string lockFilePath = Path.Combine(isV2Session ? SessionDirectories.ActiveSessionsV2Dir: SessionDirectories.ActiveSessionsDir, "activesession.json.lock");
+            string lockFilePath = Path.Combine(isV2Session ? SessionDirectories.ActiveSessionsV2Dir : SessionDirectories.ActiveSessionsDir, "activesession.json.lock");
             IOperationLock sessionLock = new SessionLockFile(lockFilePath);
             if (isV2Session)
             {
@@ -1392,11 +1404,11 @@ namespace DaaS.Sessions
 
         private async Task UpdateActiveSessionFileAsync(Session activeSesion, bool isV2Session)
         {
-          await WriteJsonAsync(
-                activeSesion,
-                Path.Combine(
-                    isV2Session ? SessionDirectories.ActiveSessionsV2Dir : SessionDirectories.ActiveSessionsDir,
-                    activeSesion.SessionId + ".json"));
+            await WriteJsonAsync(
+                  activeSesion,
+                  Path.Combine(
+                      isV2Session ? SessionDirectories.ActiveSessionsV2Dir : SessionDirectories.ActiveSessionsDir,
+                      activeSesion.SessionId + ".json"));
         }
 
         private string GetActiveSessionLockPath(string sessionId, bool isV2Session)
@@ -1539,7 +1551,11 @@ namespace DaaS.Sessions
                 //
 
                 Logger.LogSessionVerboseEvent($"Moving session file to completed folder", sessionId);
-                FileSystemHelpers.MoveFile(activeSessionFile, completedSessionFile);
+
+                RetryHelper.RetryOnException("Moving session file to completed folder", () =>
+                {
+                    FileSystemHelpers.MoveFile(activeSessionFile, completedSessionFile);
+                }, TimeSpan.FromSeconds(1), 5);
 
                 //
                 // Clean-up the lock file from the Active session folder
@@ -1616,7 +1632,7 @@ namespace DaaS.Sessions
             else
             {
                 Logger.LogSessionWarningEvent(
-                   $"Current instance [{Environment.MachineName}] is not part of the active session instances ({ GetSessionInstances(activeSession) })",
+                   $"Current instance [{Environment.MachineName}] is not part of the active session instances ({GetSessionInstances(activeSession)})",
                    "This session does not belong to this instance",
                    activeSession.SessionId);
             }
@@ -1653,7 +1669,7 @@ namespace DaaS.Sessions
             string diagLauncherPath = GetDiagLauncherPath();
             string processName = Path.GetFileNameWithoutExtension(diagLauncherPath);
 
-            Process[] processes = processId ==  -1 ? Process.GetProcesses() : Process.GetProcesses().Where(x => x.Id != processId).ToArray();
+            Process[] processes = processId == -1 ? Process.GetProcesses() : Process.GetProcesses().Where(x => x.Id != processId).ToArray();
             foreach (var process in processes)
             {
                 string processPath = process.GetMainModuleFileName();

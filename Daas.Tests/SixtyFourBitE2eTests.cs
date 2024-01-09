@@ -81,9 +81,11 @@ namespace Daas.Test
             // }
 
             await SessionTestHelpers.StressTestWebAppAsync(requestCount: 55, _websiteClient, _output);
+            _output.WriteLine("Stess test completed at " + DateTime.UtcNow.ToString("O"));
 
             await Task.Delay(15000);
 
+            _output.WriteLine("Getting Active session at " + DateTime.UtcNow.ToString("O"));
             var session = await SessionTestHelpers.GetActiveSessionAsync(_client, _websiteClient, _output);
             Assert.NotNull(session);
 

@@ -6,16 +6,12 @@
 // -----------------------------------------------------------------------
 
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using Azure.Core;
 using Daas.Tests;
 using DaaS.Sessions;
 using DiagnosticsExtension.Controllers;
-using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using Xunit;
 using Xunit.Abstractions;
