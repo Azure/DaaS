@@ -1129,7 +1129,7 @@ namespace DaaS.Sessions
             }
             catch (Exception ex)
             {
-                Logger.LogWarningEvent($"Failed while loading session - {Path.GetFileName(sessionFile)}. RetryCount = {retryCount}", ex);
+                Logger.LogWarningEvent($"Failed while loading session - {Path.GetFileName(sessionFile)}", ex);
             }
         }
 
