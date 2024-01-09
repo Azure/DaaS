@@ -10,7 +10,6 @@ using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
 using System.Web.Http;
-using System.Web.Http.Results;
 using DaaS.Sessions;
 
 namespace DiagnosticsExtension.Controllers
@@ -59,34 +58,57 @@ namespace DiagnosticsExtension.Controllers
         [Route("list")]
         public async Task<IHttpActionResult> ListSessions()
         {
-            return Ok(await _sessionManager.GetAllSessionsAsync(isDetailed: true));
+            try
+            {
+                return Ok(await _sessionManager.GetAllSessionsAsync(isDetailed: true));
+            }
+            catch (Exception ex)
+            {
+
+                return ResponseMessage(Request.CreateErrorResponse(HttpStatusCode.InternalServerError, ex.Message));
+            }
         }
 
         [HttpPost]
         [Route("active")]
         public async Task<IHttpActionResult> GetActiveSession()
         {
-            var activeSession = await _sessionManager.GetActiveSessionAsync(isV2Session: false, isDetailed: true);
-            if (activeSession == null)
+            try
             {
-                activeSession = await _sessionManager.GetActiveSessionAsync(isV2Session: true, isDetailed: true);
-                await _sessionManager.CheckIfOrphaningOrTimeoutNeededAsync(activeSession);
-            }
+                var activeSession = await _sessionManager.GetActiveSessionAsync(isV2Session: false, isDetailed: true);
+                if (activeSession == null)
+                {
+                    activeSession = await _sessionManager.GetActiveSessionAsync(isV2Session: true, isDetailed: true);
+                    await _sessionManager.CheckIfOrphaningOrTimeoutNeededAsync(activeSession);
+                }
 
-            return Ok(activeSession);
+                return Ok(activeSession);
+            }
+            catch (Exception ex)
+            {
+                return ResponseMessage(Request.CreateErrorResponse(HttpStatusCode.InternalServerError, ex.Message));
+            }
         }
 
         [HttpPost]
         [Route("{sessionId}")]
         public async Task<IHttpActionResult> GetSession(string sessionId)
         {
-            var session = await _sessionManager.GetSessionAsync(sessionId, isDetailed: true);
-            if (session != null)
+            try
             {
-                return Ok(session);
+                var session = await _sessionManager.GetSessionAsync(sessionId, isDetailed: true);
+                if (session != null)
+                {
+                    return Ok(session);
+                }
+
+                return ResponseMessage(Request.CreateErrorResponse(HttpStatusCode.NotFound, $"Cannot find session with Id - {sessionId}"));
             }
 
-            return ResponseMessage(Request.CreateErrorResponse(HttpStatusCode.NotFound, $"Cannot find session with Id - {sessionId}"));
+            catch (Exception ex)
+            {
+                return ResponseMessage(Request.CreateErrorResponse(HttpStatusCode.InternalServerError, ex.Message));
+            }
         }
 
         [Route("{sessionId}")]

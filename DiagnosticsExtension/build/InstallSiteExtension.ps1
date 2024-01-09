@@ -66,6 +66,12 @@ if ($mode -ne "uninstall"){
         }
 }
 
+$diagnosticsExtensionFolder = Split-Path -Path $PSScriptRoot -Parent
+$publishFolder = [IO.Path]::Combine($diagnosticsExtensionFolder,"bin", "Release", "PublishOutput")
+$publishFolder = $publishFolder + "\*"
+$removeFolder1 = [IO.Path]::Combine($publishFolder, "bin" ,"DiagnosticTools", "DiagnosticAnalysis_OneCore_x64")
+$removeFolder2 = [IO.Path]::Combine($publishFolder, "bin", "DiagnosticTools", "DiagnosticAnalysis", "DiagnosticAnalysis_OneCore_x64")
+
 $context = Get-AzContext
 if (!$context)
 {
@@ -93,6 +99,7 @@ foreach($webapp in $allWebSites)
     $kuduApiUrl = "https://$kuduEndpoint/api/zip/SiteExtensions/DaaS/"
 
     "    Deleting exsiting site extension if any"
+    $shouldRestartWebApp = $true
 
     try{
         Invoke-RestMethod -Uri "https://$kuduEndpoint/api/vfs/SiteExtensions/DaaS/?recursive=true" `
@@ -101,17 +108,31 @@ foreach($webapp in $allWebSites)
     }
     catch {
         Write-Host "    Encountered " + $_.Exception.Response.StatusCode + " while deleting DaaS site extension"
+        if ($_.Exception.Response.StatusCode.ToString() -eq "NotFound" ) {
+            # Site extension does not exist. No need to restart the web app
+            $shouldRestartWebApp = $false
+        }
     }
-
-    "    Stopping WebApp" 
-    Invoke-AzResourceAction -ResourceGroupName $rgName -ResourceType Microsoft.Web/sites -ResourceName $webAppName -Action stop -ApiVersion 2015-08-01 -Force
-
-    "    Starting WebApp"
-    Invoke-AzResourceAction -ResourceGroupName $rgName -ResourceType Microsoft.Web/sites -ResourceName $webAppName -Action start -ApiVersion 2015-08-01 -Force
+    
+    if ($shouldRestartWebApp) {
+        "    Stopping WebApp"
+        Invoke-AzResourceAction -ResourceGroupName $rgName -ResourceType Microsoft.Web/sites -ResourceName $webAppName -Action stop -ApiVersion 2015-08-01 -Force
+        
+        "    Starting WebApp"
+        Invoke-AzResourceAction -ResourceGroupName $rgName -ResourceType Microsoft.Web/sites -ResourceName $webAppName -Action start -ApiVersion 2015-08-01 -Force
+    }
 }
 
 if ($mode -ne "uninstall"){
-    Compress-Archive -Path  "c:\source\DaaS\DiagnosticsExtension\bin\Release\PublishOutput\*" -DestinationPath $siteExtensionArchive -Force -CompressionLevel Fastest
+    if (Test-Path $removeFolder1) {
+      Remove-Item -Recurse -Force $removeFolder1
+    }
+    
+    if (Test-Path $removeFolder2) {
+      Remove-Item -Recurse -Force $removeFolder2
+    }
+    
+    Compress-Archive -Path  $publishFolder -DestinationPath $siteExtensionArchive -Force -CompressionLevel Fastest
     Timeout /t 20 /nobreak
 }
 
