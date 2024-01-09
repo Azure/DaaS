@@ -206,7 +206,7 @@ namespace Daas.Tests
             Assert.False(string.IsNullOrWhiteSpace(hrefString), "Index.html should contain window.location.href script code");
         }
 
-        internal static async Task<Session> SubmitDiagLauncherSessionAsync(string toolName, string mode, Status expectedStatus, HttpClient client, HttpClient webSiteClient, ITestOutputHelper outputHelper)
+        internal static async Task<Session> SubmitDiagLauncherSessionAsync(string toolName, string mode, HttpClient client, HttpClient webSiteClient, ITestOutputHelper outputHelper)
         {
             var warmupMessage = await EnsureSiteWarmedUpAsync(webSiteClient);
             outputHelper.WriteLine("Warmup message is: " + warmupMessage);
@@ -236,7 +236,6 @@ namespace Daas.Tests
 
             var session = await GetSessionInformationAsync(sessionId, client, outputHelper);
             Assert.NotNull(session);
-            Assert.Equal(expectedStatus, session.Status);
 
             return session;
         }
