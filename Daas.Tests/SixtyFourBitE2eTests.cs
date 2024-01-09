@@ -41,7 +41,8 @@ namespace Daas.Test
         [Fact]
         public async Task SubmitMemoryDumpSessionViaDiagLauncher()
         {
-            var session = await SessionTestHelpers.SubmitDiagLauncherSessionAsync("MemoryDump", "CollectAndAnalyze", Status.Complete, _client, _websiteClient, _output);
+            var session = await SessionTestHelpers.SubmitDiagLauncherSessionAsync("MemoryDump", "CollectAndAnalyze", _client, _websiteClient, _output);
+            Assert.Equal(Status.Complete, session.Status);
             await SessionTestHelpers.ValidateMemoryDumpAsync(session, _client);
             await SessionTestHelpers.EnsureDiagLauncherFinishedAsync(_client, _output);
         }
@@ -49,7 +50,7 @@ namespace Daas.Test
         [Fact]
         public async Task SubmitProfilerSessionViaDiagLauncher()
         {
-            var submittedSession = await SessionTestHelpers.SubmitDiagLauncherSessionAsync("Profiler with Thread Stacks", "CollectKillAnalyze", Status.Active, _client, _websiteClient, _output);
+            var submittedSession = await SessionTestHelpers.SubmitDiagLauncherSessionAsync("Profiler with Thread Stacks", "CollectKillAnalyze", _client, _websiteClient, _output);
             string sessionId = submittedSession.SessionId;
             var session = await SessionTestHelpers.GetSessionInformationAsync(sessionId, _client, _output);
             while (session.Status == Status.Active)
