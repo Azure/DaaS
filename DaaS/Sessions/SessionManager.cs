@@ -1552,10 +1552,7 @@ namespace DaaS.Sessions
 
                 Logger.LogSessionVerboseEvent($"Moving session file to completed folder", sessionId);
 
-                RetryHelper.RetryOnException("Moving session file to completed folder", () =>
-                {
-                    FileSystemHelpers.MoveFile(activeSessionFile, completedSessionFile);
-                }, TimeSpan.FromSeconds(1), 5);
+                FileSystemHelpers.MoveFile(activeSessionFile, completedSessionFile);
 
                 //
                 // Clean-up the lock file from the Active session folder

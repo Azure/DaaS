@@ -548,9 +548,17 @@ namespace DaaSRunner
                 // Check if all instances are finished with log collection
                 //
 
-                if (_sessionManager.CheckandCompleteSessionIfNeededAsync(isV2Session: false).Result)
+                if (_runningSessions.ContainsKey(activeSession.SessionId) == false)
                 {
-                    return;
+                    //
+                    // Perform this check only if the current instance is not running the session
+                    // as it can lead to race condition to complete the session
+                    //
+
+                    if (_sessionManager.CheckandCompleteSessionIfNeededAsync(isV2Session: false).Result)
+                    {
+                        return;
+                    }
                 }
 
                 if (DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes > Settings.Instance.OrphanInstanceTimeoutInMinutes)
