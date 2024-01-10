@@ -43,8 +43,14 @@ namespace Daas.Test
         [Fact]
         public async Task SubmitProfilerSessionX64MultipleInstances()
         {
-            throw new Exception(_instances);
             await SessionTestHelpers.RunProfilerTest(_client, _websiteClient, _output, _instances);
+        }
+
+        [Fact]
+        public async Task SubmitMemoryDumpX64MultipleInstances()
+        {
+            var session = await SessionTestHelpers.SubmitNewSession("MemoryDump", _client, _websiteClient, _output, isV2Session:false, _instances);
+            await SessionTestHelpers.ValidateMemoryDumpAsync(session, _client);
         }
 
         //[Fact]
