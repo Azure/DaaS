@@ -368,7 +368,7 @@ steps:
       $siteNameX64 = $Env:SITE_NAME + "-x64"
 
       Write-Host "Creating App Service Plan"
-      New-AzAppServicePlan -Name "DEVOPSTESTPLAN" -ResourceGroupName $Env:RESOURCE_GROUP -Location $Env:LOCATION -Tier "Basic" -WorkerSize "Small" | Out-Null
+      New-AzAppServicePlan -Name "DEVOPSTESTPLAN" -ResourceGroupName $Env:RESOURCE_GROUP -Location $Env:LOCATION -Tier "Basic" -WorkerSize "Small" -NumberofWorkers 2 | Out-Null
 
       Write-Host "Checking availability of Storage Account"
       $storageAccountName = "daasdevopsstorage"
@@ -397,6 +397,20 @@ steps:
       Receive-Job -Wait -AutoRemoveJob -Name DOTNETSITE
       Receive-Job -Wait -AutoRemoveJob -Name JAVASITE
       Receive-Job -Wait -AutoRemoveJob -Name DOTNET64BIT
+
+      $instancesVariableName = "WEBSITE_INSTANCES"
+      $accessTokenArm = (Get-AzAccessToken).Token
+      $authorizationHeaderArm = "Bearer " + $accessTokenArm
+      
+      $instancesUrl = "https://management.azure.com/subscriptions/6b6db65f-680e-4650-b97d-e82ed6a0f583/resourcegroups/$($Env:RESOURCE_GROUP)/providers/Microsoft.Web/sites/$($siteName)/instances?api-version=2022-03-01"
+      Write-Host $instancesUrl
+
+      $RequestHeader = @{Authorization  = $authorizationHeaderArm; 'Content-Type' = "application/json";}
+      $instances = Invoke-RestMethod -Headers $RequestHeader -Uri $instancesUrl | Select-Object -ExpandProperty value | Select-Object -ExpandProperty properties;
+      $instancesJson = $instances | ConvertTo-Json -Compress
+      Write-Host $instancesJson
+
+      Write-Host "##vso[task.setvariable variable=$instancesVariableName]$instancesJson"
 
     azurePowerShellVersion: 'LatestVersion'
 

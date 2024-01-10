@@ -17,22 +17,27 @@ using Newtonsoft.Json;
 using Xunit;
 using Xunit.Abstractions;
 using System.Text.RegularExpressions;
-using System.Threading;
 
 namespace Daas.Tests
 {
     internal class SessionTestHelpers
     {
-        internal static async Task<Session> SubmitNewSession(string diagnosticTool, HttpClient client, HttpClient webSiteClient, ITestOutputHelper outputHelper, bool isV2Session = false)
+        internal static async Task<Session> SubmitNewSession(string diagnosticTool, HttpClient client, HttpClient webSiteClient, ITestOutputHelper outputHelper, bool isV2Session = false, string instances = "")
         {
             var warmupMessage = await EnsureSiteWarmedUpAsync(webSiteClient);
             outputHelper.WriteLine("Warmup message is: " + warmupMessage);
             var machineName = await GetMachineName(client, outputHelper);
+
+            if (!string.IsNullOrWhiteSpace(instances))
+            {
+                outputHelper.WriteLine($"Instances = {instances}");
+            }
+
             var newSession = new Session()
             {
                 Mode = Mode.CollectAndAnalyze,
                 Tool = diagnosticTool,
-                Instances = new List<string> { machineName }
+                Instances = string.IsNullOrWhiteSpace(instances) ? new List<string> { machineName } : GetMachineNames(instances)
             };
 
             var response = await client.PostAsJsonAsync(isV2Session ? "daas/sessionsV2" : "daas/sessions", newSession);
@@ -132,9 +137,9 @@ namespace Daas.Tests
             return null;
         }
 
-        internal static async Task<Session> RunProfilerTest(HttpClient client, HttpClient webSiteClient, ITestOutputHelper outputHelper)
+        internal static async Task<Session> RunProfilerTest(HttpClient client, HttpClient webSiteClient, ITestOutputHelper outputHelper, string instances = "")
         {
-            var session = await SubmitNewSession("Profiler with Thread Stacks", client, webSiteClient, outputHelper);
+            var session = await SubmitNewSession("Profiler with Thread Stacks", client, webSiteClient, outputHelper, isV2Session: false, instances);
             var log = session.ActiveInstances.FirstOrDefault().Logs.FirstOrDefault();
             Assert.Contains(".zip", log.Name);
 
@@ -350,7 +355,28 @@ namespace Daas.Tests
             }
             while (diagLauncherRunning);
         }
+
+        private static List<string> GetMachineNames(string instances)
+        {
+            var siteInstances = JsonConvert.DeserializeObject<SiteInstance[]>(instances);
+            return siteInstances.Select(s => s.machineName).ToList();
+        }
     }
+
+
+    public class SiteInstance
+    {
+        public string state { get; set; }
+        public string name { get; set; }
+        public string siteInstanceName { get; set; }
+        public string statusUrl { get; set; }
+        public string detectorUrl { get; set; }
+        public string consoleUrl { get; set; }
+        public string healthCheckUrl { get; set; }
+        public string machineName { get; set; }
+        public object containers { get; set; }
+    }
+
 
     internal class KuduProcessEntry
     {

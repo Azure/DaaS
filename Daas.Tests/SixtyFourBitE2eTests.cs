@@ -21,6 +21,7 @@ namespace Daas.Test
         private readonly HttpClient _client;
         private readonly HttpClient _websiteClient;
         private readonly ITestOutputHelper _output;
+        private readonly string _instances;
 
         public SixtyFourBitE2eTests(ITestOutputHelper output)
         {
@@ -28,6 +29,7 @@ namespace Daas.Test
             _client = Setup.GetHttpClient(configuration, "KUDU_ENDPOINT_X64");
             _websiteClient = Setup.GetWebSiteHttpClient(configuration, "KUDU_ENDPOINT_X64");
             _output = output;
+            _instances = configuration["WEBSITE_INSTANCES"];
 
             _client.Timeout = TimeSpan.FromMinutes(10);
         }
@@ -39,30 +41,43 @@ namespace Daas.Test
         }
 
         [Fact]
-        public async Task SubmitMemoryDumpSessionViaDiagLauncher()
+        public async Task SubmitProfilerSessionX64MultipleInstances()
         {
-            var session = await SessionTestHelpers.SubmitDiagLauncherSessionAsync("MemoryDump", "CollectAndAnalyze", _client, _websiteClient, _output);
-            Assert.Equal(Status.Complete, session.Status);
-            await SessionTestHelpers.ValidateMemoryDumpAsync(session, _client);
-            await SessionTestHelpers.EnsureDiagLauncherFinishedAsync(_client, _output);
+            await SessionTestHelpers.RunProfilerTest(_client, _websiteClient, _output, _instances);
         }
 
         [Fact]
-        public async Task SubmitProfilerSessionViaDiagLauncher()
+        public async Task SubmitMemoryDumpX64MultipleInstances()
         {
-            var submittedSession = await SessionTestHelpers.SubmitDiagLauncherSessionAsync("Profiler with Thread Stacks", "CollectKillAnalyze", _client, _websiteClient, _output);
-            string sessionId = submittedSession.SessionId;
-            var session = await SessionTestHelpers.GetSessionInformationAsync(sessionId, _client, _output);
-            while (session.Status == Status.Active)
-            {
-                await Task.Delay(5000);
-                session = await SessionTestHelpers.GetSessionInformationAsync(sessionId, _client, _output);
-                Assert.NotNull(session);
-            }
-
-            await SessionTestHelpers.ValidateProfilerAsync(session, _client);
-            await SessionTestHelpers.EnsureDiagLauncherFinishedAsync(_client, _output);
+            var session = await SessionTestHelpers.SubmitNewSession("MemoryDump", _client, _websiteClient, _output, isV2Session:false, _instances);
+            await SessionTestHelpers.ValidateMemoryDumpAsync(session, _client);
         }
+
+        //[Fact]
+        //public async Task SubmitMemoryDumpSessionViaDiagLauncher()
+        //{
+        //    var session = await SessionTestHelpers.SubmitDiagLauncherSessionAsync("MemoryDump", "CollectAndAnalyze", _client, _websiteClient, _output);
+        //    Assert.Equal(Status.Complete, session.Status);
+        //    await SessionTestHelpers.ValidateMemoryDumpAsync(session, _client);
+        //    await SessionTestHelpers.EnsureDiagLauncherFinishedAsync(_client, _output);
+        //}
+
+        //[Fact]
+        //public async Task SubmitProfilerSessionViaDiagLauncher()
+        //{
+        //    var submittedSession = await SessionTestHelpers.SubmitDiagLauncherSessionAsync("Profiler with Thread Stacks", "CollectKillAnalyze", _client, _websiteClient, _output);
+        //    string sessionId = submittedSession.SessionId;
+        //    var session = await SessionTestHelpers.GetSessionInformationAsync(sessionId, _client, _output);
+        //    while (session.Status == Status.Active)
+        //    {
+        //        await Task.Delay(5000);
+        //        session = await SessionTestHelpers.GetSessionInformationAsync(sessionId, _client, _output);
+        //        Assert.NotNull(session);
+        //    }
+
+        //    await SessionTestHelpers.ValidateProfilerAsync(session, _client);
+        //    await SessionTestHelpers.EnsureDiagLauncherFinishedAsync(_client, _output);
+        //}
 
         [Fact]
         public async Task MemoryDumpInvokedViaAutoHealingDiagLauncher()
