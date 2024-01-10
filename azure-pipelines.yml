@@ -237,14 +237,14 @@ steps:
       }
 
       $CreateWebApp = {
-        param([string] $siteName, [string] $storageSasUrl, [string] $kuduEndpointVariableName, [string] $additionalParams)
+        param([string] $siteName, [string] $connectionStr, [string] $kuduEndpointVariableName, [string] $additionalParams)
 
           Write-Host "[$(Get-Date -format 'O')][$siteName] Creating Web App"
           New-AzWebApp -Name $siteName -ResourceGroupName $Env:RESOURCE_GROUP -Location $Env:LOCATION -AppServicePlan "DEVOPSTESTPLAN" | Out-Null
           Set-AzWebApp -Name $siteName -ResourceGroupName $Env:RESOURCE_GROUP -AlwaysOn $true | Out-Null
 
           Write-Host "[$(Get-Date -format 'O')][$siteName] Adding AppSettings for WebApp"
-          $setting=@{"MSBUILD_PATH"="%MSBUILD_15_DIR%\\msbuild.exe";"WEBSITE_DAAS_STORAGE_SASURI"= "$storageSasUrl";"WEBSITE_DAAS_STORAGE_RESOURCEID"= "/resource/subscriptions/6b6db65f-680e-4650-b97d-e82ed6a0f583/resourceGroups/DAAS-DevOps-Testing/providers/Microsoft.Storage/storageAccounts/daasdevopsstorage"}
+          $setting=@{"MSBUILD_PATH"="%MSBUILD_15_DIR%\\msbuild.exe";"WEBSITE_DAAS_STORAGE_CONNECTIONSTRING"= "$connectionStr";"WEBSITE_DAAS_STORAGE_RESOURCEID"= "/resource/subscriptions/6b6db65f-680e-4650-b97d-e82ed6a0f583/resourceGroups/DAAS-DevOps-Testing/providers/Microsoft.Storage/storageAccounts/daasdevopsstorage"}
           Set-AzWebApp -AppSettings $setting -Name $siteName -ResourceGroupName $Env:RESOURCE_GROUP | Out-Null
 
           $kuduEndpoint = "$siteName.scm.azurewebsites.net"
@@ -386,13 +386,14 @@ steps:
         $storageAccount = Get-AzStorageAccount -ResourceGroupName $Env:RESOURCE_GROUP -StorageAccountName $storageAccountName
       }
 
-      Write-Host "Generating SAS URI"
-      $sasUrl = New-AzStorageAccountSASToken -Context $storageAccount.context -Service Blob,Table,Queue -ResourceType Container,Object -Permission "acdlpruw" -ExpiryTime (Get-Date).AddDays(1)
-      $sasUrl = "https://daasdevopsstorage.blob.core.windows.net/memorydumps" + $sasurl
-
-      Start-Job -Name DOTNETSITE -ScriptBlock $CreateWebApp -ArgumentList ($siteName, $sasUrl, "KUDU_ENDPOINT", "DOTNET") | Out-Null
-      Start-Job -Name JAVASITE -ScriptBlock $CreateWebApp -ArgumentList ($siteNameJava , $sasUrl, "KUDU_ENDPOINT_JAVA", "JAVA") | Out-Null
-      Start-Job -Name DOTNET64BIT -ScriptBlock $CreateWebApp -ArgumentList ($siteNameX64, $sasUrl, "KUDU_ENDPOINT_X64", "X64") | Out-Null
+      Write-Host "Getting connection string"
+      $storageAccountKeys = Get-AzStorageAccountKey -ResourceGroupName DAAS-DevOps-Testing -AccountName daasdevopsstorage
+      $storageAccountKey = $storageAccountKeys[0].Value
+      $connectionString = "DefaultEndpointsProtocol=https;AccountName=daasdevopsstorage;AccountKey=$storageAccountKey;EndpointSuffix=core.windows.net"
+      
+      Start-Job -Name DOTNETSITE -ScriptBlock $CreateWebApp -ArgumentList ($siteName, $connectionString, "KUDU_ENDPOINT", "DOTNET") | Out-Null
+      Start-Job -Name JAVASITE -ScriptBlock $CreateWebApp -ArgumentList ($siteNameJava , $connectionString, "KUDU_ENDPOINT_JAVA", "JAVA") | Out-Null
+      Start-Job -Name DOTNET64BIT -ScriptBlock $CreateWebApp -ArgumentList ($siteNameX64, $connectionString, "KUDU_ENDPOINT_X64", "X64") | Out-Null
 
       Receive-Job -Wait -AutoRemoveJob -Name DOTNETSITE
       Receive-Job -Wait -AutoRemoveJob -Name JAVASITE
