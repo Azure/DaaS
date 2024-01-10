@@ -21,6 +21,7 @@ namespace Daas.Test
         private readonly HttpClient _client;
         private readonly HttpClient _websiteClient;
         private readonly ITestOutputHelper _output;
+        private readonly string _instances;
 
         public SixtyFourBitE2eTests(ITestOutputHelper output)
         {
@@ -28,6 +29,7 @@ namespace Daas.Test
             _client = Setup.GetHttpClient(configuration, "KUDU_ENDPOINT_X64");
             _websiteClient = Setup.GetWebSiteHttpClient(configuration, "KUDU_ENDPOINT_X64");
             _output = output;
+            _instances = configuration["WEBSITE_INSTANCES"];
 
             _client.Timeout = TimeSpan.FromMinutes(10);
         }
@@ -36,6 +38,13 @@ namespace Daas.Test
         public async Task SubmitProfilerSessionX64()
         {
             await SessionTestHelpers.RunProfilerTest(_client, _websiteClient, _output);
+        }
+
+        [Fact]
+        public async Task SubmitProfilerSessionX64MultipleInstances()
+        {
+            throw new Exception(_instances);
+            await SessionTestHelpers.RunProfilerTest(_client, _websiteClient, _output, _instances);
         }
 
         [Fact]

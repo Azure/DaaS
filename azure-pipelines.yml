@@ -398,7 +398,7 @@ steps:
       Receive-Job -Wait -AutoRemoveJob -Name JAVASITE
       Receive-Job -Wait -AutoRemoveJob -Name DOTNET64BIT
 
-      $instancesVariableName = "WEBSITE_INSTANCE_NAMES"
+      $instancesVariableName = "WEBSITE_INSTANCES"
       $accessTokenArm = (Get-AzAccessToken).Token
       $authorizationHeaderArm = "Bearer " + $accessTokenArm
       

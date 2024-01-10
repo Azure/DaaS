@@ -23,7 +23,7 @@ namespace Daas.Tests
 {
     internal class SessionTestHelpers
     {
-        internal static async Task<Session> SubmitNewSession(string diagnosticTool, HttpClient client, HttpClient webSiteClient, ITestOutputHelper outputHelper, bool isV2Session = false)
+        internal static async Task<Session> SubmitNewSession(string diagnosticTool, HttpClient client, HttpClient webSiteClient, ITestOutputHelper outputHelper, bool isV2Session = false, string instances = "")
         {
             var warmupMessage = await EnsureSiteWarmedUpAsync(webSiteClient);
             outputHelper.WriteLine("Warmup message is: " + warmupMessage);
@@ -32,7 +32,7 @@ namespace Daas.Tests
             {
                 Mode = Mode.CollectAndAnalyze,
                 Tool = diagnosticTool,
-                Instances = new List<string> { machineName }
+                Instances = string.IsNullOrWhiteSpace(instances) ? new List<string> { machineName } : instances.Split(',').ToList()
             };
 
             var response = await client.PostAsJsonAsync(isV2Session ? "daas/sessionsV2" : "daas/sessions", newSession);
@@ -132,9 +132,9 @@ namespace Daas.Tests
             return null;
         }
 
-        internal static async Task<Session> RunProfilerTest(HttpClient client, HttpClient webSiteClient, ITestOutputHelper outputHelper)
+        internal static async Task<Session> RunProfilerTest(HttpClient client, HttpClient webSiteClient, ITestOutputHelper outputHelper, string instances = "")
         {
-            var session = await SubmitNewSession("Profiler with Thread Stacks", client, webSiteClient, outputHelper);
+            var session = await SubmitNewSession("Profiler with Thread Stacks", client, webSiteClient, outputHelper, isV2Session:false, instances);
             var log = session.ActiveInstances.FirstOrDefault().Logs.FirstOrDefault();
             Assert.Contains(".zip", log.Name);
 
