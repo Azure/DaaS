@@ -407,7 +407,7 @@ steps:
 
       $RequestHeader = @{Authorization  = $authorizationHeaderArm; 'Content-Type' = "application/json";}
       $instances = Invoke-RestMethod -Headers $RequestHeader -Uri $instancesUrl | Select-Object -ExpandProperty value | Select-Object -ExpandProperty properties;
-      $instancesJson = $instances | ConvertTo-Json
+      $instancesJson = $instances | ConvertTo-Json - Compress
       Write-Host $instancesJson
 
       Write-Host "##vso[task.setvariable variable=$instancesVariableName]$instancesJson"

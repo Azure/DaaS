@@ -27,6 +27,12 @@ namespace Daas.Tests
             var warmupMessage = await EnsureSiteWarmedUpAsync(webSiteClient);
             outputHelper.WriteLine("Warmup message is: " + warmupMessage);
             var machineName = await GetMachineName(client, outputHelper);
+
+            if (!string.IsNullOrWhiteSpace(instances))
+            {
+                outputHelper.WriteLine($"Instances = {instances}");
+            }
+
             var newSession = new Session()
             {
                 Mode = Mode.CollectAndAnalyze,
