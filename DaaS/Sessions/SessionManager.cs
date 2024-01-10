@@ -1547,12 +1547,35 @@ namespace DaaS.Sessions
                 }
 
                 //
-                // Move the session file from Active to Complete folder
+                // Move the session file from Active to Complete folder and do this under lock
                 //
 
-                Logger.LogSessionVerboseEvent($"Moving session file to completed folder", sessionId);
+                _sessionLockFile = await AcquireSessionLockAsync(sessionId, isV2Session, "MarkSessionAsCompleteAsync-MovingFile");
+                if (_sessionLockFile == null)
+                {
+                    //
+                    // We failed to acquire the lock on the session file
+                    //
 
-                FileSystemHelpers.MoveFile(activeSessionFile, completedSessionFile);
+                    return;
+                }
+
+                try
+                {
+                    Logger.LogSessionVerboseEvent($"Moving session file to completed folder", sessionId);
+                    FileSystemHelpers.MoveFile(activeSessionFile, completedSessionFile);
+
+                }
+                catch (Exception exInner)
+                {
+                    Logger.LogSessionWarningEvent($"Unhandled exception in MarkSessionAsCompleteAsync while moving file", exInner, sessionId);
+                }
+               
+                if (_sessionLockFile != null)
+                {
+                    Logger.LogSessionVerboseEvent($"SessionLock released by MarkSessionAsCompleteAsync-MovingFile", sessionId);
+                    _sessionLockFile.Release();
+                }
 
                 //
                 // Clean-up the lock file from the Active session folder

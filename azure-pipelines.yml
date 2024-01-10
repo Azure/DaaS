@@ -402,11 +402,15 @@ steps:
       $accessTokenArm = (Get-AzAccessToken).Token
       $authorizationHeaderArm = "Bearer " + $accessTokenArm
       
-      $instancesUrl = "https://management.azure.com/subscriptions//6b6db65f-680e-4650-b97d-e82ed6a0f583/resourcegroups/$($Env:RESOURCE_GROUP)/providers/Microsoft.Web/sites/DOTNET/instances?api-version=2022-03-01";
+      $instancesUrl = "https://management.azure.com/subscriptions/6b6db65f-680e-4650-b97d-e82ed6a0f583/resourcegroups/$($Env:RESOURCE_GROUP)/providers/Microsoft.Web/sites/DOTNET/instances?api-version=2022-03-01"
+      Write-Host $instancesUrl
 
       $RequestHeader = @{Authorization  = $authorizationHeaderArm; 'Content-Type' = "application/json";}
       $instances = Invoke-RestMethod -Headers $RequestHeader -Uri $instancesUrl | Select-Object -ExpandProperty value | Select-Object -ExpandProperty properties;
-      Write-Host "##vso[task.setvariable variable=$instancesVariableName]$instances"
+      $instancesJson = $instances | ConvertTo-Json
+      Write-Host $instancesJson
+
+      Write-Host "##vso[task.setvariable variable=$instancesVariableName]$instancesJson"
 
     azurePowerShellVersion: 'LatestVersion'
 
