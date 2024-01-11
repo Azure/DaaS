@@ -364,6 +364,7 @@ steps:
       }
 
       $siteName = $Env:SITE_NAME
+      $siteNameBackup = $Env:SITE_NAME +"-backup"
       $siteNameJava = $Env:SITE_NAME + "-java"
       $siteNameX64 = $Env:SITE_NAME + "-x64"
 
@@ -392,10 +393,12 @@ steps:
       $connectionString = "DefaultEndpointsProtocol=https;AccountName=daasdevopsstorage;AccountKey=$storageAccountKey;EndpointSuffix=core.windows.net"
       
       Start-Job -Name DOTNETSITE -ScriptBlock $CreateWebApp -ArgumentList ($siteName, $connectionString, "KUDU_ENDPOINT", "DOTNET") | Out-Null
+      Start-Job -Name DOTNETSITEBACKUP -ScriptBlock $CreateWebApp -ArgumentList ($siteNameBackup, $connectionString, "KUDU_ENDPOINT_BACKUP", "X64") | Out-Null
       Start-Job -Name JAVASITE -ScriptBlock $CreateWebApp -ArgumentList ($siteNameJava , $connectionString, "KUDU_ENDPOINT_JAVA", "JAVA") | Out-Null
       Start-Job -Name DOTNET64BIT -ScriptBlock $CreateWebApp -ArgumentList ($siteNameX64, $connectionString, "KUDU_ENDPOINT_X64", "X64") | Out-Null
 
       Receive-Job -Wait -AutoRemoveJob -Name DOTNETSITE
+      Receive-Job -Wait -AutoRemoveJob -Name DOTNETSITEBACKUP
       Receive-Job -Wait -AutoRemoveJob -Name JAVASITE
       Receive-Job -Wait -AutoRemoveJob -Name DOTNET64BIT
 

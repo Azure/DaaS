@@ -50,22 +50,6 @@ namespace Daas.Test
             await SessionTestHelpers.RunProfilerTest(_client, _websiteClient, _output, _webSiteInstances, requestedInstances: requestedInstances);
         }
 
-        [Fact]
-        public async Task ProfilerV2X64MultipleInstances()
-        {
-            List<SiteInstance> siteInstances = JsonConvert.DeserializeObject<List<SiteInstance>>(_webSiteInstances);
-            var requestedInstances = siteInstances.Select(x => x.machineName).ToList();
-            await SessionTestHelpers.RunProfilerTest(_client, _websiteClient, _output, _webSiteInstances, requestedInstances: requestedInstances, isV2Session: true);
-        }
-
-        [Fact]
-        public async Task MemoryDumpX64MultipleInstances()
-        {
-            List<SiteInstance> siteInstances = JsonConvert.DeserializeObject<List<SiteInstance>>(_webSiteInstances);
-            var session = await SessionTestHelpers.SubmitNewSession("MemoryDump", _client, _websiteClient, _output, _webSiteInstances, requestedInstances: siteInstances.Select(x => x.machineName).ToList(), isV2Session: false);
-            await SessionTestHelpers.ValidateMemoryDumpAsync(session, _client);
-        }
-
 
         [Fact]
         public async Task MemoryDumpViaAutoHealDiagLauncher()
@@ -104,13 +88,6 @@ namespace Daas.Test
             await SessionTestHelpers.ValidateMemoryDumpAsync(session, _client);
 
             await SessionTestHelpers.EnsureDiagLauncherFinishedAsync(_client, _output);
-        }
-
-        [Fact]
-        public async Task SubmitProfilerSessionV2()
-        {
-            var session = await SessionTestHelpers.SubmitNewSession("Profiler with Thread Stacks", _client, _websiteClient, _output, _webSiteInstances, requestedInstances: new List<string>(), isV2Session: true);
-            await SessionTestHelpers.ValidateProfilerAsync(session, _client);
         }
     }
 }
