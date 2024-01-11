@@ -94,8 +94,11 @@
     <Compile Include="Directories\DaasDirectory.cs" />
     <Compile Include="Configuration\Diagnoser.cs" />
     <Compile Include="Diagnostics\DiagnosticTool.cs" />
+    <Compile Include="Sessions\ActiveInstanceEntity.cs" />
+    <Compile Include="Sessions\AzureStorageSessionManager.cs" />
     <Compile Include="Sessions\DiagnosticToolResponse.cs" />
     <Compile Include="Sessions\HyperVSessionManager.cs" />
+    <Compile Include="Sessions\IAzureStorageSessionManager.cs" />
     <Compile Include="Sessions\ISessionManager.cs" />
     <Compile Include="Sessions\LogFile.cs" />
     <Compile Include="Sessions\Report.cs" />
@@ -103,6 +106,8 @@
     <Compile Include="Directories\SessionDirectories.cs" />
     <Compile Include="SessionLockFile.cs" />
     <Compile Include="Configuration\Settings.cs" />
+    <Compile Include="Sessions\SessionEntity.cs" />
+    <Compile Include="Sessions\SessionManagerBase.cs" />
     <Compile Include="Sessions\Status.cs" />
     <Compile Include="Sessions\SessionManager.cs" />
     <Compile Include="LockFile.cs" />
@@ -128,6 +133,9 @@
   </ItemGroup>
   <ItemGroup />
   <ItemGroup>
+    <PackageReference Include="Azure.Data.Tables">
+      <Version>12.8.2</Version>
+    </PackageReference>
     <PackageReference Include="Azure.Storage.Blobs">
       <Version>12.19.1</Version>
     </PackageReference>

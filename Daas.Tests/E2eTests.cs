@@ -6,6 +6,7 @@
 // -----------------------------------------------------------------------
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -24,30 +25,31 @@ namespace Daas.Test
         private readonly ITestOutputHelper _output;
         private readonly HttpClient _client;
         private readonly HttpClient _websiteClient;
+        private readonly string _webSiteInstances;
 
         public E2eTests(ITestOutputHelper output)
         {
             var configuration = Setup.GetConfiguration();
             _client = Setup.GetHttpClient(configuration, "KUDU_ENDPOINT");
-
-            
+            _webSiteInstances = configuration["WEBSITE_INSTANCES"];
             _websiteClient = Setup.GetWebSiteHttpClient(configuration, "KUDU_ENDPOINT");
-            
             _output = output;
         }
 
         [Fact]
-        public async Task GetAllSessions_ShouldReturnValidHttpResponse()
+        public async Task GetAllSessions()
         {
             var resp = await _client.PostAsync("daas/sessions/list", null);
-            Assert.True(resp.IsSuccessStatusCode);
+            var respStatusCode = resp.StatusCode.ToString();
+            Assert.True(resp.IsSuccessStatusCode, $"GetAllSessions returned {respStatusCode}");
         }
 
         [Fact]
-        public async Task CheckDaasVersions_ShouldReturnSameVersions()
+        public async Task CheckDaasVersions()
         {
             var resp = await _client.GetAsync("daas/api/v2/daasversion");
-            Assert.True(resp.IsSuccessStatusCode);
+            var respStatusCode = resp.StatusCode.ToString();
+            Assert.True(resp.IsSuccessStatusCode, $"daasversion returned {respStatusCode}");
 
             var daasVersionString = await resp.Content.ReadAsStringAsync();
             _output.WriteLine($"DaasVersion = {daasVersionString}");
@@ -109,34 +111,34 @@ namespace Daas.Test
                 _output.WriteLine($"Checking for file {file}");
                 //var resp = await _client.GetAsync($"api/vfs/SystemDrive/Program%20Files%20(x86)/SiteExtensions/DaaS/4.0.24116.01/{file}");
                 var resp = await _client.GetAsync($"api/vfs/siteextensions/daas/{file}");
-                Assert.True(resp.IsSuccessStatusCode);
+                Assert.True(resp.IsSuccessStatusCode, $"File - api/vfs/siteextensions/daas/{file}");
             }
         }
 
         [Fact]
-        public async Task SubmitMemoryDumpSession()
+        public async Task MemoryDump()
         {
-            var session = await SessionTestHelpers.SubmitNewSession("MemoryDump", _client, _websiteClient, _output);
+            var session = await SessionTestHelpers.SubmitNewSession("MemoryDump", _client, _websiteClient, _output, _webSiteInstances, requestedInstances: new List<string>());
             await SessionTestHelpers.ValidateMemoryDumpAsync(session, _client);
         }
 
         [Fact]
-        public async Task SubmitMemoryDumpSessionV2()
+        public async Task MemoryDumpV2()
         {
-            var session = await SessionTestHelpers.SubmitNewSession("MemoryDump", _client, _websiteClient, _output, isV2Session: true);
+            var session = await SessionTestHelpers.SubmitNewSession("MemoryDump", _client, _websiteClient, _output, _webSiteInstances, requestedInstances: new List<string>(),  isV2Session: true);
             await SessionTestHelpers.ValidateMemoryDumpAsync(session, _client);
         }
 
 
         [Fact]
-        public async Task SubmitProfilerSession()
+        public async Task ProfilerSession()
         {
-            var session = await SessionTestHelpers.RunProfilerTest(_client, _websiteClient, _output);
+            var session = await SessionTestHelpers.RunProfilerTest(_client, _websiteClient, _output, _webSiteInstances, requestedInstances: new List<string>());
             await SessionTestHelpers.ValidateProfilerAsync(session, _client);
         }
 
         [Fact]
-        public async Task InvokeListDiagnosersFromDaasConsole()
+        public async Task ListDiagnosersFromDaasConsole()
         {
 
             var daasConsoleResponseMessage = await _client.PostAsJsonAsync("api/command", new { command = "DaasConsole.exe -ListDiagnosers", dir = "data\\DaaS\\bin" });
@@ -150,7 +152,7 @@ namespace Daas.Test
         
 
         [Fact]
-        public async Task SubmitMockSessionFromDaasConsole()
+        public async Task MockSessionFromDaasConsole()
         {
             var daasConsoleResponseMessage = await _client.PostAsJsonAsync("api/command", new { command = "DaasConsole.exe -Troubleshoot Mock", dir = "data\\DaaS\\bin" });
             daasConsoleResponseMessage.EnsureSuccessStatusCode();
@@ -172,7 +174,7 @@ namespace Daas.Test
 
             _output.WriteLine("SessionId is " + sessionId);
 
-            Assert.True(!string.IsNullOrWhiteSpace(sessionId));
+            Assert.True(!string.IsNullOrWhiteSpace(sessionId), "SubmitMockSessionFromDaasConsole should not return empty SessionId");
 
             var session = await SessionTestHelpers.GetSessionInformationAsync(sessionId, _client, _output);
             Assert.NotNull(session);
@@ -188,7 +190,7 @@ namespace Daas.Test
         }
 
         [Fact]
-        public async Task ProfilerInvokedViaAutoHealingDiagLauncher()
+        public async Task ProfilerViaAutoHealDiagLauncher()
         {
             var warmupMessage = await SessionTestHelpers.EnsureSiteWarmedUpAsync(_websiteClient);
             _output.WriteLine("Warmup message is: " + warmupMessage);
@@ -214,12 +216,22 @@ namespace Daas.Test
             var sessionId = session.SessionId;
             while (session.Status == Status.Active)
             {
-                await Task.Delay(15000);
+                await Task.Delay(30000);
                 session = await SessionTestHelpers.GetSessionInformationAsync(sessionId, _client, _output);
             }
 
             await SessionTestHelpers.ValidateProfilerAsync(session, _client);
             await SessionTestHelpers.EnsureDiagLauncherFinishedAsync(_client,_output);
+        }
+
+        [Fact]
+        public async Task MemoryDumpV2MultipleInstances()
+        {
+            List<SiteInstance> siteInstances = JsonConvert.DeserializeObject<List<SiteInstance>>(_webSiteInstances);
+            var requestedInstances = siteInstances.Select(x => x.machineName).ToList();
+
+            var session = await SessionTestHelpers.SubmitNewSession("MemoryDump", _client, _websiteClient, _output, _webSiteInstances, requestedInstances: requestedInstances, isV2Session: true);
+            await SessionTestHelpers.ValidateMemoryDumpAsync(session, _client);
         }
     }
 

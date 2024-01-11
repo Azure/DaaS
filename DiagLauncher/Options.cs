@@ -23,7 +23,13 @@ namespace DiagLauncher
         [Option('s', "sessionId", HelpText = "SessionId to use for the session. Only used when same session being submitted on multiple instances", Hidden = true)]
         public string SessionId { get; internal set; }
 
-        [Option('l', "listdiagnosers", Required = false, HelpText = "List all available diagnosers")]
+        [Option('d', "listdiagnosers", Required = false, HelpText = "List all available diagnosers")]
         public bool ListDiagnosers { get; set; }
+
+        [Option('l', "listsessions", Required = false, HelpText = "List all sessions")]
+        public bool ListSessions { get; set; }
+
+        [Option('r', "remove", Required = false, HelpText = "Remove an existing Session")]
+        public string SessionIdForDeletion { get; set; }
     }
 }
