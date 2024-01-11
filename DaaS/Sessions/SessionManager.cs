@@ -11,7 +11,6 @@ using DaaS.Storage;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -21,10 +20,8 @@ using System.Threading.Tasks;
 namespace DaaS.Sessions
 {
 
-    public class SessionManager : ISessionManager
+    public class SessionManager : SessionManagerBase, ISessionManager
     {
-        public const string DaasDiagLauncherEnv = "WEBSITE_DAAS_DIAG_LAUNCHER";
-
         private static readonly AlertingStorageQueue _alertingStorageQueue = new AlertingStorageQueue();
         private static IOperationLock _sessionLockFile;
 
@@ -33,9 +30,7 @@ namespace DaaS.Sessions
         private readonly List<string> _allSessionsDirs = new List<string>()
         {
             SessionDirectories.ActiveSessionsDir,
-            SessionDirectories.CompletedSessionsDir,
-            SessionDirectories.ActiveSessionsV2Dir,
-            SessionDirectories.CompletedSessionsV2Dir
+            SessionDirectories.CompletedSessionsDir
         };
 
         public SessionManager(IStorageService storageService)
@@ -46,33 +41,11 @@ namespace DaaS.Sessions
 
         #region ISessionManager methods
 
-        public async Task<Session> GetActiveSessionAsync(bool isV2Session, bool isDetailed = false)
+        public async Task<Session> GetActiveSessionAsync(bool isDetailed = false)
         {
-            var activeSessions = await LoadSessionsAsync(isV2Session ? SessionDirectories.ActiveSessionsV2Dir : SessionDirectories.ActiveSessionsDir, isDetailed, shouldRetry: true);
+            var activeSessions = await LoadSessionsAsync(SessionDirectories.ActiveSessionsDir, isDetailed, shouldRetry: true);
             var activeSession = activeSessions.FirstOrDefault();
             return activeSession;
-        }
-
-        public async Task CheckIfOrphaningOrTimeoutNeededAsync(Session activeSession)
-        {
-            if (activeSession == null)
-            {
-                return;
-            }
-
-            if (CheckIfTimeLimitExceeded(activeSession))
-            {
-                Logger.LogSessionErrorEvent("Allowed time limit exceeded for the session", $"Session was started at {activeSession.StartTime}", activeSession.SessionId);
-                await MarkSessionAsCompleteAsync(activeSession, isV2Session: true, forceCompletion: true);
-            }
-            else
-            {
-                if (DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes > Settings.Instance.OrphanInstanceTimeoutInMinutes)
-                {
-                    await CancelOrphanedInstancesIfNeeded(isV2Session: true);
-                    await CheckandCompleteSessionIfNeededAsync(isV2Session: true);
-                }
-            }
         }
 
         public async Task<IEnumerable<Session>> GetAllSessionsAsync(bool isDetailed = false)
@@ -80,9 +53,9 @@ namespace DaaS.Sessions
             return (await LoadSessionsAsync(_allSessionsDirs, isDetailed)).OrderByDescending(x => x.StartTime);
         }
 
-        public async Task<IEnumerable<Session>> GetCompletedSessionsAsync(bool isV2Session)
+        public async Task<IEnumerable<Session>> GetCompletedSessionsAsync()
         {
-            return (await LoadSessionsAsync(isV2Session ? SessionDirectories.CompletedSessionsV2Dir : SessionDirectories.CompletedSessionsDir)).OrderByDescending(x => x.StartTime);
+            return (await LoadSessionsAsync(SessionDirectories.CompletedSessionsDir)).OrderByDescending(x => x.StartTime);
         }
 
         public async Task<Session> GetSessionAsync(string sessionId, bool isDetailed = false)
@@ -91,49 +64,24 @@ namespace DaaS.Sessions
                 .Where(x => x.SessionId == sessionId).FirstOrDefault();
         }
 
-        public async Task<string> SubmitNewSessionAsync(Session session, bool isV2Session, bool invokedViaDaasConsole = false)
+        public async Task<string> SubmitNewSessionAsync(Session session)
         {
+            ThrowIfRequiredSettingsMissing();
             string sessionId = string.Empty;
-            var computeMode = Environment.GetEnvironmentVariable("WEBSITE_COMPUTE_MODE");
-            if (computeMode != null && !computeMode.Equals("Dedicated", StringComparison.OrdinalIgnoreCase))
-            {
-                throw new AccessViolationException("DaaS is only supported on websites running in Dedicated SKU");
-            }
 
-            var alwaysOnEnabled = Environment.GetEnvironmentVariable("WEBSITE_SCM_ALWAYS_ON_ENABLED");
-            if (int.TryParse(alwaysOnEnabled, out int isAlwaysOnEnabled) && isAlwaysOnEnabled == 0)
-            {
-                string sku = Environment.GetEnvironmentVariable("WEBSITE_SKU");
-                if (!string.IsNullOrWhiteSpace(sku) && !sku.ToLower().Contains("elastic"))
-                {
-                    throw new DiagnosticSessionAbortedException("Cannot submit a diagnostic session because 'Always-On' is disabled. Please enable Always-On in site configuration and re-submit the session");
-                }
-            }
-
-            var activeSession = await GetActiveSessionAsync(isV2Session);
+            var activeSession = await GetActiveSessionAsync();
             if (activeSession != null)
             {
-                if (isV2Session && IsSameSession(session, activeSession))
-                {
-                    //
-                    // For V2 sessions, multiple instances will try to submit the same session.
-                    // If we find an existing active session with the same session id, we will
-                    // assume that it is the same session
-                    //
-
-                    return activeSession.SessionId;
-                }
-
                 throw new AccessViolationException($"There is already an existing session for {activeSession.Tool}");
             }
 
-            await ThrowIfSessionInvalid(session, isV2Session);
+            await ThrowIfSessionInvalid(session);
 
             //
             // Acquire lock on the Active Session file
             //
 
-            var activeSessionLock = await AcquireActiveSessionLockAsync(isV2Session);
+            var activeSessionLock = await AcquireActiveSessionLockAsync();
             if (activeSessionLock == null)
             {
                 //
@@ -147,32 +95,18 @@ namespace DaaS.Sessions
             string existingSessionMessage = string.Empty;
             try
             {
-                var existingActiveSession = await GetActiveSessionAsync(isV2Session);
+                var existingActiveSession = await GetActiveSessionAsync();
                 if (existingActiveSession == null)
                 {
                     //
                     // Save session only if there is no existing active session
                     //
 
-                    sessionId = await SaveSessionAsync(session, isV2Session, invokedViaDaasConsole);
+                    sessionId = await SaveSessionAsync(session);
                 }
                 else
                 {
-                    if (isV2Session && IsSameSession(session, existingActiveSession))
-                    {
-                        //
-                        // For V2 sessions, multiple instances will try to submit the same session.
-                        // If we find an existing active session with the same session id, we will
-                        // assume that it is the same session. Also do not return here, make sure
-                        // that the active session lock gets released.
-                        //
-
-                        sessionId = existingActiveSession.SessionId;
-                    }
-                    else
-                    {
-                        existingSessionMessage = $"Existing session '{existingActiveSession.SessionId}' for '{existingActiveSession.Tool}' found";
-                    }
+                    existingSessionMessage = $"Existing session '{existingActiveSession.SessionId}' for '{existingActiveSession.Tool}' found";
                 }
 
             }
@@ -198,42 +132,7 @@ namespace DaaS.Sessions
             return sessionId;
         }
 
-        public bool CheckIfAnalysisQueuedForCurrentInstance(Session activeSession)
-        {
-            if (activeSession == null || activeSession.ActiveInstances == null || activeSession.ActiveInstances.Count == 0)
-            {
-                return false;
-            }
-
-            var currentInstance = activeSession.ActiveInstances.FirstOrDefault(x => x.Name.Equals(Environment.MachineName, StringComparison.OrdinalIgnoreCase));
-            if (currentInstance != null
-                && (currentInstance.Status == Status.AnalysisQueued || currentInstance.Status == Status.Analyzing))
-            {
-                return true;
-            }
-
-            return false;
-        }
-
-        private bool CheckIfTimeLimitExceeded(Session activeSession)
-        {
-            var duration = DateTime.UtcNow.Subtract(activeSession.StartTime);
-            if (duration.TotalMinutes > Settings.Instance.MaxSessionTimeInMinutes)
-            {
-                return true;
-            }
-
-            return false;
-        }
-
-        private bool IsSameSession(Session session, Session activeSession)
-        {
-            return !string.IsNullOrWhiteSpace(session.SessionId)
-                && activeSession.SessionId.Equals(session.SessionId, StringComparison.OrdinalIgnoreCase)
-                && session.Tool == activeSession.Tool;
-        }
-
-        private async Task ThrowIfSessionInvalid(Session session, bool isV2Session)
+        private async Task ThrowIfSessionInvalid(Session session)
         {
             if (session.Instances == null || !session.Instances.Any())
             {
@@ -255,34 +154,8 @@ namespace DaaS.Sessions
 
             if (InvokedViaAutomation)
             {
-                var maxSessionsPerDay = Infrastructure.Settings.MaxSessionsPerDay;
-
-                var completedSessions = await GetCompletedSessionsAsync(isV2Session);
-                var completedSessionsLastDay = completedSessions.Where(x => x.StartTime > DateTime.UtcNow.AddDays(-1)).Count();
-
-                if (completedSessionsLastDay >= maxSessionsPerDay)
-                {
-                    throw new AccessViolationException($"The limit of maximum number of DaaS sessions ({maxSessionsPerDay} per day) has been reached. Either disable"
-                        + "the autohealing rule, delete existing sessions or increase MaxSessionsPerDay setting in %home%\\data\\daas\\PrivateSettings.json file."
-                        + "(Changing settings, requires a restart of the Kudu Site)");
-                }
-
-                var sessionThresholdPeriodInMinutes = Infrastructure.Settings.MaxSessionCountThresholdPeriodInMinutes;
-                var maxSessionCountInThresholdPeriod = Infrastructure.Settings.MaxSessionCountInThresholdPeriod;
-
-                var sessionsInThresholdPeriod = completedSessions.Where(x => x.StartTime > DateTime.UtcNow.AddMinutes(-1 * sessionThresholdPeriodInMinutes)).Count();
-                if (sessionsInThresholdPeriod >= maxSessionCountInThresholdPeriod)
-                {
-                    throw new AccessViolationException($"To avoid impact to application and disk space, a new DaaS session request is rejected as a total of "
-                        + $"{maxSessionCountInThresholdPeriod} DaaS sessions were submitted in the last {sessionThresholdPeriodInMinutes} minutes. Either "
-                        + $"disable the autohealing rule, delete existing sessions or increase MaxSessionCountInThresholdPeriod,"
-                        + $"MaxSessionCountThresholdPeriodInMinutes setting in %home%\\data\\daas\\PrivateSettings.json "
-                        + $"file. (Changing settings, requires a restart of the Kudu Site)");
-                }
-                else
-                {
-                    Logger.LogVerboseEvent($"MaxSessionCountThresholdPeriodInMinutes is {sessionThresholdPeriodInMinutes} and sessionsInThresholdPeriod is {sessionsInThresholdPeriod} so allowing DaaSConsole to submit a new session");
-                }
+                var completedSessions = await GetCompletedSessionsAsync();
+                ThrowIfLimitsHitViaAutomation(completedSessions);
             }
         }
 
@@ -314,15 +187,15 @@ namespace DaaS.Sessions
             }
         }
 
-        public async Task<bool> HasThisInstanceCollectedLogs(bool isV2Session)
+        public async Task<bool> HasThisInstanceCollectedLogs()
         {
-            var activeSession = await GetActiveSessionAsync(isV2Session);
+            var activeSession = await GetActiveSessionAsync();
             return activeSession.ActiveInstances != null
                 && activeSession.ActiveInstances.Any(x => x.Name.Equals(Infrastructure.GetInstanceId(),
                 StringComparison.OrdinalIgnoreCase) && x.Status == Status.Complete);
         }
 
-        public async Task RunToolForSessionAsync(Session activeSession, bool isV2Session, bool queueAnalysisRequest, CancellationToken token)
+        public async Task RunToolForSessionAsync(Session activeSession, bool queueAnalysisRequest, CancellationToken token)
         {
             try
             {
@@ -339,7 +212,7 @@ namespace DaaS.Sessions
                 {
                     DiagnosticToolResponse resp = null;
                     Collector collector = GetCollectorForSession(activeSession.Tool);
-                    await SetCurrentInstanceAsStartedAsync(activeSession, isV2Session);
+                    await SetCurrentInstanceAsStartedAsync(activeSession);
 
                     try
                     {
@@ -358,16 +231,10 @@ namespace DaaS.Sessions
                     //
                     // Add the tool output to the active session
                     //
-                    await AppendCollectorResponseToSessionAsync(activeSession, isV2Session, resp);
+                    await AppendCollectorResponseToSessionAsync(activeSession, resp);
                 }
 
-                if (isV2Session && queueAnalysisRequest)
-                {
-                    await SetCurrentInstanceAsAnalysisQueuedAsync(activeSession, isV2Session);
-                    return;
-                }
-
-                await AnalyzeAndCompleteSessionAsync(activeSession, isV2Session, sessionId, token);
+                await AnalyzeAndCompleteSessionAsync(activeSession, sessionId, token);
             }
             catch (Exception ex)
             {
@@ -375,22 +242,22 @@ namespace DaaS.Sessions
             }
         }
 
-        public async Task AnalyzeAndCompleteSessionAsync(Session activeSession, bool isV2Session, string sessionId, CancellationToken token)
+        public async Task AnalyzeAndCompleteSessionAsync(Session activeSession, string sessionId, CancellationToken token)
         {
             //
             // Mark current instance as Analyzing
             //
-            await SetCurrentInstanceAsAnalyzingAsync(activeSession, isV2Session);
+            await SetCurrentInstanceAsAnalyzingAsync(activeSession);
 
             //
             // Fire Analysis task
             //
-            await AnalyzeAndUpdateSessionAsync(token, sessionId, isV2Session);
+            await AnalyzeAndUpdateSessionAsync(token, sessionId);
 
             //
             // Mark current instance as Complete
             //
-            await SetCurrentInstanceAsCompleteAsync(activeSession, isV2Session);
+            await SetCurrentInstanceAsCompleteAsync(activeSession);
 
             //
             // Cleanup all the temporary collected data
@@ -401,18 +268,12 @@ namespace DaaS.Sessions
             // Check if all the instances have finished running the session
             // and set the Session State to Complete
             //
-            await CheckandCompleteSessionIfNeededAsync(isV2Session);
+            await CheckandCompleteSessionIfNeededAsync();
         }
 
-        private void CleanupTempDataForSession(string sessionId)
+        public async Task<bool> CheckandCompleteSessionIfNeededAsync(bool forceCompletion = false)
         {
-            DeleteFolderSafe(Path.Combine(DaasDirectory.LogsTempDir, sessionId), sessionId);
-            DeleteFolderSafe(Path.Combine(DaasDirectory.ReportsTempDir, sessionId), sessionId);
-        }
-
-        public async Task<bool> CheckandCompleteSessionIfNeededAsync(bool isV2Session, bool forceCompletion = false)
-        {
-            var activeSession = await GetActiveSessionAsync(isV2Session);
+            var activeSession = await GetActiveSessionAsync();
             if (activeSession == null)
             {
                 return true;
@@ -421,65 +282,26 @@ namespace DaaS.Sessions
             if (AllInstancesFinished(activeSession) || forceCompletion)
             {
                 Logger.LogSessionVerboseEvent("All instances have status as Complete", activeSession.SessionId);
-                await MarkSessionAsCompleteAsync(activeSession, isV2Session, forceCompletion: forceCompletion);
+                await MarkSessionAsCompleteAsync(activeSession, forceCompletion: forceCompletion);
                 return true;
             }
 
             return false;
         }
 
-        public bool ShouldCollectOnCurrentInstance(Session activeSession)
+        public async Task<bool> IsSessionExistingAsync(string sessionId)
         {
-            if (activeSession == null)
-            {
-                return false;
-            }
-
-            return activeSession.Instances != null &&
-                activeSession.Instances.Any(x => x.Equals(Infrastructure.GetInstanceId(), StringComparison.OrdinalIgnoreCase));
-        }
-
-        public bool ShouldAnalyzeOnCurrentInstance(Session activeSession)
-        {
-            if (activeSession == null)
-            {
-                return false;
-            }
-
-            if (activeSession.Instances != null &&
-                activeSession.Instances.Any(x => x.Equals(Infrastructure.GetInstanceId(), StringComparison.OrdinalIgnoreCase)))
-            {
-                var activeInstance = activeSession.GetCurrentInstance();
-                if (activeInstance != null)
-                {
-                    if (activeInstance.Status == Status.AnalysisQueued)
-                    {
-                        Logger.LogSessionVerboseEvent("Current instance should analyze", activeSession.SessionId);
-                        return true;
-                    }
-                    else
-                    {
-                        Logger.LogSessionVerboseEvent($"Current instance should not analyze. Session status is {activeInstance.Status}", activeSession.SessionId);
-                    }
-                }
-            }
-
-            return false;
-        }
-
-        public bool IsSessionExisting(string sessionId, bool isV2Session)
-        {
-            var sessionFile = Path.Combine(isV2Session ? SessionDirectories.CompletedSessionsV2Dir : SessionDirectories.CompletedSessionsDir, sessionId + ".json");
+            var sessionFile = Path.Combine(SessionDirectories.CompletedSessionsDir, sessionId + ".json");
             return FileSystemHelpers.FileExists(sessionFile);
         }
 
-        public async Task DeleteSessionAsync(string sessionId, bool isV2Session)
+        public async Task DeleteSessionAsync(string sessionId)
         {
             EnsureSessionDirectories();
 
             await Task.Run(async () =>
             {
-                var sessionFile = Path.Combine(isV2Session ? SessionDirectories.CompletedSessionsV2Dir : SessionDirectories.CompletedSessionsDir, sessionId + ".json");
+                var sessionFile = Path.Combine(SessionDirectories.CompletedSessionsDir, sessionId + ".json");
                 if (!FileSystemHelpers.FileExists(sessionFile))
                 {
                     throw new ArgumentException($"Session {sessionId} does not exist");
@@ -487,21 +309,9 @@ namespace DaaS.Sessions
 
                 try
                 {
-                    var deleteFilesFromBlob = false;
                     var session = await FromJsonFileAsync<Session>(sessionFile); ;
-                    var diagnoser = GetDiagnoserForSession(session);
-                    if (diagnoser.RequiresStorageAccount)
-                    {
-                        deleteFilesFromBlob = true;
-                    }
+                    await DeleteSessionContentsAsync(session, _storageService);
 
-                    if (deleteFilesFromBlob)
-                    {
-                        await DeleteLogsFromBlob(session);
-                    }
-
-                    DeleteFolderSafe(Path.Combine(DaasDirectory.LogsDir, sessionId), sessionId);
-                    DeleteFolderSafe(Path.Combine(DaasDirectory.ReportsDir, sessionId), sessionId);
                     FileSystemHelpers.DeleteFile(sessionFile);
                     Logger.LogSessionVerboseEvent("Session deleted", sessionId);
                 }
@@ -513,67 +323,9 @@ namespace DaaS.Sessions
             });
         }
 
-        private static void DeleteFolderSafe(string directory, string sessionIdToLog)
+        public async Task CancelOrphanedInstancesIfNeeded()
         {
-            try
-            {
-                FileSystemHelpers.DeleteDirectoryContentsSafe(directory, ignoreErrors: false);
-                FileSystemHelpers.DeleteDirectorySafe(directory, ignoreErrors: false);
-            }
-            catch (Exception ex)
-            {
-                Logger.LogSessionWarningEvent($"Exception while deleting {directory}", ex, sessionIdToLog);
-            }
-        }
-
-        private async Task DeleteLogsFromBlob(Session session)
-        {
-            if (session.ActiveInstances == null)
-            {
-                return;
-            }
-
-            foreach (var activeInstance in session.ActiveInstances)
-            {
-                foreach (var log in activeInstance.Logs)
-                {
-                    await DeleteLogFromBlob(log, session.SessionId);
-                }
-            }
-        }
-
-        private async Task DeleteLogFromBlob(LogFile log, string sessionId)
-        {
-            try
-            {
-                await _storageService.DeleteFileAsync(log.PartialPath);
-
-            }
-            catch (Exception ex)
-            {
-                Logger.LogSessionErrorEvent($"Failed while deleting {log.PartialPath} from blob", ex, sessionId);
-            }
-        }
-
-        public List<DiagnoserDetails> GetDiagnosers()
-        {
-            List<DiagnoserDetails> retVal = new List<DiagnoserDetails>();
-            foreach (Diagnoser diagnoser in Infrastructure.Settings.Diagnosers)
-            {
-                retVal.Add(new DiagnoserDetails(diagnoser));
-            }
-
-            return retVal;
-        }
-
-        public bool IsSandboxAvailable()
-        {
-            return Settings.Instance.IsSandBoxAvailable();
-        }
-
-        public async Task CancelOrphanedInstancesIfNeeded(bool isV2Session)
-        {
-            var activeSession = await GetActiveSessionAsync(isV2Session);
+            var activeSession = await GetActiveSessionAsync();
             if (activeSession == null)
             {
                 return;
@@ -645,26 +397,16 @@ namespace DaaS.Sessions
                 }
 
                 return latestSessionFromDisk;
-            }, activeSession.SessionId, isV2Session: isV2Session, callerMethodName: "CancelOrphanedInstancesIfNeeded");
+            }, activeSession.SessionId, callerMethodName: "CancelOrphanedInstancesIfNeeded");
         }
 
-        public bool IncludeSasUri { get; set; }
-        public bool InvokedViaAutomation { get; set; }
         #endregion
 
-        private Diagnoser GetDiagnoserForSession(Session session)
-        {
-            return GetDiagnoserForSession(session.Tool);
-        }
 
-        private Diagnoser GetDiagnoserForSession(string toolName)
-        {
-            return Infrastructure.Settings.Diagnosers.FirstOrDefault(x => x.Name == toolName);
-        }
 
-        private async Task AnalyzeAndUpdateSessionAsync(CancellationToken token, string sessionId, bool isV2Session)
+        private async Task AnalyzeAndUpdateSessionAsync(CancellationToken token, string sessionId)
         {
-            var activeSession = await GetActiveSessionAsync(isV2Session);
+            var activeSession = await GetActiveSessionAsync();
             if (activeSession == null)
             {
                 Logger.LogSessionWarningEvent("Failed while analyzing the session", "ActiveSession is NULL. Another instance might have completed the session", sessionId);
@@ -684,24 +426,9 @@ namespace DaaS.Sessions
                 Logger.LogSessionVerboseEvent($"Identified {collectedLogs.Count} logs to analyze", sessionId);
                 var analyzer = GetAnalyzerForSession(activeSession.Tool);
 
-                if (isV2Session)
-                {
-                    var errors = await CacheLogsToTempFolderAsync(collectedLogs, sessionId, analyzer.RequiresStorageAccount);
-                    if (errors.Any())
-                    {
-                        analyzerErrors = analyzerErrors.Union(errors).ToList();
-                    }
-                    else
-                    {
-                        Logger.LogSessionVerboseEvent("Issuing analysis for session", sessionId);
-                        await analyzer.AnalyzeLogsAsync(collectedLogs, activeSession, token);
-                    }
-                }
-                else
-                {
-                    Logger.LogSessionVerboseEvent("Issuing analysis for session", sessionId);
-                    await analyzer.AnalyzeLogsAsync(collectedLogs, activeSession, token);
-                }
+                Logger.LogSessionVerboseEvent("Issuing analysis for session", sessionId);
+                await analyzer.AnalyzeLogsAsync(collectedLogs, activeSession, token);
+
             }
 
             analyzerErrors = analyzerErrors.Union(GetAnalyzerErrors(activeSession)).ToList();
@@ -739,222 +466,10 @@ namespace DaaS.Sessions
                 }
 
                 return latestSessionFromDisk;
-            }, activeSession.SessionId, isV2Session: isV2Session, callerMethodName: "AnalyzeAndUpdateSessionAsync");
+            }, activeSession.SessionId, callerMethodName: "AnalyzeAndUpdateSessionAsync");
         }
 
-        private async Task<List<string>> CacheLogsToTempFolderAsync(List<LogFile> collectedLogs, string sessionId, bool requiresStorageAccount)
-        {
-            var errors = new List<string>();
-            foreach (var log in collectedLogs)
-            {
-                if (File.Exists(log.TempPath))
-                {
-                    Logger.LogSessionVerboseEvent($"Log [{log.Name}] is already cached at [{log.TempPath}]. Skipping cache operation", sessionId);
-                    continue;
-                }
-
-                try
-                {
-                    Stopwatch sw = Stopwatch.StartNew();
-                    sw.Start();
-                    if (requiresStorageAccount)
-                    {
-                        await DownloadFileFromBlobAsync(sessionId, log);
-                    }
-                    else
-                    {
-                        DownloadFileFromFileSystem(sessionId, log);
-                    }
-
-                    sw.Stop();
-                    Logger.LogSessionVerboseEvent($"File copied to [{log.TempPath}] after {sw.Elapsed.TotalMinutes:0.0} min", sessionId);
-                }
-                catch (Exception ex)
-                {
-                    errors.Add($"Failed to cache file [{log.Name}] to temp folder. Exception: {ex.GetType()}:{ex.Message}");
-                }
-            }
-
-            return errors;
-        }
-
-        private static void DownloadFileFromFileSystem(string sessionId, LogFile log)
-        {
-            try
-            {
-                string fullFilePath = Path.Combine(Settings.SiteRootDir, log.PartialPath).ConvertForwardSlashesToBackSlashes();
-                FileSystemHelpers.CreateDirectoryIfNotExists(Path.GetDirectoryName(log.TempPath));
-                Logger.LogSessionVerboseEvent($"Copying file from [{fullFilePath}] to [{log.TempPath}]", sessionId);
-                FileSystemHelpers.CopyFile(fullFilePath, log.TempPath);
-            }
-            catch (Exception ex)
-            {
-                Logger.LogSessionErrorEvent("Failed caching file to temp folder from FileSystem", ex, sessionId);
-                throw ex;
-            }
-        }
-
-        private async Task DownloadFileFromBlobAsync(string sessionId, LogFile log)
-        {
-            try
-            {
-                Logger.LogSessionVerboseEvent($"Downloading file from Blob storage [{log.PartialPath}] to [{log.TempPath}]", sessionId);
-                await _storageService.DownloadFileAsync(log.PartialPath, log.TempPath);
-            }
-            catch (Exception ex)
-            {
-                Logger.LogSessionErrorEvent("Failed caching file to temp folder", ex, sessionId);
-                throw ex;
-            }
-        }
-
-        private List<string> GetAnalyzerErrors(Session activeSession)
-        {
-            if (activeSession.ActiveInstances == null)
-            {
-                return default;
-            }
-
-            ActiveInstance currentInstance = activeSession.GetCurrentInstance();
-            if (currentInstance == null)
-            {
-                return default;
-            }
-
-            return currentInstance.AnalyzerErrors;
-
-        }
-
-        private List<LogFile> GetCurrentInstanceLogs(Session activeSession)
-        {
-            if (activeSession.ActiveInstances == null)
-            {
-                return default;
-            }
-
-            ActiveInstance currentInstance = activeSession.GetCurrentInstance();
-            if (currentInstance == null)
-            {
-                return default;
-            }
-
-            return currentInstance.Logs;
-        }
-
-        private Analyzer GetAnalyzerForSession(string toolName)
-        {
-            var diagnoser = GetDiagnoserForSession(toolName);
-            if (diagnoser == null)
-            {
-                throw new Exception("Diagnostic tool not found");
-            }
-
-            if (diagnoser.Analyzer == null)
-            {
-                throw new Exception($"Analyzer not found in {diagnoser.Name}");
-            }
-
-            var analyzer = new Analyzer(diagnoser);
-            return analyzer;
-        }
-
-        private Collector GetCollectorForSession(string toolName)
-        {
-            var diagnoser = GetDiagnoserForSession(toolName);
-            if (diagnoser == null)
-            {
-                throw new Exception("Diagnostic tool not found");
-            }
-
-            if (diagnoser.Collector == null)
-            {
-                throw new Exception($"Collector not found in {diagnoser.Name}");
-            }
-
-            var collector = new Collector(diagnoser);
-
-            return collector;
-        }
-
-        private void UpdateAnalyzerStatus(Session activeSession)
-        {
-            foreach (var activeInstance in activeSession.ActiveInstances)
-            {
-                foreach (var log in activeInstance.Logs)
-                {
-                    string logReportPath = Path.Combine(
-                        DaasDirectory.ReportsDir,
-                        activeSession.SessionId,
-                        log.StartTime.ToString(Constants.SessionFileNameFormat));
-
-                    if (!Directory.Exists(logReportPath))
-                    {
-                        continue;
-                    }
-
-                    var statusFile = Directory.GetFiles(
-                        logReportPath,
-                        "*diagstatus.diaglog",
-                        SearchOption.TopDirectoryOnly).FirstOrDefault();
-
-                    if (!string.IsNullOrWhiteSpace(statusFile))
-                    {
-                        var statusMessages = ReadStatusFile(statusFile);
-                        activeInstance.AnalyzerStatusMessages.AddRange(statusMessages);
-                    }
-                }
-            }
-        }
-
-        private void UpdateCollectorStatus(Session activeSession)
-        {
-            foreach (var activeInstance in activeSession.ActiveInstances)
-            {
-                string instancePath = Path.Combine(
-                    DaasDirectory.LogsDir,
-                    activeSession.SessionId,
-                    activeInstance.Name);
-
-                if (!Directory.Exists(instancePath))
-                {
-                    continue;
-                }
-
-                var statusFile = Directory.GetFiles(
-                    instancePath,
-                    "*diagstatus.diaglog",
-                    SearchOption.TopDirectoryOnly).FirstOrDefault();
-
-                if (!string.IsNullOrWhiteSpace(statusFile))
-                {
-                    activeInstance.CollectorStatusMessages = ReadStatusFile(statusFile);
-                }
-            }
-        }
-
-        private static List<string> ReadStatusFile(string statusFile)
-        {
-            var messages = new List<string>();
-            try
-            {
-                using (FileStream fs = File.Open(statusFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-                using (StreamReader sr = new StreamReader(fs))
-                {
-                    while (!sr.EndOfStream)
-                    {
-                        messages.Add(sr.ReadLine());
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.LogErrorEvent($"Failed to read status file", ex);
-            }
-
-            return messages;
-        }
-
-        private async Task AppendCollectorResponseToSessionAsync(Session activeSession, bool isV2Session, DiagnosticToolResponse response)
+        private async Task AppendCollectorResponseToSessionAsync(Session activeSession, DiagnosticToolResponse response)
         {
             try
             {
@@ -999,7 +514,7 @@ namespace DaaS.Sessions
                     }
 
                     return latestSessionFromDisk;
-                }, activeSession.SessionId, isV2Session, callerMethodName: "AppendCollectorResponseToSessionAsync");
+                }, activeSession.SessionId, callerMethodName: "AppendCollectorResponseToSessionAsync");
             }
             catch (Exception ex)
             {
@@ -1007,11 +522,11 @@ namespace DaaS.Sessions
             }
         }
 
-        private async Task UpdateActiveSessionAsync(Func<Session, Session> updateSession, string sessionId, bool isV2Session, string callerMethodName)
+        private async Task UpdateActiveSessionAsync(Func<Session, Session> updateSession, string sessionId, string callerMethodName)
         {
             try
             {
-                _sessionLockFile = await AcquireSessionLockAsync(sessionId, isV2Session, callerMethodName);
+                _sessionLockFile = await AcquireSessionLockAsync(sessionId, callerMethodName);
 
                 if (_sessionLockFile == null)
                 {
@@ -1028,7 +543,7 @@ namespace DaaS.Sessions
                 // and others wait while this instance has the lock
                 //
 
-                Session latestSessionFromDisk = await GetActiveSessionAsync(isV2Session);
+                Session latestSessionFromDisk = await GetActiveSessionAsync();
                 if (latestSessionFromDisk == null)
                 {
                     return;
@@ -1040,7 +555,7 @@ namespace DaaS.Sessions
                     return;
                 }
 
-                await UpdateActiveSessionFileAsync(sessionAfterMergingLatestUpdates, isV2Session);
+                await UpdateActiveSessionFileAsync(sessionAfterMergingLatestUpdates);
             }
             catch (Exception ex)
             {
@@ -1133,109 +648,12 @@ namespace DaaS.Sessions
             }
         }
 
-        private List<Report> SanitizeReports(List<Report> reports)
-        {
-            int minRelativePathSegments = Int32.MaxValue;
-            var output = new List<Report>();
-            foreach (var report in reports)
-            {
-                int relativePathSegments = report.PartialPath.Split('/').Length;
-
-                if (relativePathSegments == minRelativePathSegments)
-                {
-                    output.Add(report);
-                }
-                else if (relativePathSegments < minRelativePathSegments)
-                {
-                    minRelativePathSegments = relativePathSegments;
-                    output.Clear();
-                    output.Add(report);
-                }
-            }
-
-            return output;
-        }
-
-        private void UpdateRelativePathForLogs(Session session)
-        {
-            if (session.ActiveInstances == null)
-            {
-                return;
-            }
-
-            var diagnoser = GetDiagnoserForSession(session);
-            if (diagnoser == null)
-            {
-                return;
-            }
-
-            foreach (var instance in session.ActiveInstances)
-            {
-                foreach (var log in instance.Logs)
-                {
-                    if (diagnoser.RequiresStorageAccount)
-                    {
-                        log.RelativePath = GetPathWithSasUri(log.PartialPath);
-                    }
-                    else
-                    {
-                        log.RelativePath = $"{Utility.GetScmHostName()}/api/vfs/{log.PartialPath}";
-                    }
-                }
-            }
-        }
-
-        private static string GetPathWithSasUri(string relativePath)
-        {
-            if (string.IsNullOrWhiteSpace(relativePath))
-            {
-                return string.Empty;
-            }
-
-            string path = string.Empty;
-            try
-            {
-                var blobSasUri = Settings.Instance.BlobSasUri;
-                if (string.IsNullOrWhiteSpace(blobSasUri))
-                {
-                    blobSasUri = Settings.Instance.AccountSasUri;
-                }
-
-                var blobUriSections = blobSasUri.Split('?');
-                if (blobUriSections.Length >= 2)
-                {
-                    path = blobUriSections[0] + "/" + relativePath.ConvertBackSlashesToForwardSlashes() + "?" +
-                               string.Join("?", blobUriSections, 1, blobUriSections.Length - 1);
-                }
-                else
-                {
-                    path = blobUriSections[0] + "/" + relativePath.ConvertBackSlashesToForwardSlashes();
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.LogWarningEvent("Failed while getting RelativePath with SAS URI", ex);
-            }
-
-            return path;
-        }
-
-        private async Task<string> SaveSessionAsync(Session session, bool isV2Session, bool invokedViaDaasConsole)
+        private async Task<string> SaveSessionAsync(Session session)
         {
             try
             {
                 session.StartTime = DateTime.UtcNow;
-                if (isV2Session && !string.IsNullOrWhiteSpace(session.SessionId))
-                {
-                    //
-                    // For V2 sessions, session id is generated by the client
-                    //
-                }
-                else
-                {
-                    session.SessionId = GetSessionId(session.StartTime);
-                }
-
+                session.SessionId = GetSessionId(session.StartTime);
                 session.Status = Status.Active;
 
                 var diagnoser = GetDiagnoserForSession(session);
@@ -1246,9 +664,9 @@ namespace DaaS.Sessions
 
                 session.DefaultScmHostName = Settings.Instance.DefaultScmHostName;
                 await WriteJsonAsync(session,
-                    Path.Combine(isV2Session ? SessionDirectories.ActiveSessionsV2Dir : SessionDirectories.ActiveSessionsDir, session.SessionId + ".json"));
+                    Path.Combine(SessionDirectories.ActiveSessionsDir, session.SessionId + ".json"));
 
-                LogSessionDetailsSafe(session, invokedViaDaasConsole, isV2Session);
+                LogSessionDetailsSafe(session, isV2Session: false);
                 return session.SessionId;
             }
             catch (Exception ex)
@@ -1257,35 +675,6 @@ namespace DaaS.Sessions
             }
 
             return string.Empty;
-        }
-
-        private static void LogSessionDetailsSafe(Session session, bool invokedViaDaasConsole, bool isV2Session)
-        {
-            try
-            {
-                var details = new
-                {
-                    Instances = string.Join(",", session.Instances),
-                    HostName = session.DefaultScmHostName,
-                    session.BlobStorageHostName,
-                    Sku = Environment.GetEnvironmentVariable("WEBSITE_SKU"),
-                    invokedViaDaasConsole,
-                    session.Description,
-                    ConnectionStringConfigured = !string.IsNullOrWhiteSpace(Settings.Instance.StorageConnectionString),
-                    SasUriConfigured = !string.IsNullOrWhiteSpace(Settings.Instance.AccountSasUri),
-                    isV2Session
-                };
-
-                Logger.LogNewSession(
-                    session.SessionId,
-                    session.Mode.ToString(),
-                    session.Tool,
-                    details);
-            }
-            catch (Exception ex)
-            {
-                Logger.LogErrorEvent("Failed while logging session details", ex);
-            }
         }
 
         private string GetSessionId(DateTime startTime)
@@ -1335,9 +724,9 @@ namespace DaaS.Sessions
             }
         }
 
-        private async Task<IOperationLock> AcquireSessionLockAsync(string sessionId, bool isV2Session, string callerMethodName)
+        private async Task<IOperationLock> AcquireSessionLockAsync(string sessionId, string callerMethodName)
         {
-            IOperationLock sessionLock = new SessionLockFile(GetActiveSessionLockPath(sessionId, isV2Session));
+            IOperationLock sessionLock = new SessionLockFile(GetActiveSessionLockPath(sessionId));
             int loopCount = 0;
 
             Logger.LogSessionVerboseEvent($"Acquiring SessionLock by {callerMethodName}", sessionId);
@@ -1359,90 +748,56 @@ namespace DaaS.Sessions
             return sessionLock;
         }
 
-        private async Task<IOperationLock> AcquireActiveSessionLockAsync(bool isV2Session)
+        private async Task<IOperationLock> AcquireActiveSessionLockAsync()
         {
-            string lockFilePath = Path.Combine(isV2Session ? SessionDirectories.ActiveSessionsV2Dir : SessionDirectories.ActiveSessionsDir, "activesession.json.lock");
+            string lockFilePath = Path.Combine(SessionDirectories.ActiveSessionsDir, "activesession.json.lock");
             IOperationLock sessionLock = new SessionLockFile(lockFilePath);
-            if (isV2Session)
+
+            Logger.LogSessionVerboseEvent($"Acquiring ActiveSessionLock by AcquireActiveSessionLock", "NEW_SESSION_ID");
+            if (sessionLock.Lock("AcquireActiveSessionLock"))
             {
-                //
-                // For V2 sessions, multiple instances will attempt to Create the session at the same time.
-                // Introduce some delay to ensure that we allow the Submit session call to succeed
-                //
-
-                int loopCount = 0;
-                Logger.LogSessionVerboseEvent($"Acquiring ActiveSessionLock by AcquireActiveSessionLock", "NEW_SESSION_ID");
-                while (!sessionLock.Lock("AcquireActiveSessionLock") && loopCount <= 10)
-                {
-                    ++loopCount;
-                    Logger.LogSessionVerboseEvent($"Waiting to aquire ActiveSessionLock", "NEW_SESSION_ID");
-                    await Task.Delay(1000);
-                }
-
-                if (loopCount > 10)
-                {
-                    Logger.LogSessionVerboseEvent($"Deleting the lock file as it seems to be in an orphaned stage", "NEW_SESSION_ID");
-                    sessionLock.Release();
-                    return null;
-                }
-
-                Logger.LogSessionVerboseEvent($"Acquiring ActiveSessionLock by AcquireActiveSessionLock", "NEW_SESSION_ID");
+                Logger.LogSessionVerboseEvent($"Acquired ActiveSessionLock by AcquireActiveSessionLock", "NEW_SESSION_ID");
                 return sessionLock;
-            }
-            else
-            {
-                Logger.LogSessionVerboseEvent($"Acquiring ActiveSessionLock by AcquireActiveSessionLock", "NEW_SESSION_ID");
-                if (sessionLock.Lock("AcquireActiveSessionLock"))
-                {
-                    Logger.LogSessionVerboseEvent($"Acquired ActiveSessionLock by AcquireActiveSessionLock", "NEW_SESSION_ID");
-                    return sessionLock;
-                }
             }
 
             return null;
         }
 
-        private async Task UpdateActiveSessionFileAsync(Session activeSesion, bool isV2Session)
+        private async Task UpdateActiveSessionFileAsync(Session activeSesion)
         {
             await WriteJsonAsync(
                   activeSesion,
                   Path.Combine(
-                      isV2Session ? SessionDirectories.ActiveSessionsV2Dir : SessionDirectories.ActiveSessionsDir,
+                      SessionDirectories.ActiveSessionsDir,
                       activeSesion.SessionId + ".json"));
         }
 
-        private string GetActiveSessionLockPath(string sessionId, bool isV2Session)
+        private string GetActiveSessionLockPath(string sessionId)
         {
             return Path.Combine(
-                isV2Session ? SessionDirectories.ActiveSessionsV2Dir : SessionDirectories.ActiveSessionsDir,
+                SessionDirectories.ActiveSessionsDir,
                 sessionId + ".json.lock");
         }
 
-        private async Task SetCurrentInstanceAsCompleteAsync(Session activeSession, bool isV2Session)
+        private async Task SetCurrentInstanceAsCompleteAsync(Session activeSession)
         {
             Logger.LogSessionVerboseEvent("Setting current instance as Complete", activeSession.SessionId);
-            await SetCurrentInstanceStatusAsync(activeSession, isV2Session, Status.Complete);
+            await SetCurrentInstanceStatusAsync(activeSession, Status.Complete);
         }
 
-        private async Task SetCurrentInstanceAsStartedAsync(Session activeSession, bool isV2Session)
+        private async Task SetCurrentInstanceAsStartedAsync(Session activeSession)
         {
             Logger.LogSessionVerboseEvent("Setting current instance as Started", activeSession.SessionId);
-            await SetCurrentInstanceStatusAsync(activeSession, isV2Session, Status.Started);
+            await SetCurrentInstanceStatusAsync(activeSession, Status.Started);
         }
 
-        private async Task SetCurrentInstanceAsAnalysisQueuedAsync(Session activeSession, bool isV2Session)
-        {
-            Logger.LogSessionVerboseEvent("Setting current instance as AnalysisQueued", activeSession.SessionId);
-            await SetCurrentInstanceStatusAsync(activeSession, isV2Session, Status.AnalysisQueued);
-        }
-
-        private async Task SetCurrentInstanceAsAnalyzingAsync(Session activeSession, bool isV2Session)
+        private async Task SetCurrentInstanceAsAnalyzingAsync(Session activeSession)
         {
             Logger.LogSessionVerboseEvent("Setting current instance as Analyzing", activeSession.SessionId);
-            await SetCurrentInstanceStatusAsync(activeSession, isV2Session, Status.Analyzing);
+            await SetCurrentInstanceStatusAsync(activeSession, Status.Analyzing);
         }
 
-        private async Task SetCurrentInstanceStatusAsync(Session activeSession, bool isV2Session, Status sessionStatus)
+        private async Task SetCurrentInstanceStatusAsync(Session activeSession, Status sessionStatus)
         {
             try
             {
@@ -1462,7 +817,7 @@ namespace DaaS.Sessions
 
                     activeInstance.Status = sessionStatus;
                     return latestSessionFromDisk;
-                }, activeSession.SessionId, isV2Session, callerMethodName: "SetCurrentInstanceStatusAsync:" + sessionStatus.ToString());
+                }, activeSession.SessionId, callerMethodName: "SetCurrentInstanceStatusAsync:" + sessionStatus.ToString());
             }
             catch (Exception ex)
             {
@@ -1510,7 +865,7 @@ namespace DaaS.Sessions
                 StringComparer.OrdinalIgnoreCase);
         }
 
-        private async Task MarkSessionAsCompleteAsync(Session activeSession, bool isV2Session, bool forceCompletion = false)
+        private async Task MarkSessionAsCompleteAsync(Session activeSession, bool forceCompletion = false)
         {
             if (activeSession == null || string.IsNullOrWhiteSpace(activeSession.SessionId))
             {
@@ -1532,10 +887,10 @@ namespace DaaS.Sessions
                     latestSessionFromDisk.EndTime = DateTime.UtcNow;
                     return latestSessionFromDisk;
 
-                }, sessionId, isV2Session: isV2Session, callerMethodName: "MarkSessionAsCompleteAsync");
+                }, sessionId, callerMethodName: "MarkSessionAsCompleteAsync");
 
-                string activeSessionFile = Path.Combine(isV2Session ? SessionDirectories.ActiveSessionsV2Dir : SessionDirectories.ActiveSessionsDir, sessionId + ".json");
-                string completedSessionFile = Path.Combine(isV2Session ? SessionDirectories.CompletedSessionsV2Dir : SessionDirectories.CompletedSessionsDir, sessionId + ".json");
+                string activeSessionFile = Path.Combine(SessionDirectories.ActiveSessionsDir, sessionId + ".json");
+                string completedSessionFile = Path.Combine(SessionDirectories.CompletedSessionsDir, sessionId + ".json");
 
                 if (!File.Exists(activeSessionFile))
                 {
@@ -1550,7 +905,7 @@ namespace DaaS.Sessions
                 // Move the session file from Active to Complete folder and do this under lock
                 //
 
-                _sessionLockFile = await AcquireSessionLockAsync(sessionId, isV2Session, "MarkSessionAsCompleteAsync-MovingFile");
+                _sessionLockFile = await AcquireSessionLockAsync(sessionId, "MarkSessionAsCompleteAsync-MovingFile");
                 if (_sessionLockFile == null)
                 {
                     //
@@ -1582,7 +937,7 @@ namespace DaaS.Sessions
                 //
 
                 Logger.LogSessionVerboseEvent($"Cleaning up the lock file from Active session folder", sessionId);
-                FileSystemHelpers.DeleteFileSafe(GetActiveSessionLockPath(sessionId, isV2Session));
+                FileSystemHelpers.DeleteFileSafe(GetActiveSessionLockPath(sessionId));
                 Logger.LogSessionVerboseEvent($"Session is complete after {DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes} minutes", sessionId);
                 LogMessageToAlertingQueue(activeSession);
             }
@@ -1638,83 +993,6 @@ namespace DaaS.Sessions
             }
 
             return files;
-        }
-
-        public async Task RunActiveSessionAsync(bool queueAnalysisRequest, CancellationToken cancellationToken)
-        {
-            var activeSession = await GetActiveSessionAsync(isV2Session: true) ?? throw new Exception("Failed to find the active session");
-
-            if (ShouldCollectOnCurrentInstance(activeSession))
-            {
-                await SetCurrentInstanceAsStartedAsync(activeSession, isV2Session: true);
-                await RunToolForSessionAsync(activeSession, isV2Session: true, queueAnalysisRequest, cancellationToken);
-            }
-            else
-            {
-                Logger.LogSessionWarningEvent(
-                   $"Current instance [{Environment.MachineName}] is not part of the active session instances ({GetSessionInstances(activeSession)})",
-                   "This session does not belong to this instance",
-                   activeSession.SessionId);
-            }
-        }
-
-        private string GetSessionInstances(Session activeSession)
-        {
-            if (activeSession == null || activeSession.Instances == null || activeSession.Instances.Count == 0)
-            {
-                return string.Empty;
-            }
-
-            return string.Join(",", activeSession.Instances);
-        }
-
-        private string GetDiagLauncherPath()
-        {
-            string diagLauncherPath = Environment.GetEnvironmentVariable(DaasDiagLauncherEnv);
-            if (string.IsNullOrWhiteSpace(diagLauncherPath))
-            {
-                throw new Exception($"Environment variable {DaasDiagLauncherEnv} not set");
-            }
-
-            if (!FileSystemHelpers.FileExists(diagLauncherPath))
-            {
-                throw new Exception($"DiagLauncher not found at '{diagLauncherPath}'");
-            }
-
-            return diagLauncherPath;
-        }
-
-        public void ThrowIfMultipleDiagLauncherRunning(int processId = -1)
-        {
-            string diagLauncherPath = GetDiagLauncherPath();
-            string processName = Path.GetFileNameWithoutExtension(diagLauncherPath);
-
-            Process[] processes = processId == -1 ? Process.GetProcesses() : Process.GetProcesses().Where(x => x.Id != processId).ToArray();
-            foreach (var process in processes)
-            {
-                string processPath = process.GetMainModuleFileName();
-                if (process.ProcessName.Equals(processName, StringComparison.OrdinalIgnoreCase)
-                    && processPath.ToLowerInvariant().Contains("daas")
-                    && processPath.ToLowerInvariant().Contains("siteextensions"))
-                {
-                    throw new Exception($"There is already a '{diagLauncherPath}' process running on this instance.");
-                }
-            }
-        }
-
-        public Process StartDiagLauncher(string args, string sessionId, string description)
-        {
-            return Infrastructure.RunProcess(GetDiagLauncherPath(), args, sessionId, description);
-        }
-
-        public Task<StorageAccountValidationResult> ValidateStorageAccount()
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<bool> UpdateStorageAccount(StorageAccount storageAccount)
-        {
-            throw new NotImplementedException();
         }
     }
 }

@@ -20,7 +20,7 @@ namespace DaaSConsole
 {
     class Program
     {
-        static readonly SessionManager SessionManager = new SessionManager(new AzureStorageService())
+        static readonly ISessionManager SessionManager = new SessionManager(new AzureStorageService())
         {
             InvokedViaAutomation = true
         };
@@ -235,7 +235,7 @@ namespace DaaSConsole
             // submit and check the status in a loop
             //
 
-            sessionId = SessionManager.SubmitNewSessionAsync(session, isV2Session:false, invokedViaDaasConsole: true).Result;
+            sessionId = SessionManager.SubmitNewSessionAsync(session).Result;
             Console.WriteLine($"Session submitted for '{toolName}' with Id - {sessionId}");
             Console.Write("Waiting...");
             LogDaasConsoleEvent(sessionId, toolName, options.ToString());
@@ -244,7 +244,7 @@ namespace DaaSConsole
             {
                 Thread.Sleep(10000);
                 Console.Write(".");
-                var activeSession = SessionManager.GetActiveSessionAsync(isV2Session: false).Result;
+                var activeSession = SessionManager.GetActiveSessionAsync().Result;
 
                 //
                 // Either the session got completed, timed out

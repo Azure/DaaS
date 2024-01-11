@@ -21,7 +21,9 @@ namespace DiagLauncher
 {
     internal class Program
     {
-        static readonly ISessionManager _sessionManager = new SessionManager(new AzureStorageService())
+        const string SessionFileNameFormat = "yyMMdd_HHmmssffff";
+
+        static readonly IAzureStorageSessionManager _sessionManager = new AzureStorageSessionManager(new AzureStorageService())
         {
             InvokedViaAutomation = true
         };
@@ -52,8 +54,59 @@ namespace DiagLauncher
                     Console.WriteLine();
                 }
             }
+            else if (options.ListSessions)
+            {
+                if (ExitIfSessionManagerDisabled())
+                {
+                    return 0;
+                }
+
+                try
+                {
+                    Console.WriteLine("Listing sessions...");
+                    var sessions = _sessionManager.GetAllSessionsAsync().Result;
+                    Console.WriteLine("------------------------------------------------------------------------------------------------");
+                    Console.WriteLine("SessionId\t\tStatus\t\tWhen\t\tDuration\tTool");
+                    Console.WriteLine("------------------------------------------------------------------------------------------------");
+                    foreach (var s in sessions)
+                    {
+                        Console.WriteLine($"{s.SessionId}\t{GetStatus(s)}\t{GetDateTime(s.StartTime)}\t {GetSessionDuration(s.StartTime, s.EndTime)}\t\t{s.Tool}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed while getting sessions - {ex}");
+                }
+                
+            }
+            else if (!string.IsNullOrWhiteSpace(options.SessionIdForDeletion))
+            {
+                if (ExitIfSessionManagerDisabled())
+                {
+                    return 0;
+                }
+
+                try
+                {
+                    Console.WriteLine("Deleting session...");
+                    _sessionManager.DeleteSessionAsync(options.SessionIdForDeletion).Wait();
+                    Console.WriteLine($"Session '{options.SessionIdForDeletion}' deleted");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Failed while deleting session [{options.SessionIdForDeletion}] - {ex}");
+                }
+
+                return 0;
+                
+            }
             else
             {
+                if (ExitIfSessionManagerDisabled())
+                {
+                    return 0;
+                }
+
                 if (!string.IsNullOrWhiteSpace(options.SessionId))
                 {
                     Logger.LogSessionVerboseEvent("DiagLauncher started", options.SessionId);
@@ -71,6 +124,27 @@ namespace DiagLauncher
             }
 
             return 0;
+        }
+
+        private static string GetStatus(Session s)
+        {
+            if (s.Status == Status.Active)
+            {
+                return s.Status.ToString() + "\t";
+            }
+
+            return s.Status.ToString();
+        }
+
+        private static bool ExitIfSessionManagerDisabled()
+        {
+            if (_sessionManager.IsEnabled == false)
+            {
+                Console.WriteLine("The App setting 'WEBSITE_DAAS_STORAGE_CONNECTIONSTRING' does not exist so existing...");
+                return true;
+            }
+
+            return false;
         }
 
         private static void KillProcessIfNeeded(string sessionId, string mode)
@@ -189,15 +263,15 @@ namespace DiagLauncher
 
                 var session = new Session()
                 {
+                    SessionId = DateTime.UtcNow.ToString(SessionFileNameFormat),
                     Instances = new List<string>() { Environment.MachineName },
                     Tool = tool,
                     ToolParams = toolParams,
                     Mode = sessionMode,
                     Description = GetSessionDescription(),
                 };
-
-                sessionId = _sessionManager.SubmitNewSessionAsync(session, isV2Session: true).Result;
-                Logger.LogSessionVerboseEvent("DiagLauncher submitted a new session", sessionId);
+                
+                sessionId = _sessionManager.SubmitNewSessionAsync(session).Result;
                 Console.WriteLine($"Session submitted for '{tool}' with Id - {sessionId}");
 
                 var details = new
@@ -221,9 +295,18 @@ namespace DiagLauncher
                 CopyDaasRunnerIfNeeded(sessionId);
             }
 
-            _sessionManager.RunActiveSessionAsync(queueAnalysisRequest, cts.Token);
+            Console.WriteLine($"Running session - {sessionId}");
 
-            WaitForSessionCompletion(sessionId, queueAnalysisRequest);
+            try
+            {
+                _sessionManager.RunActiveSessionAsync(queueAnalysisRequest, cts.Token).Wait();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Failed while running session with {ex}" );
+                throw;
+            }
+
             return sessionId;
         }
 
@@ -238,48 +321,6 @@ namespace DiagLauncher
 
             SessionController sessionController = new SessionController();
             sessionController.StartSessionRunner();
-        }
-
-        private static void WaitForSessionCompletion(string sessionId, bool queueAnalysisRequest)
-        {
-            Logger.LogSessionVerboseEvent($"Entering WaitForSessionCompletion method and queueAnalysisRequest={queueAnalysisRequest}", sessionId);
-
-            while (true)
-            {
-                Thread.Sleep(15000);
-
-                try
-                {
-                    var activeSession = _sessionManager.GetActiveSessionAsync(isV2Session: true).Result;
-                    if (activeSession == null)
-                    {
-                        return;
-                    }
-
-                    bool isAnalysisQueued = _sessionManager.CheckIfAnalysisQueuedForCurrentInstance(activeSession);
-                    if (queueAnalysisRequest && isAnalysisQueued)
-                    {
-                        Logger.LogSessionVerboseEvent($"Session has queued analysis request. Exiting session completion loop", sessionId);
-                        return;
-                    }
-
-                    if (activeSession.ActiveInstances != null)
-                    {
-                        var currentInstance = activeSession.ActiveInstances.FirstOrDefault(x => x.Name.Equals(Environment.MachineName, StringComparison.OrdinalIgnoreCase));
-                        if (currentInstance != null && (currentInstance.Status == Status.Complete || currentInstance.Status == Status.TimedOut))
-                        {
-                            return;
-                        }
-                    }
-
-                    _sessionManager.CheckIfOrphaningOrTimeoutNeededAsync(activeSession).Wait();
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogSessionErrorEvent("Exception while waiting for active session to complete", ex, sessionId);
-                    Console.WriteLine($"Encountered exception while waiting for active session to complete - {ex}");
-                }
-            }
         }
 
         private static Mode GetToolMode(string mode)
@@ -310,6 +351,42 @@ namespace DiagLauncher
             EventLog.WriteEntry("Application", logMessage, EventLogEntryType.Information);
             Console.WriteLine(logMessage);
             Logger.LogErrorEvent("Unhandled exception in DiagLauncher.exe while collecting logs and taking actions", ex);
+        }
+
+        private static string GetSessionDuration(DateTime startTime, DateTime? endTime)
+        {
+            if (endTime.HasValue && endTime.Value != DateTime.MinValue)
+            {
+                return (endTime.Value - startTime).TotalMinutes.ToString("0.00") +"m";
+            }
+            else
+            {
+                return "...";
+            }
+        }
+
+        private static string GetDateTime(DateTime startTime)
+        {
+            // Get Date Time as days, hours or minutes ago
+
+            var timeSpan = DateTime.UtcNow - startTime;
+
+            if (timeSpan.Days > 0)
+            {
+                return $"{timeSpan.Days} days ago";
+            }
+            else if (timeSpan.Hours > 0)
+            {
+                return $"{timeSpan.Hours} hours ago";
+            }
+            else if (timeSpan.Minutes > 0)
+            {
+                return $"{timeSpan.Minutes} minutes ago";
+            }
+            else
+            {
+                return "Just now";
+            }
         }
     }
 }

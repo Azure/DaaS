@@ -6,6 +6,7 @@
 // -----------------------------------------------------------------------
 
 using System;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
@@ -18,11 +19,15 @@ namespace DiagnosticsExtension.Controllers
     public class SessionController : ApiController
     {
         private readonly ISessionManager _sessionManager;
+        private readonly IAzureStorageSessionManager _azureStorageSessionManager;
 
-        public SessionController(ISessionManager sessionManager)
+        public SessionController(ISessionManager sessionManager, IAzureStorageSessionManager azureStorageSessionManager)
         {
             _sessionManager = sessionManager;
             _sessionManager.IncludeSasUri = true;
+
+            _azureStorageSessionManager = azureStorageSessionManager;
+            _azureStorageSessionManager.IncludeSasUri = true;
         }
 
         [HttpPut]
@@ -37,7 +42,7 @@ namespace DiagnosticsExtension.Controllers
                     session.Description = "InvokedViaDaasApi";
                 }
 
-                string sessionId = await _sessionManager.SubmitNewSessionAsync(session, isV2Session: false);
+                string sessionId = await _sessionManager.SubmitNewSessionAsync(session);
                 return ResponseMessage(Request.CreateResponse(HttpStatusCode.Accepted, sessionId));
             }
             catch (ArgumentException argEx)
@@ -60,11 +65,17 @@ namespace DiagnosticsExtension.Controllers
         {
             try
             {
-                return Ok(await _sessionManager.GetAllSessionsAsync(isDetailed: true));
+                var sessions = await _sessionManager.GetAllSessionsAsync(isDetailed: true);
+                if (_azureStorageSessionManager.IsEnabled)
+                {
+                    var sessionsV2 = await _azureStorageSessionManager.GetAllSessionsAsync(isDetailed: true);
+                    sessions = sessions.Union(sessionsV2);
+                }
+
+                return Ok(sessions);
             }
             catch (Exception ex)
             {
-
                 return ResponseMessage(Request.CreateErrorResponse(HttpStatusCode.InternalServerError, ex.Message));
             }
         }
@@ -75,11 +86,13 @@ namespace DiagnosticsExtension.Controllers
         {
             try
             {
-                var activeSession = await _sessionManager.GetActiveSessionAsync(isV2Session: false, isDetailed: true);
+                var activeSession = await _sessionManager.GetActiveSessionAsync(isDetailed: true);
                 if (activeSession == null)
                 {
-                    activeSession = await _sessionManager.GetActiveSessionAsync(isV2Session: true, isDetailed: true);
-                    await _sessionManager.CheckIfOrphaningOrTimeoutNeededAsync(activeSession);
+                    if (_azureStorageSessionManager.IsEnabled)
+                    {
+                        activeSession = await _azureStorageSessionManager.GetActiveSessionAsync(isDetailed: true);
+                    }
                 }
 
                 return Ok(activeSession);
@@ -102,6 +115,12 @@ namespace DiagnosticsExtension.Controllers
                     return Ok(session);
                 }
 
+                if (_azureStorageSessionManager.IsEnabled)
+                {
+                    session = await _azureStorageSessionManager.GetSessionAsync(sessionId, isDetailed: true);
+                    return Ok(session);
+                }
+
                 return ResponseMessage(Request.CreateErrorResponse(HttpStatusCode.NotFound, $"Cannot find session with Id - {sessionId}"));
             }
 
@@ -117,16 +136,23 @@ namespace DiagnosticsExtension.Controllers
         {
             try
             {
-                if (_sessionManager.IsSessionExisting(sessionId, isV2Session: false))
+                if (await _sessionManager.IsSessionExistingAsync(sessionId))
                 {
-                    await _sessionManager.DeleteSessionAsync(sessionId, isV2Session: false);
+                    await _sessionManager.DeleteSessionAsync(sessionId);
                     return Ok($"Session {sessionId} deleted successfully");
                 }
 
-                if (_sessionManager.IsSessionExisting(sessionId, isV2Session: true))
+                if (_azureStorageSessionManager.IsEnabled)
                 {
-                    await _sessionManager.DeleteSessionAsync(sessionId, isV2Session: true);
-                    return Ok($"Session {sessionId} deleted successfully");
+                    try
+                    {
+                        await _azureStorageSessionManager.DeleteSessionAsync(sessionId);
+                        return Ok($"Session {sessionId} deleted successfully");
+                    }
+                    catch (Exception ex)
+                    {
+                        return Content(HttpStatusCode.NotFound, $"Session with Id '{sessionId}' not found. {ex.Message}");
+                    }
                 }
 
                 return Content(HttpStatusCode.NotFound, $"Session with Id '{sessionId}' not found");

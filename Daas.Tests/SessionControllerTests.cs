@@ -19,11 +19,13 @@ namespace Daas.Test
         }
 
         [Fact]
-        public async Task GetActiveSession_ShouldReturnNullResponse()
+        public async Task GetActiveSessionShouldReturnNull()
         {
+            var storageService = new AzureStorageService();
+            var sessionManager = new SessionManager(storageService);
+            var azureStorageSessionManager = new AzureStorageSessionManager(storageService);
+            var sessionsController = GetSessionController(sessionManager, azureStorageSessionManager);
 
-            var sessionManager = new SessionManager(new AzureStorageService());
-            var sessionsController = GetSessionController(sessionManager);
             var result = await sessionsController.GetActiveSession() as OkNegotiatedContentResult<Session>;
 
             Assert.NotNull(result);
@@ -36,10 +38,13 @@ namespace Daas.Test
         }
 
         [Fact]
-        public async Task SubmitNewMockSession_ShouldReturnNewSessionResponse()
+        public async Task SubmitMockShouldReturnNewSession()
         {
-            var sessionManager = new SessionManager(new AzureStorageService());
-            var sessionsController = GetSessionController(sessionManager);
+            var storageService = new AzureStorageService();
+            var sessionManager = new SessionManager(storageService);
+            var azureStorageSessionManager = new AzureStorageSessionManager(storageService);
+            var sessionsController = GetSessionController(sessionManager, azureStorageSessionManager);
+
             var newSession = new Session()
             {
                 Mode = Mode.Collect,
@@ -72,7 +77,7 @@ namespace Daas.Test
                 throw new NullReferenceException("activeSession is null");
             }
 
-            await sessionManager.RunToolForSessionAsync(activeSession.Content, isV2Session:false, queueAnalysisRequest:false, cts.Token);
+            await sessionManager.RunToolForSessionAsync(activeSession.Content, queueAnalysisRequest:false, cts.Token);
 
             var completedSession = await sessionsController.GetSession(sessionId) as OkNegotiatedContentResult<Session>;
             Assert.NotNull(completedSession);
@@ -86,9 +91,9 @@ namespace Daas.Test
             Assert.Equal(Status.Complete, completedSession.Content.Status);
         }
 
-        private static DiagnosticsExtension.Controllers.SessionController GetSessionController(SessionManager sessionManager)
+        private static DiagnosticsExtension.Controllers.SessionController GetSessionController(SessionManager sessionManager, IAzureStorageSessionManager azureStorageSessionManager)
         {
-            return new DiagnosticsExtension.Controllers.SessionController(sessionManager)
+            return new DiagnosticsExtension.Controllers.SessionController(sessionManager, azureStorageSessionManager)
             {
                 Request = new System.Net.Http.HttpRequestMessage(),
                 Configuration = new HttpConfiguration()

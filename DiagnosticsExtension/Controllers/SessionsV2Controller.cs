@@ -18,12 +18,12 @@ namespace DiagnosticsExtension.Controllers
     [RoutePrefix("sessionsv2")]
     public class SessionV2Controller : ApiController
     {
-        private readonly ISessionManager _sessionManager;
+        private readonly IAzureStorageSessionManager _azureStorageSessionManager;
 
-        public SessionV2Controller(ISessionManager sessionManager)
+        public SessionV2Controller(IAzureStorageSessionManager azureStorageSessionManager)
         {
-            _sessionManager = sessionManager;
-            _sessionManager.IncludeSasUri = true;
+            _azureStorageSessionManager = azureStorageSessionManager;
+            _azureStorageSessionManager.IncludeSasUri = true;
         }
 
         [HttpPut]
@@ -33,17 +33,22 @@ namespace DiagnosticsExtension.Controllers
         {
             try
             {
+                if (_azureStorageSessionManager.IsEnabled == false)
+                {
+                    throw new ArgumentException("The App setting 'WEBSITE_DAAS_STORAGE_CONNECTIONSTRING' does not exist");
+                }
+
                 if (string.IsNullOrWhiteSpace(session.Description))
                 {
                     session.Description = "InvokedViaDaasApi";
                 }
 
-                if (!_sessionManager.ShouldCollectOnCurrentInstance(session))
+                if (!_azureStorageSessionManager.ShouldCollectOnCurrentInstance(session))
                 {
                     return BadRequest("The session is not requested on the current instance");
                 }
 
-                string sessionId = await _sessionManager.SubmitNewSessionAsync(session, isV2Session: true);
+                string sessionId = await _azureStorageSessionManager.SubmitNewSessionAsync(session);
                 StartDiagLauncher(session, sessionId);
                 return ResponseMessage(Request.CreateResponse(HttpStatusCode.Accepted, sessionId));
             }
@@ -65,7 +70,7 @@ namespace DiagnosticsExtension.Controllers
         {
             Logger.LogSessionVerboseEvent($"Starting DiagLauncher for session on instance {Environment.MachineName}", sessionId);
             string args = $" --sessionId {sessionId}";
-            _sessionManager.StartDiagLauncher(args, sessionId, session.Description);
+            _azureStorageSessionManager.StartDiagLauncher(args, sessionId, session.Description);
         }
     }
 }

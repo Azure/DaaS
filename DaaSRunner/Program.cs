@@ -40,9 +40,10 @@ namespace DaaSRunner
         private static Timer m_SasUriTimer;
         private static Timer m_CompletedSessionsCleanupTimer;
 
-        private static DateTime _lastSessionCleanupTime = DateTime.UtcNow;
+        private static DateTime _lastSessionCleanupTime = DateTime.MinValue;
 
         private static readonly ISessionManager _sessionManager = new SessionManager(new AzureStorageService());
+        private static readonly IAzureStorageSessionManager _azureStorageSessionManager = new AzureStorageSessionManager(new AzureStorageService());
         private static readonly ConcurrentDictionary<string, TaskAndCancellationToken> _runningSessions = new ConcurrentDictionary<string, TaskAndCancellationToken>();
         private static readonly ConcurrentDictionary<string, TaskAndCancellationToken> _runningV2Sessions = new ConcurrentDictionary<string, TaskAndCancellationToken>();
 
@@ -51,7 +52,7 @@ namespace DaaSRunner
 
         static void Main(string[] args)
         {
-            Logger.LogVerboseEvent($"DaasRunner.exe with version {Assembly.GetExecutingAssembly().GetName().Version } and ProcessId={ Process.GetCurrentProcess().Id } started");
+            Logger.LogVerboseEvent($"DaasRunner.exe with version {Assembly.GetExecutingAssembly().GetName().Version} and ProcessId={Process.GetCurrentProcess().Id} started");
 
             ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
             ServicePointManager.ServerCertificateValidationCallback = delegate { return true; };
@@ -128,7 +129,7 @@ namespace DaaSRunner
             var completedMonitoringSessions = controllerMonitoring.GetAllCompletedSessions().OrderByDescending(s => s.StartDate).ToList();
 
             Logger.LogVerboseEvent($"Starting cleanup for Completed Sessions MaxDiagnosticSessionsToKeep = [{maxSessionsToKeep}] MaxNumberOfDaysForSessions= [{numberOfDays}]");
-            
+
             List<MonitoringSession> monitoringSessionsToRemove = completedMonitoringSessions.Skip(maxSessionsToKeep).ToList();
             string logMessage = $"[MaxDiagnosticSessionsToKeep] Found {monitoringSessionsToRemove.Count()} monitoring sessions to remove as we have {completedMonitoringSessions.Count()} completed sessions";
             DeleteSessions(monitoringSessionsToRemove, (session) => { controllerMonitoring.DeleteSession(session.SessionId); }, logMessage);
@@ -140,17 +141,17 @@ namespace DaaSRunner
 
         }
 
-        private static bool CheckIfTimeToCleanupSymbols(bool isV2Session)
+        private static bool CheckIfTimeToCleanupSymbols()
         {
             try
             {
-                var activeSession = _sessionManager.GetActiveSessionAsync(isV2Session).Result;
+                var activeSession = _sessionManager.GetActiveSessionAsync().Result;
                 if (activeSession != null)
                 {
                     return false;
                 }
 
-                var completedSessions = _sessionManager.GetCompletedSessionsAsync(isV2Session).Result;
+                var completedSessions = _sessionManager.GetCompletedSessionsAsync().Result;
                 var cleanupSymbols = false;
                 var lastCompletedSession = completedSessions.FirstOrDefault();
 
@@ -257,7 +258,7 @@ namespace DaaSRunner
                 }
                 catch (Exception ex)
                 {
-                    Logger.LogDiagnostic($"Exception in actual monitoring task : { ex.ToLogString() }");
+                    Logger.LogDiagnostic($"Exception in actual monitoring task : {ex.ToLogString()}");
                 }
 
                 if (m_MonitoringEnabled && m_CpuMonitoringRule != null)
@@ -296,8 +297,8 @@ namespace DaaSRunner
                 m_MonitoringEnabled = false;
                 m_CpuMonitoringRule = null;
                 m_FailedStoppingSession = false;
-                
-                if (!string.IsNullOrWhiteSpace(sessionId) 
+
+                if (!string.IsNullOrWhiteSpace(sessionId)
                     && analysisNeeded)
                 {
                     MonitoringSessionController controller = new MonitoringSessionController();
@@ -354,7 +355,7 @@ namespace DaaSRunner
             catch
             {
                 var strException = new ApplicationException();
-                Logger.LogErrorEvent($"DaasRunner with version {Assembly.GetExecutingAssembly().GetName().Version } terminating with unhandled exception object", strException);
+                Logger.LogErrorEvent($"DaasRunner with version {Assembly.GetExecutingAssembly().GetName().Version} terminating with unhandled exception object", strException);
             }
 
         }
@@ -375,11 +376,18 @@ namespace DaaSRunner
             }
         }
 
-        private static void DeleteSessionSafe(Session session)
+        private static void DeleteSessionSafe(Session session, bool isV2Session)
         {
             try
             {
-                _sessionManager.DeleteSessionAsync(session.SessionId, isV2Session: false).Wait();
+                if (isV2Session)
+                {
+                    _azureStorageSessionManager.DeleteSessionAsync(session.SessionId).Wait();
+                }
+                else
+                {
+                    _sessionManager.DeleteSessionAsync(session.SessionId).Wait();
+                }
             }
             catch (Exception)
             {
@@ -391,58 +399,57 @@ namespace DaaSRunner
             if (DateTime.UtcNow.Subtract(_lastSessionCleanupTime).TotalHours > Settings.Instance.HoursBetweenOldSessionsCleanup)
             {
                 _lastSessionCleanupTime = DateTime.UtcNow;
-                var allSessions = new List<Session>();
+                List<Session> allSessions;
 
                 try
                 {
                     allSessions = _sessionManager.GetAllSessionsAsync().Result.ToList();
+                    RemovedOlderSessions(allSessions, isV2Session: false);
                 }
                 catch (Exception ex)
                 {
                     Logger.LogWarningEvent("Failed while getting sessions", ex);
                 }
 
-                if (allSessions.Any())
-                {
-                    // Leave the last 'MaxSessionsToKeep' sessions and delete the older sessions
-                    var olderSessions = allSessions.OrderBy(x => x.StartTime).Take(Math.Max(0, allSessions.Count() - Settings.Instance.MaxSessionsToKeep));
-                    foreach (var session in olderSessions)
-                    {
-                        DeleteSessionSafe(session);
-                    }
-
-                    // Delete all the sessions older than 'MaxSessionAgeInDays' days
-                    olderSessions = allSessions.Where(x => DateTime.UtcNow.Subtract(x.StartTime).TotalDays > Settings.Instance.MaxSessionAgeInDays);
-                    foreach (var session in olderSessions)
-                    {
-                        DeleteSessionSafe(session);
-                    }
-                }
-
-                if (CheckIfTimeToCleanupSymbols(isV2Session: false))
+                if (CheckIfTimeToCleanupSymbols())
                 {
                     CleanupSymbolsDirectory();
                 }
 
-                CleanV2SessionsIfNeeded();
-            }
-        }
-
-        private static void CleanV2SessionsIfNeeded()
-        {
-            try
-            {
-                var activeSession = _sessionManager.GetActiveSessionAsync(isV2Session: true).Result;
-                if (activeSession == null)
+                if (!_azureStorageSessionManager.IsEnabled)
                 {
                     return;
                 }
 
-                _sessionManager.CheckIfOrphaningOrTimeoutNeededAsync(activeSession).Wait();
+                try
+                {
+                    allSessions = _azureStorageSessionManager.GetCompletedSessionsAsync().Result.ToList();
+                    RemovedOlderSessions(allSessions, isV2Session: true);
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogWarningEvent("Failed while getting V2 sessions", ex);
+                }
             }
-            catch (Exception ex)
+        }
+
+        private static void RemovedOlderSessions(List<Session> allSessions, bool isV2Session)
+        {
+            if (allSessions.Any())
             {
-                Logger.LogWarningEvent("Unhandled exception while cleaning up Daas V2 sessions", ex);
+                // Leave the last 'MaxSessionsToKeep' sessions and delete the older sessions
+                var olderSessions = allSessions.OrderBy(x => x.StartTime).Take(Math.Max(0, allSessions.Count() - Settings.Instance.MaxSessionsToKeep));
+                foreach (var session in olderSessions)
+                {
+                    DeleteSessionSafe(session, isV2Session);
+                }
+
+                // Delete all the sessions older than 'MaxSessionAgeInDays' days
+                olderSessions = allSessions.Where(x => DateTime.UtcNow.Subtract(x.StartTime).TotalDays > Settings.Instance.MaxSessionAgeInDays);
+                foreach (var session in olderSessions)
+                {
+                    DeleteSessionSafe(session, isV2Session);
+                }
             }
         }
 
@@ -450,7 +457,12 @@ namespace DaaSRunner
         {
             try
             {
-                var activeSession = _sessionManager.GetActiveSessionAsync(isV2Session: true).Result;
+                if (_azureStorageSessionManager.IsEnabled == false)
+                {
+                    return;
+                }
+
+                var activeSession = _azureStorageSessionManager.GetActiveSessionAsync().Result;
                 if (activeSession == null)
                 {
                     return;
@@ -458,49 +470,13 @@ namespace DaaSRunner
 
                 Logger.LogSessionVerboseEvent("Found an active V2 session", activeSession.SessionId);
 
-                //
-                // Check if all instances are finished with log collection
-                //
-
-                if (_sessionManager.CheckandCompleteSessionIfNeededAsync(isV2Session: true).Result)
+                var didSessionTimeOutOrComplete = _azureStorageSessionManager.ShouldSessionTimeoutAsync(activeSession).Result;
+                if (didSessionTimeOutOrComplete)
                 {
                     return;
                 }
 
-                if (DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes > Settings.Instance.OrphanInstanceTimeoutInMinutes)
-                {
-                    _sessionManager.CancelOrphanedInstancesIfNeeded(isV2Session: true).Wait();
-                }
-
-                var totalSessionRunningTimeInMinutes = DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes;
-                if (DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes > Settings.Instance.MaxSessionTimeInMinutes)
-                {
-                    if (_runningV2Sessions.ContainsKey(activeSession.SessionId))
-                    {
-                        Logger.LogSessionVerboseEvent("Cancelling session as MaxSessionTimeInMinutes limit reached", activeSession.SessionId);
-                        _runningV2Sessions[activeSession.SessionId].CancellationTokenSource.Cancel();
-                    }
-                    else
-                    {
-                        //
-                        // Allow 5 minutes additional for the instance to gracefully terminate the session and cancel the task
-                        //
-
-                        if (totalSessionRunningTimeInMinutes > (Settings.Instance.MaxSessionTimeInMinutes + 5))
-                        {
-                            //
-                            // If the current instance is not running the session, mark the session as Complete
-                            // when MaxSessionTimeInMinutes is hit. This will ensure any long running sessions will
-                            // get completed and they will not hang indefinitely
-                            //
-
-                            Logger.LogSessionVerboseEvent("Forcefully marking the session as TimedOut as MaxSessionTimeInMinutes limit reached", activeSession.SessionId);
-                            _ = _sessionManager.CheckandCompleteSessionIfNeededAsync(isV2Session: true, forceCompletion: true).Result;
-                        }
-                    }
-                }
-
-                if (_sessionManager.ShouldCollectOnCurrentInstance(activeSession))
+                if (_azureStorageSessionManager.ShouldCollectOnCurrentInstance(activeSession))
                 {
                     if (_runningV2Sessions.ContainsKey(activeSession.SessionId))
                     {
@@ -508,13 +484,13 @@ namespace DaaSRunner
                         return;
                     }
 
-                    if (!_sessionManager.ShouldAnalyzeOnCurrentInstance(activeSession))
+                    if (!_azureStorageSessionManager.ShouldAnalyzeOnCurrentInstance(activeSession))
                     {
                         return;
                     }
 
                     var cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
-                    var sessionTask = _sessionManager.AnalyzeAndCompleteSessionAsync(activeSession, isV2Session: true, activeSession.SessionId, cts.Token);
+                    var sessionTask = _azureStorageSessionManager.AnalyzeAndCompleteSessionAsync(activeSession, activeSession.SessionId, cts.Token);
 
                     var t = new TaskAndCancellationToken
                     {
@@ -536,7 +512,7 @@ namespace DaaSRunner
         {
             try
             {
-                var activeSession = _sessionManager.GetActiveSessionAsync(isV2Session: false).Result;
+                var activeSession = _sessionManager.GetActiveSessionAsync().Result;
                 if (activeSession == null)
                 {
                     return;
@@ -555,7 +531,7 @@ namespace DaaSRunner
                     // as it can lead to race condition to complete the session
                     //
 
-                    if (_sessionManager.CheckandCompleteSessionIfNeededAsync(isV2Session: false).Result)
+                    if (_sessionManager.CheckandCompleteSessionIfNeededAsync().Result)
                     {
                         return;
                     }
@@ -563,7 +539,7 @@ namespace DaaSRunner
 
                 if (DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes > Settings.Instance.OrphanInstanceTimeoutInMinutes)
                 {
-                    _sessionManager.CancelOrphanedInstancesIfNeeded(isV2Session: false).Wait();
+                    _sessionManager.CancelOrphanedInstancesIfNeeded().Wait();
                 }
 
                 var totalSessionRunningTimeInMinutes = DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes;
@@ -589,7 +565,7 @@ namespace DaaSRunner
                             //
 
                             Logger.LogSessionVerboseEvent("Forcefully marking the session as TimedOut as MaxSessionTimeInMinutes limit reached", activeSession.SessionId);
-                            _ = _sessionManager.CheckandCompleteSessionIfNeededAsync(isV2Session: false, forceCompletion: true).Result;
+                            _ = _sessionManager.CheckandCompleteSessionIfNeededAsync(forceCompletion: true).Result;
                         }
                     }
                 }
@@ -602,14 +578,14 @@ namespace DaaSRunner
                         return;
                     }
 
-                    if (_sessionManager.HasThisInstanceCollectedLogs(isV2Session: false).Result)
+                    if (_sessionManager.HasThisInstanceCollectedLogs().Result)
                     {
                         // This instance has already collected logs for this session
                         return;
                     }
 
                     var cts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken);
-                    var sessionTask = _sessionManager.RunToolForSessionAsync(activeSession, isV2Session:false, queueAnalysisRequest:false, cts.Token);
+                    var sessionTask = _sessionManager.RunToolForSessionAsync(activeSession, queueAnalysisRequest: false, cts.Token);
 
                     var t = new TaskAndCancellationToken
                     {
