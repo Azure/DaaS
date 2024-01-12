@@ -69,5 +69,12 @@ namespace DaaS.Sessions
         /// <param name="activeSession"></param>
         /// <returns></returns>
         Task<bool> ShouldSessionTimeoutAsync(Session activeSession);
+
+        /// <summary>
+        /// Checks if the Instance is orphaned and cancels it if needed 
+        /// </summary>
+        /// <param name="activeSession"></param>
+        /// <returns></returns>
+        Task<bool> CancelOrphanedV2InstancesIfNeeded(Session activeSession);
     }
 }

@@ -10,7 +10,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
-using Daas.Tests;
 using DaaS.Sessions;
 using DiagnosticsExtension.Controllers;
 using Newtonsoft.Json;

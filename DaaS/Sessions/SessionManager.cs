@@ -384,7 +384,7 @@ namespace DaaS.Sessions
                     {
                         foreach (var orphanedInstance in orphanedInstances)
                         {
-                            if (!latestSessionFromDisk.ActiveInstances.Any(x => x.Name == orphanedInstance.Name))
+                            if (!latestSessionFromDisk.ActiveInstances.Any(x => x.Name.Equals(orphanedInstance.Name, StringComparison.OrdinalIgnoreCase)))
                             {
                                 latestSessionFromDisk.ActiveInstances.Add(orphanedInstance);
                             }

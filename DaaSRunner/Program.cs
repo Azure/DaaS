@@ -41,6 +41,7 @@ namespace DaaSRunner
         private static Timer m_CompletedSessionsCleanupTimer;
 
         private static DateTime _lastSessionCleanupTime = DateTime.MinValue;
+        private static DateTime _lastV2SessionUpdatedTime = DateTime.UtcNow;
 
         private static readonly ISessionManager _sessionManager = new SessionManager(new AzureStorageService());
         private static readonly IAzureStorageSessionManager _azureStorageSessionManager = new AzureStorageSessionManager(new AzureStorageService());
@@ -470,10 +471,43 @@ namespace DaaSRunner
 
                 Logger.LogSessionVerboseEvent("Found an active V2 session", activeSession.SessionId);
 
-                var didSessionTimeOutOrComplete = _azureStorageSessionManager.ShouldSessionTimeoutAsync(activeSession).Result;
-                if (didSessionTimeOutOrComplete)
+                if (DateTime.UtcNow.Subtract(_lastV2SessionUpdatedTime).TotalMinutes > 5 
+                    && DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes > 5)
                 {
-                    return;
+                    _lastV2SessionUpdatedTime = DateTime.UtcNow;
+
+                    Logger.LogSessionVerboseEvent("Entered V2 Session cleanup loop as we have an active session running for > 5 minutes", activeSession.SessionId);
+
+                    var sessionWasUpdated = _azureStorageSessionManager.CancelOrphanedV2InstancesIfNeeded(activeSession).Result;
+                    if (sessionWasUpdated)
+                    {
+                        Logger.LogSessionVerboseEvent("Session was updated so getting the latest", activeSession.SessionId);
+                        activeSession = _azureStorageSessionManager.GetActiveSessionAsync().Result;
+                        if (activeSession == null)
+                        {
+                            return;
+                        }
+                    }
+
+                    var didSessionTimeOutOrComplete = _azureStorageSessionManager.ShouldSessionTimeoutAsync(activeSession).Result;
+                    if (didSessionTimeOutOrComplete)
+                    {
+                        Logger.LogSessionVerboseEvent("The session had either timed out or completed", activeSession.SessionId);
+                        if (_runningV2Sessions.ContainsKey(activeSession.SessionId))
+                        {
+                            Logger.LogSessionVerboseEvent("Cancelling session as MaxSessionTimeInMinutes limit reached", activeSession.SessionId);
+                            _runningV2Sessions[activeSession.SessionId].CancellationTokenSource.Cancel();
+                        }
+
+                        return;
+                    }
+
+                    bool isSessionCompleted = _azureStorageSessionManager.CheckandCompleteSessionIfNeededAsync().Result;
+                    if (isSessionCompleted)
+                    {
+                        Logger.LogSessionVerboseEvent("Session is marked as completed", activeSession.SessionId);
+                        return;
+                    }
                 }
 
                 if (_azureStorageSessionManager.ShouldCollectOnCurrentInstance(activeSession))

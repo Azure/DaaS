@@ -215,7 +215,7 @@ namespace DaaS.Sessions
                 sessionEntity.Status = shouldForciblyTimeout ? Status.TimedOut.ToString(): Status.Complete.ToString();
                 sessionEntity.EndTime = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Utc);
                 await UpdateSessionEntityAsync(sessionEntity);
-                Logger.LogSessionVerboseEvent("Marking the session as Complete", activeSession.SessionId);
+                Logger.LogSessionVerboseEvent($"Session is complete after {DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes} minutes", activeSession.SessionId);
             }
 
             return true;
@@ -590,7 +590,7 @@ namespace DaaS.Sessions
                 if (!string.IsNullOrWhiteSpace(instanceName))
                 {
                     activeInstanceEntitiesAsync = _activeInstanceTableClient
-                        .QueryAsync<ActiveInstanceEntity>(x => x.PartitionKey == GetDefaultHostName() && x.RowKey == $"{sessionId}_{instanceName}");
+                        .QueryAsync<ActiveInstanceEntity>(x => x.PartitionKey == GetDefaultHostName() && x.RowKey == $"{sessionId}_{instanceName.ToLowerInvariant()}");
                 }
                 else
                 {
@@ -818,9 +818,9 @@ namespace DaaS.Sessions
                 var activeInstanceActivity = new ActiveInstanceEntity()
                 {
                     PartitionKey = GetDefaultHostName(),
-                    RowKey = $"{sessionId}_{Environment.MachineName}",
+                    RowKey = $"{sessionId}_{Environment.MachineName.ToLowerInvariant()}",
                     SessionId = sessionId,
-                    InstanceName = Environment.MachineName
+                    InstanceName = Environment.MachineName.ToLowerInvariant()
                 };
 
                 activeInstanceActivity.Status = status.ToString();
@@ -945,9 +945,89 @@ namespace DaaS.Sessions
             return session != null;
         }
 
-        public Task CancelOrphanedInstancesIfNeeded()
+        public async Task<bool> CancelOrphanedV2InstancesIfNeeded(Session activeSession)
         {
-            throw new NotImplementedException();
+            if (DateTime.UtcNow.Subtract(activeSession.StartTime).TotalMinutes < Settings.Instance.OrphanInstanceTimeoutInMinutes)
+            {
+                return false;
+            }
+
+            // If none of the instances picked up the session
+
+            var orphanedInstanceNames = new List<string>();
+            if (activeSession.ActiveInstances == null || activeSession.ActiveInstances.Count == 0)
+            {
+                Logger.LogSessionVerboseEvent("activeSession.ActiveInstances is NULL or count is 0", activeSession.SessionId);
+                orphanedInstanceNames = activeSession.Instances;
+            }
+            else
+            {
+                var activeInstances = activeSession.ActiveInstances.Select(x => x.Name);
+                orphanedInstanceNames = activeSession.Instances.Where(x => !activeInstances.Contains(x, StringComparer.OrdinalIgnoreCase)).ToList();
+                if (orphanedInstanceNames != null)
+                {
+                    Logger.LogSessionVerboseEvent($"ActiveSessionJson = {JsonConvert.SerializeObject(activeSession)}", activeSession.SessionId);
+                    Logger.LogSessionVerboseEvent($"orphanedInstanceNames = {string.Join(",", orphanedInstanceNames)}", activeSession.SessionId);
+                }
+            }
+
+            if (orphanedInstanceNames == null || !orphanedInstanceNames.Any())
+            {
+                Logger.LogSessionVerboseEvent($"Returning as we found no orphaned instances", activeSession.SessionId);
+                return false;
+            }
+
+            bool isSessionUpdated = false;
+
+            try
+            {
+                Logger.LogSessionErrorEvent("Identified orphaned instances for session",
+                    $"Orphaning instance(s) {string.Join(",", orphanedInstanceNames)} as they haven't picked up the session",
+                    activeSession.SessionId);
+
+                var orphanedInstances = new List<ActiveInstance>();
+                foreach (var instance in orphanedInstanceNames)
+                {
+                    string instanceName = instance.ToLowerInvariant();
+                    var activeInstanceEntity = new ActiveInstanceEntity()
+                    {
+                        PartitionKey = GetDefaultHostName(),
+                        RowKey = $"{activeSession.SessionId}_{instanceName}",
+                        SessionId = activeSession.SessionId,
+                        InstanceName = instanceName
+                    };
+
+                    var collectorErrors = new List<string>
+                    {
+                        $"The instance [{instanceName}] did not pick up the session within the required time"
+                    };
+
+                    activeInstanceEntity.CollectorErrorsJson = JsonConvert.SerializeObject(collectorErrors);
+
+                    activeInstanceEntity.Status = Status.TimedOut.ToString();
+                    await _activeInstanceTableClient.AddEntityAsync(activeInstanceEntity);
+                    isSessionUpdated = true;
+                }
+
+                try
+                {
+                    var isComplete = await CheckandCompleteSessionIfNeededAsync();
+                    if (isComplete)
+                    {
+                        isSessionUpdated = true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogWarningEvent("Failed while updating session", ex);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogSessionErrorEvent("Failed while updating orphaned instances for the session", ex, activeSession.SessionId);
+            }
+
+            return isSessionUpdated;
         }
 
         private async Task UpdateSessionEntityAsync(SessionEntity sessionEntity)
@@ -982,6 +1062,11 @@ namespace DaaS.Sessions
             }
 
             return false;
+        }
+
+        public Task CancelOrphanedInstancesIfNeeded()
+        {
+            throw new NotImplementedException();
         }
     }
 }
