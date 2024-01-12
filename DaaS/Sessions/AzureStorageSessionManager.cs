@@ -988,20 +988,25 @@ namespace DaaS.Sessions
                 var orphanedInstances = new List<ActiveInstance>();
                 foreach (var instance in orphanedInstanceNames)
                 {
-                    var activeInstanceEntity = await GetActiveInstanceEntityAsync(activeSession.SessionId, instance);
-                    if (activeInstanceEntity != null)
+                    string instanceName = instance.ToLowerInvariant();
+                    var activeInstanceEntity = new ActiveInstanceEntity()
                     {
-                        var collectorErrors = new List<string>();
-                        if (!string.IsNullOrWhiteSpace(activeInstanceEntity.CollectorErrorsJson))
-                        {
-                            var existingErrors = JsonConvert.DeserializeObject<List<string>>(activeInstanceEntity.CollectorErrorsJson);
-                            collectorErrors.Union(existingErrors);
-                        }
+                        PartitionKey = GetDefaultHostName(),
+                        RowKey = $"{activeSession.SessionId}_{instanceName}",
+                        SessionId = activeSession.SessionId,
+                        InstanceName = instanceName
+                    };
 
-                        collectorErrors.Add($"The instance [{instance}] did not pick up the session within the required time");
-                        await UpdateActiveInstanceEntityAsync(activeInstanceEntity);
-                        isSessionUpdated = true;
-                    }
+                    var collectorErrors = new List<string>
+                    {
+                        $"The instance [{instanceName}] did not pick up the session within the required time"
+                    };
+
+                    activeInstanceEntity.CollectorErrorsJson = JsonConvert.SerializeObject(collectorErrors);
+
+                    activeInstanceEntity.Status = Status.TimedOut.ToString();
+                    await _activeInstanceTableClient.AddEntityAsync(activeInstanceEntity);
+                    isSessionUpdated = true;
                 }
 
                 try
