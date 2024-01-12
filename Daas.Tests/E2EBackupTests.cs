@@ -14,7 +14,7 @@ using Newtonsoft.Json;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Daas.Tests
+namespace Daas.Test
 {
     [Collection("E2EBackupTests")]
     public class E2EBackupTests

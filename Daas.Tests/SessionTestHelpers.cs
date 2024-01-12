@@ -9,16 +9,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
-using System.Text;
 using System.Threading.Tasks;
 using DaaS.Sessions;
-using Daas.Test;
 using Newtonsoft.Json;
 using Xunit;
 using Xunit.Abstractions;
 using System.Text.RegularExpressions;
 
-namespace Daas.Tests
+namespace Daas.Test
 {
     internal class SessionTestHelpers
     {
