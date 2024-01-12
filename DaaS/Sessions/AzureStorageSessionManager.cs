@@ -818,7 +818,7 @@ namespace DaaS.Sessions
                 var activeInstanceActivity = new ActiveInstanceEntity()
                 {
                     PartitionKey = GetDefaultHostName(),
-                    RowKey = $"{sessionId}_{Environment.MachineName}",
+                    RowKey = $"{sessionId}_{Environment.MachineName.ToLowerInvariant()}",
                     SessionId = sessionId,
                     InstanceName = Environment.MachineName.ToLowerInvariant()
                 };
