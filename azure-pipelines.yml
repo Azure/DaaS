@@ -274,7 +274,7 @@ steps:
             Write-Host ("[$(Get-Date -format 'O')][$siteName] Adding Auto-Heal settings")
             $autohealRules = @{
             triggers=@{requests=@{count=50;timeInterval="00:02:00"}};
-            actions=@{actionType="CustomAction";customAction=@{exe="`"%WEBSITE_DAAS_DIAG_LAUNCHER%`"";parameters="-m CollectKillAnalyze -t MemoryDump"}};
+            actions=@{actionType="CustomAction";customAction=@{exe="`"%WEBSITE_DAAS_EXTENSIONPATH%\DiagLauncher\DiagLauncher.exe`"";parameters="-m CollectKillAnalyze -t MemoryDump"}};
             }
 
             $Resource = Get-AzResource -ResourceType Microsoft.Web/sites -ResourceGroupName $Env:RESOURCE_GROUP -ResourceName $siteName
@@ -287,7 +287,7 @@ steps:
             Write-Host ("[$(Get-Date -format 'O')][$siteName] Adding Auto-Heal settings")
             $autohealRulesDotNet = @{
             triggers=@{requests=@{count=50;timeInterval="00:02:00"}};
-            actions=@{actionType="CustomAction";customAction=@{exe="`"%WEBSITE_DAAS_DIAG_LAUNCHER%`"";parameters="-m CollectAndAnalyze -t Profiler"}};
+            actions=@{actionType="CustomAction";customAction=@{exe="`"%WEBSITE_DAAS_EXTENSIONPATH%\DiagLauncher\DiagLauncher.exe`"";parameters="-m CollectAndAnalyze -t Profiler"}};
             }
 
             $Resource = Get-AzResource -ResourceType Microsoft.Web/sites -ResourceGroupName $Env:RESOURCE_GROUP -ResourceName $siteName

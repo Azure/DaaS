@@ -108,7 +108,7 @@ namespace Daas.Test
             foreach (var file in knownFiles)
             {
                 _output.WriteLine($"Checking for file {file}");
-                //var resp = await _client.GetAsync($"api/vfs/SystemDrive/Program%20Files%20(x86)/SiteExtensions/DaaS/4.1.24116.1/{file}");
+                //var resp = await _client.GetAsync($"api/vfs/SystemDrive/Program%20Files%20(x86)/SiteExtensions/DaaS/4.1.24116.2/{file}");
                 var resp = await _client.GetAsync($"api/vfs/siteextensions/daas/{file}");
                 Assert.True(resp.IsSuccessStatusCode, $"File - api/vfs/siteextensions/daas/{file}");
             }
@@ -196,13 +196,13 @@ namespace Daas.Test
 
             //
             // For this case, the DevOps pipeline will create an app 'KUDU_ENDPOINT'
-            // that has these autoHeal configuration
+            // that has autoHeal configuration to start DiagLauncher
             //
 
             // $autohealRulesDotNet = @
             // {
             //  triggers =@{ requests =@{ count = 50; timeInterval = "00:02:00"} };
-            //  actions =@{ actionType = "CustomAction"; customAction =@{ exe = "`" %WEBSITE_DAAS_DIAG_LAUNCHER%`""; parameters = "-m CollectKillAnalyze -t MemoryDump"}};
+            //  actions=@{actionType="CustomAction";customAction=@{exe="`"%WEBSITE_DAAS_EXTENSIONPATH%\DiagLauncher\DiagLauncher.exe`"";parameters="-m CollectAndAnalyze -t Profiler"}};
             // }
 
             await SessionTestHelpers.StressTestWebAppAsync(requestCount: 55, _websiteClient, _output);
