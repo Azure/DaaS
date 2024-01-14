@@ -497,12 +497,13 @@ namespace DaaS.Sessions
 
         private string GetDiagLauncherPath()
         {
-            string diagLauncherPath = Environment.GetEnvironmentVariable(DaasDiagLauncherEnv);
-            if (string.IsNullOrWhiteSpace(diagLauncherPath))
+            string daasSiteExtensionPath = Environment.GetEnvironmentVariable(DaasSiteExtensionPath);
+            if (string.IsNullOrWhiteSpace(daasSiteExtensionPath))
             {
-                throw new Exception($"Environment variable {DaasDiagLauncherEnv} not set");
+                throw new Exception($"Environment variable '{daasSiteExtensionPath}' not set");
             }
 
+            string diagLauncherPath = Path.Combine(daasSiteExtensionPath, "DiagLauncher", "DiagLauncher.exe");
             if (!FileSystemHelpers.FileExists(diagLauncherPath))
             {
                 throw new Exception($"DiagLauncher not found at '{diagLauncherPath}'");

@@ -19,7 +19,7 @@ namespace DaaS.Sessions
 {
     public class SessionManagerBase
     {
-        public const string DaasDiagLauncherEnv = "WEBSITE_DAAS_DIAG_LAUNCHER";
+        public const string DaasSiteExtensionPath = "WEBSITE_DAAS_EXTENSIONPATH";
         public bool IncludeSasUri { get; set; }
         public bool InvokedViaAutomation { get; set; }
 

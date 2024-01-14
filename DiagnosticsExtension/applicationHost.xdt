@@ -3,7 +3,7 @@
     <system.webServer xdt:Transform="InsertIfMissing">
         <runtime xdt:Transform="InsertIfMissing" >
             <environmentVariables xdt:Transform="InsertIfMissing">
-                <add name="WEBSITE_DAAS_DIAG_LAUNCHER" value="%XDT_EXTENSIONPATH%\DiagLauncher\DiagLauncher.exe" xdt:Locator="Match(name)" xdt:Transform="InsertIfMissing" />
+                <add name="WEBSITE_DAAS_EXTENSIONPATH" value="%XDT_EXTENSIONPATH%" xdt:Locator="Match(name)" xdt:Transform="InsertIfMissing" />
             </environmentVariables>
         </runtime>
     </system.webServer>

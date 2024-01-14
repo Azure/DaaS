@@ -64,7 +64,7 @@ namespace Daas.Test
             // $autohealRulesDotNet = @
             // {
             //  triggers =@{ requests =@{ count = 50; timeInterval = "00:02:00"} };
-            //  actions =@{ actionType = "CustomAction"; customAction =@{ exe = "`" % WEBSITE_DAAS_DIAG_LAUNCHER %`""; parameters = "-m CollectAndAnalyze -t MemoryDump"}};
+            //  actions=@{actionType="CustomAction";customAction=@{exe="`"%WEBSITE_DAAS_EXTENSIONPATH%\DiagLauncher\DiagLauncher.exe`"";parameters="-m CollectKillAnalyze -t MemoryDump"}};
             // }
 
             await SessionTestHelpers.StressTestWebAppAsync(requestCount: 55, _websiteClient, _output);
