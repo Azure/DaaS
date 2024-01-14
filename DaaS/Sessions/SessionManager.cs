@@ -635,7 +635,10 @@ namespace DaaS.Sessions
                     {
                         foreach (var log in activeInstance.Logs)
                         {
-                            log.Reports = SanitizeReports(log.Reports);
+                            if (log.Reports != null)
+                            {
+                                log.Reports = SanitizeReports(log.Reports);
+                            }
                         }
                     }
                 }

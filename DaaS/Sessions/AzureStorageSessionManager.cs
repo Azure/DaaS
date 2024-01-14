@@ -762,7 +762,10 @@ namespace DaaS.Sessions
                                 }
                             }
 
-                            log.Reports = SanitizeReports(log.Reports);
+                            if (log.Reports != null && log.Reports.Any())
+                            {
+                                log.Reports = SanitizeReports(log.Reports);
+                            }
                         }
 
                         instance.Logs = logs;

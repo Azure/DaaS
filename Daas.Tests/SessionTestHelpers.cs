@@ -68,8 +68,16 @@ namespace Daas.Test
                     string sessionIdResponse = await response.Content.ReadAsStringAsync();
                     Assert.NotNull(sessionIdResponse);
 
-                    outputHelper.WriteLine("SessionId Response is " + sessionIdResponse);
-                    sessionId = JsonConvert.DeserializeObject<string>(sessionIdResponse);
+                    string message = $"SessionId Response StatusCode is {response.StatusCode} and response body is {sessionIdResponse}";
+                    outputHelper.WriteLine(message);
+                    if (response.StatusCode == System.Net.HttpStatusCode.Accepted)
+                    {
+                        sessionId = JsonConvert.DeserializeObject<string>(sessionIdResponse);
+                    }
+                    else
+                    {
+                        Assert.True(false, message);
+                    }
                 }
             }
             else
@@ -82,8 +90,16 @@ namespace Daas.Test
                 string sessionIdResponse = await response.Content.ReadAsStringAsync();
                 Assert.NotNull(sessionIdResponse);
 
-                outputHelper.WriteLine("SessionId Response is " + sessionIdResponse);
-                sessionId = JsonConvert.DeserializeObject<string>(sessionIdResponse);
+                string message = $"SessionId Response StatusCode is {response.StatusCode} and response body is {sessionIdResponse}";
+                outputHelper.WriteLine(message);
+                if (response.StatusCode == System.Net.HttpStatusCode.Accepted)
+                {
+                    sessionId = JsonConvert.DeserializeObject<string>(sessionIdResponse);
+                }
+                else
+                {
+                    Assert.True(false, message);
+                }
             }
 
             await Task.Delay(15000);
