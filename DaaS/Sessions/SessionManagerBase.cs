@@ -385,6 +385,11 @@ namespace DaaS.Sessions
 
         internal List<Report> SanitizeReports(List<Report> reports)
         {
+            if (reports == null)
+            {
+                return new List<Report>();
+            }
+
             int minRelativePathSegments = Int32.MaxValue;
             var output = new List<Report>();
             foreach (var report in reports)
