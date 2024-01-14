@@ -329,8 +329,18 @@ namespace DaaS.Sessions
 
         internal void UpdateCollectorStatus(Session activeSession)
         {
+            if (activeSession.ActiveInstances == null)
+            {
+                return;
+            }
+
             foreach (var activeInstance in activeSession.ActiveInstances)
             {
+                if (activeInstance == null || activeInstance.Name == null)
+                {
+                    continue;
+                }
+
                 string instancePath = Path.Combine(
                     DaasDirectory.LogsDir,
                     activeSession.SessionId,
@@ -355,10 +365,20 @@ namespace DaaS.Sessions
 
         internal void UpdateAnalyzerStatus(Session activeSession)
         {
+            if (activeSession.ActiveInstances == null)
+            {
+                return;
+            }
+
             foreach (var activeInstance in activeSession.ActiveInstances)
             {
                 foreach (var log in activeInstance.Logs)
                 {
+                    if (log == null)
+                    {
+                        continue;
+                    }
+
                     string logReportPath = Path.Combine(
                         DaasDirectory.ReportsDir,
                         activeSession.SessionId,
