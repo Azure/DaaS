@@ -108,7 +108,7 @@ namespace Daas.Test
             foreach (var file in knownFiles)
             {
                 _output.WriteLine($"Checking for file {file}");
-                //var resp = await _client.GetAsync($"api/vfs/SystemDrive/Program%20Files%20(x86)/SiteExtensions/DaaS/4.1.24116.2/{file}");
+                //var resp = await _client.GetAsync($"api/vfs/SystemDrive/Program%20Files%20(x86)/SiteExtensions/DaaS/4.1.24116.3/{file}");
                 var resp = await _client.GetAsync($"api/vfs/siteextensions/daas/{file}");
                 Assert.True(resp.IsSuccessStatusCode, $"File - api/vfs/siteextensions/daas/{file}");
             }
