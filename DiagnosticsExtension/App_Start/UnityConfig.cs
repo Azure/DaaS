@@ -23,6 +23,8 @@ namespace DiagnosticsExtension
             if (!string.IsNullOrWhiteSpace(isolationMode) && isolationMode.Equals("hyperv", StringComparison.CurrentCultureIgnoreCase))
             {
                 container.RegisterType<ISessionManager, HyperVSessionManager>(TypeLifetime.Singleton);
+                container.RegisterType<IStorageService, AzureStorageService>(TypeLifetime.Singleton);
+                container.RegisterType<IAzureStorageSessionManager, AzureStorageSessionManager>(TypeLifetime.Singleton);
             }
             else
             {
