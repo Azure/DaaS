@@ -63,6 +63,7 @@
     <Compile Include="DaaSFileInfo.cs" />
     <Compile Include="DelegatingStream.cs" />
     <Compile Include="EnvironmentVariables.cs" />
+    <Compile Include="HyperVUtils.cs" />
     <Compile Include="MemoryStreamExtensions.cs" />
     <Compile Include="Monitoring\AlwaysOnCpuRule.cs" />
     <Compile Include="Monitoring\AnalysisRequest.cs" />

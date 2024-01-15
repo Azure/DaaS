@@ -39,6 +39,10 @@ namespace DaaS.Sessions
         {
             get
             {
+                if (HyperVUtils.IsHyperV())
+                {
+                    return false;
+                }
                 string storageConnectionString = Settings.Instance.StorageConnectionString;
                 var connectionStringConfigured = !string.IsNullOrWhiteSpace(storageConnectionString);
                 if (connectionStringConfigured && HasConnectionStringChanged(storageConnectionString))
