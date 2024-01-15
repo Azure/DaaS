@@ -108,7 +108,7 @@ namespace Daas.Test
             foreach (var file in knownFiles)
             {
                 _output.WriteLine($"Checking for file {file}");
-                //var resp = await _client.GetAsync($"api/vfs/SystemDrive/Program%20Files%20(x86)/SiteExtensions/DaaS/4.1.24116.2/{file}");
+                //var resp = await _client.GetAsync($"api/vfs/SystemDrive/Program%20Files%20(x86)/SiteExtensions/DaaS/4.1.24116.3/{file}");
                 var resp = await _client.GetAsync($"api/vfs/siteextensions/daas/{file}");
                 Assert.True(resp.IsSuccessStatusCode, $"File - api/vfs/siteextensions/daas/{file}");
             }
@@ -205,7 +205,11 @@ namespace Daas.Test
             //  actions=@{actionType="CustomAction";customAction=@{exe="`"%WEBSITE_DAAS_EXTENSIONPATH%\DiagLauncher\DiagLauncher.exe`"";parameters="-m CollectAndAnalyze -t Profiler"}};
             // }
 
-            await SessionTestHelpers.StressTestWebAppAsync(requestCount: 55, _websiteClient, _output);
+            //
+            // Set to 110 requests as tests are running on 2 instances now
+            //
+
+            await SessionTestHelpers.StressTestWebAppAsync(requestCount: 110, _websiteClient, _output);
 
             await Task.Delay(20000);
 

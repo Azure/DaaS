@@ -280,18 +280,18 @@ namespace Daas.Test
                 {
                     var response = await client.PostAsJsonAsync("daas/sessions/active", string.Empty);
                     Assert.NotNull(response);
-                    outputHelper.WriteLine($"retryCount = {retryCount}. Get Active session at  {DateTime.UtcNow:O} and response code is {response.StatusCode}");
-
-                    response.EnsureSuccessStatusCode();
                     if (response.Content == null)
                     {
                         outputHelper.WriteLine($"retryCount = {retryCount}. response.Content is NULL");
                         return null;
                     }
 
-                    string sessionResponse = await response.Content.ReadAsStringAsync();
+                    string activeSessionResponse = await response.Content.ReadAsStringAsync();
+                    outputHelper.WriteLine($"retryCount = {retryCount}. Get Active session at  {DateTime.UtcNow:O} and response code is {response.StatusCode} and responseBody is {activeSessionResponse}");
 
-                    var activeSession = JsonConvert.DeserializeObject<Session>(sessionResponse);
+                    response.EnsureSuccessStatusCode();
+
+                    var activeSession = JsonConvert.DeserializeObject<Session>(activeSessionResponse);
                     var sessionId = activeSession.SessionId;
 
                     Assert.True(!string.IsNullOrWhiteSpace(sessionId), "Session ID should not empty");

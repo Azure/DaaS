@@ -102,14 +102,22 @@ namespace DiagLauncher
             }
             else
             {
-                if (ExitIfSessionManagerDisabled())
-                {
-                    return 0;
-                }
-
                 if (!string.IsNullOrWhiteSpace(options.SessionId))
                 {
                     Logger.LogSessionVerboseEvent("DiagLauncher started", options.SessionId);
+                }
+
+                if (ExitIfSessionManagerDisabled())
+                {
+                    if (!string.IsNullOrWhiteSpace(options.SessionId))
+                    {
+                        Logger.LogSessionVerboseEvent("DiagLauncher existing because SessionManager is disabled", options.SessionId);
+                    }
+                    else
+                    {
+                        Logger.LogVerboseEvent("DiagLauncher existing because SessionManager is disabled");
+                    }
+                    return 0;
                 }
 
                 Stopwatch sw = new Stopwatch();
@@ -212,6 +220,7 @@ namespace DiagLauncher
 
         private static string CollectLogsAndTakeActions(string tool, string mode, string toolParams, string sessionId)
         {
+            Logger.LogVerboseEvent($"DiagLauncher started with tool-{tool}, mode-{mode}, toolParams-{toolParams}, sessionId-{sessionId}");
             try
             {
                 ThrowIfRequiredSettingsMissing();
@@ -304,6 +313,7 @@ namespace DiagLauncher
             catch (Exception ex)
             {
                 Console.WriteLine($"Failed while running session with {ex}" );
+                Logger.LogSessionErrorEvent("Failed while running session", ex, sessionId);
                 throw;
             }
 

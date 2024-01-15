@@ -67,7 +67,11 @@ namespace Daas.Test
             //  actions=@{actionType="CustomAction";customAction=@{exe="`"%WEBSITE_DAAS_EXTENSIONPATH%\DiagLauncher\DiagLauncher.exe`"";parameters="-m CollectKillAnalyze -t MemoryDump"}};
             // }
 
-            await SessionTestHelpers.StressTestWebAppAsync(requestCount: 55, _websiteClient, _output);
+            //
+            // Set to 110 requests as tests are running on 2 instances now
+            //
+
+            await SessionTestHelpers.StressTestWebAppAsync(requestCount: 110, _websiteClient, _output);
             _output.WriteLine("Stess test completed at " + DateTime.UtcNow.ToString("O"));
 
             await Task.Delay(15000);
