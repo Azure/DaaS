@@ -54,7 +54,7 @@ namespace Daas.Test
         public async Task MemoryDumpViaAutoHealDiagLauncher()
         {
             var warmupMessage = await SessionTestHelpers.EnsureSiteWarmedUpAsync(_websiteClient);
-            _output.WriteLine("Warmup message is: " + warmupMessage);
+            _output.WriteLine($"[{DateTime.UtcNow}] Warmup message is: " + warmupMessage);
 
             //
             // For this case, the DevOps pipeline will create an app 'KUDU_ENDPOINT_X64'
@@ -72,11 +72,11 @@ namespace Daas.Test
             //
 
             await SessionTestHelpers.StressTestWebAppAsync(requestCount: 110, _websiteClient, _output);
-            _output.WriteLine("Stess test completed at " + DateTime.UtcNow.ToString("O"));
+            _output.WriteLine($"[{DateTime.UtcNow}] Stess test completed");
 
             await Task.Delay(15000);
 
-            _output.WriteLine("Getting Active session at " + DateTime.UtcNow.ToString("O"));
+            _output.WriteLine($"[{DateTime.UtcNow}] Getting Active session");
             var session = await SessionTestHelpers.GetActiveSessionAsync(_client, _websiteClient, _output);
             Assert.NotNull(session);
 

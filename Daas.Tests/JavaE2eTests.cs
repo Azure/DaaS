@@ -5,6 +5,7 @@
 // </copyright>
 // -----------------------------------------------------------------------
 
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http;
@@ -75,13 +76,13 @@ namespace Daas.Test
             var session = await SessionTestHelpers.SubmitNewSession(toolName, _clientJava, _websiteClientJava, _output, _webSiteInstances, requestedInstances: requestedInstances, isV2Session: isV2Session);
             var log = session.ActiveInstances.FirstOrDefault().Logs.FirstOrDefault();
             Assert.Contains(logFileContains, log.Name);
-            _output.WriteLine("Log file name is " + log.Name);
+            _output.WriteLine($"[{DateTime.UtcNow}] Log file name is " + log.Name);
 
             Assert.InRange<long>(log.Size, minDumpSize, maxDumpSize);
 
             Report htmlReport = log.Reports.FirstOrDefault(r => r.Name.EndsWith(".html") && r.Name.ToLowerInvariant().Contains(reportFileContains.ToLowerInvariant()));
             Assert.NotNull(htmlReport);
-            _output.WriteLine("Report file name is " + htmlReport.Name);
+            _output.WriteLine($"[{DateTime.UtcNow}] Report file name is " + htmlReport.Name);
         }
 
     }
