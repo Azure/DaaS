@@ -221,7 +221,6 @@ namespace DiagLauncher
         private static string CollectLogsAndTakeActions(string tool, string mode, string toolParams, string sessionId)
         {
             Logger.LogVerboseEvent($"DiagLauncher started with tool-{tool}, mode-{mode}, toolParams-{toolParams}, sessionId-{sessionId}");
-            if (string.IsNullOrWhiteSpace(tool))
             try
             {
                 ThrowIfRequiredSettingsMissing();
