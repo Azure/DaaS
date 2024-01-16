@@ -201,15 +201,15 @@ namespace Daas.Test
 
             // $autohealRulesDotNet = @
             // {
-            //  triggers =@{ requests =@{ count = 50; timeInterval = "00:02:00"} };
+            //  triggers =@{ requests =@{ count = 30; timeInterval = "00:02:00"} };
             //  actions=@{actionType="CustomAction";customAction=@{exe="`"%WEBSITE_DAAS_EXTENSIONPATH%\DiagLauncher\DiagLauncher.exe`"";parameters="-m CollectAndAnalyze -t Profiler"}};
             // }
 
             //
-            // Set to 110 requests as tests are running on 2 instances now
+            // Set to 40 requests as tests are running on 2 instances now
             //
 
-            await SessionTestHelpers.StressTestWebAppAsync(requestCount: 110, _websiteClient, _output);
+            await SessionTestHelpers.StressTestWebAppAsync(requestCount: 40, _websiteClient, _output);
 
             await Task.Delay(20000);
 

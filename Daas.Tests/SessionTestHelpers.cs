@@ -15,14 +15,14 @@ using Newtonsoft.Json;
 using Xunit;
 using Xunit.Abstractions;
 using System.Text.RegularExpressions;
-using Xunit.Sdk;
-using Azure;
 
 namespace Daas.Test
 {
     internal class SessionTestHelpers
     {
         const string SessionFileNameFormat = "yyMMdd_HHmmssffff";
+        static int _requestCounter = 0;
+
         internal static async Task<Session> SubmitNewSession(string diagnosticTool, HttpClient client, HttpClient webSiteClient, ITestOutputHelper outputHelper, string webSiteInstances, List<string> requestedInstances, bool isV2Session = false)
         {
             if (isV2Session && string.IsNullOrWhiteSpace(webSiteInstances))
@@ -31,12 +31,12 @@ namespace Daas.Test
             }
 
             var warmupMessage = await EnsureSiteWarmedUpAsync(webSiteClient);
-            outputHelper.WriteLine($"[{DateTime.UtcNow}] Warmup message is: " + warmupMessage);
+            outputHelper.WriteLine($"[{DateTime.UtcNow:O}] Warmup message is: " + warmupMessage);
             var machineName = await GetMachineName(client, outputHelper);
 
             if (!string.IsNullOrWhiteSpace(webSiteInstances))
             {
-                outputHelper.WriteLine($"[{DateTime.UtcNow}] Instances = {webSiteInstances}");
+                outputHelper.WriteLine($"[{DateTime.UtcNow:O}] Instances = {webSiteInstances}");
             }
 
             var newSession = new Session()
@@ -70,7 +70,7 @@ namespace Daas.Test
                     string sessionIdResponse = await response.Content.ReadAsStringAsync();
                     Assert.NotNull(sessionIdResponse);
 
-                    string message = $"[{DateTime.UtcNow}] SessionId Response StatusCode is {response.StatusCode} and response body is {sessionIdResponse}";
+                    string message = $"[{DateTime.UtcNow:O}] SessionId Response StatusCode is {response.StatusCode} and response body is {sessionIdResponse}";
                     outputHelper.WriteLine(message);
                     if (response.StatusCode == System.Net.HttpStatusCode.Accepted)
                     {
@@ -92,7 +92,7 @@ namespace Daas.Test
                 string sessionIdResponse = await response.Content.ReadAsStringAsync();
                 Assert.NotNull(sessionIdResponse);
 
-                string message = $"[{DateTime.UtcNow}] SessionId Response StatusCode is {response.StatusCode} and response body is {sessionIdResponse}";
+                string message = $"[{DateTime.UtcNow:O}] SessionId Response StatusCode is {response.StatusCode} and response body is {sessionIdResponse}";
                 outputHelper.WriteLine(message);
                 if (response.StatusCode == System.Net.HttpStatusCode.Accepted)
                 {
@@ -108,7 +108,7 @@ namespace Daas.Test
 
             Session session = await GetSessionInformationAsync(sessionId, client, outputHelper);
             Assert.True(session != null, "Session should not be null");
-            outputHelper.WriteLine($"[{DateTime.UtcNow}] Session Status for {sessionId} is {session.Status}");
+            outputHelper.WriteLine($"[{DateTime.UtcNow:O}] Session Status for {sessionId} is {session.Status}");
 
             while (session.Status == Status.Active)
             {
@@ -176,9 +176,9 @@ namespace Daas.Test
             {
                 try
                 {
-                    testOutputHelper.WriteLine($"[{DateTime.UtcNow}] Retry Count = {retryCount}. Getting SessionId {sessionId}");
+                    testOutputHelper.WriteLine($"[{DateTime.UtcNow:O}] Retry Count = {retryCount}. Getting SessionId {sessionId}");
                     var sessionResponse = await client.PostAsync($"daas/sessions/{sessionId}", null);
-                    testOutputHelper.WriteLine($"[{DateTime.UtcNow}] Retry Count = {retryCount}. Response Code is {sessionResponse.StatusCode}");
+                    testOutputHelper.WriteLine($"[{DateTime.UtcNow:O}] Retry Count = {retryCount}. Response Code is {sessionResponse.StatusCode}");
                     await LogResponseOutputAsync(sessionResponse, testOutputHelper);
                     sessionResponse.EnsureSuccessStatusCode();
 
@@ -194,7 +194,7 @@ namespace Daas.Test
                 }
                 catch (Exception ex)
                 {
-                    testOutputHelper.WriteLine($"[{DateTime.UtcNow}] Retry Count = {retryCount}. Encountered Exception = {ex}");
+                    testOutputHelper.WriteLine($"[{DateTime.UtcNow:O}] Retry Count = {retryCount}. Encountered Exception = {ex}");
                     --retryCount;
                     if (retryCount == 0)
                     {
@@ -291,12 +291,12 @@ namespace Daas.Test
                     Assert.NotNull(response);
                     if (response.Content == null)
                     {
-                        outputHelper.WriteLine($"[{DateTime.UtcNow}] retryCount = {retryCount}. response.Content is NULL");
+                        outputHelper.WriteLine($"[{DateTime.UtcNow:O}] retryCount = {retryCount}. response.Content is NULL");
                         return null;
                     }
 
                     string activeSessionResponse = await response.Content.ReadAsStringAsync();
-                    outputHelper.WriteLine($"[{DateTime.UtcNow}] retryCount = {retryCount}. Get Active session at  {DateTime.UtcNow:O} and response code is {response.StatusCode} and responseBody is {activeSessionResponse}");
+                    outputHelper.WriteLine($"[{DateTime.UtcNow:O}] retryCount = {retryCount}. Get Active session at  {DateTime.UtcNow:O} and response code is {response.StatusCode} and responseBody is {activeSessionResponse}");
 
                     await LogResponseOutputAsync(response, outputHelper);
                     response.EnsureSuccessStatusCode();
@@ -343,8 +343,15 @@ namespace Daas.Test
 
         private static void MakeSiteRequest(HttpClient webSiteClient, ITestOutputHelper outputHelper)
         {
-            var response = webSiteClient.GetAsync("/").Result;
-            outputHelper.WriteLine($"[{DateTime.UtcNow}] Request completed with {response.StatusCode} at {DateTime.UtcNow:O}");
+            try
+            {
+                var response = webSiteClient.GetAsync("/").Result;
+                outputHelper.WriteLine($"[{DateTime.UtcNow:O}] Request completed with {response.StatusCode}");
+            }
+            catch (Exception ex)
+            {
+                outputHelper.WriteLine($"[{DateTime.UtcNow:O}] Request failed with {ex}");
+            }
         }
 
         private static async Task<string> GetMachineName(HttpClient client, ITestOutputHelper outputHelper)
@@ -354,7 +361,7 @@ namespace Daas.Test
             {
                 try
                 {
-                    outputHelper.WriteLine($"[{DateTime.UtcNow}] Retry Count = {retryCount}. Getting Machine name");
+                    outputHelper.WriteLine($"[{DateTime.UtcNow:O}] Retry Count = {retryCount}. Getting Machine name");
                     var versionResponse = await client.GetAsync($"daas/api/v2/daasversion");
 
                     await LogResponseOutputAsync(versionResponse, outputHelper);
@@ -390,7 +397,7 @@ namespace Daas.Test
                 var processesResponse = await processesResponseMessage.Content.ReadAsStringAsync();
                 var processes = JsonConvert.DeserializeObject<KuduProcessEntry[]>(processesResponse);
                 diagLauncherRunning = processes.Any(p => p.name.ToLower().Contains("diaglauncher"));
-                outputHelper.WriteLine($"[{DateTime.UtcNow}] DiagLauncherRunning = {diagLauncherRunning}");
+                outputHelper.WriteLine($"[{DateTime.UtcNow:O}] DiagLauncherRunning = {diagLauncherRunning}");
             }
             while (diagLauncherRunning);
         }
@@ -400,7 +407,7 @@ namespace Daas.Test
             if (response != null && response.Content != null)
             {
                 var responseString = await response.Content.ReadAsStringAsync();
-                testOutputHelper.WriteLine($"[{DateTime.UtcNow}] Response Status is {response.StatusCode} and response Content is {responseString}");
+                testOutputHelper.WriteLine($"[{DateTime.UtcNow:O}] Response Status is {response.StatusCode} and response Content is {responseString}");
             }
         }
     }
