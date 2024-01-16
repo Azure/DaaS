@@ -360,7 +360,6 @@ namespace DaaS
 
         public static void LogStatus(string message)
         {
-            Console.WriteLine(message);
             LogDiagnoserEvent(message);
             if (!string.IsNullOrWhiteSpace(StatusFile))
             {

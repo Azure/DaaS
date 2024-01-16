@@ -15,6 +15,7 @@ using Newtonsoft.Json;
 using Xunit;
 using Xunit.Abstractions;
 using System.Text.RegularExpressions;
+using DaaS;
 
 namespace Daas.Test
 {
@@ -54,7 +55,7 @@ namespace Daas.Test
 
                 var requestedSiteInstances = new List<SiteInstance>();
 
-                foreach(var requestedInstance in newSession.Instances)
+                foreach (var requestedInstance in newSession.Instances)
                 {
                     var instance = siteInstances.FirstOrDefault(x => x.machineName.Equals(requestedInstance, StringComparison.OrdinalIgnoreCase));
                     Assert.NotNull(instance);
@@ -62,10 +63,17 @@ namespace Daas.Test
 
                 }
 
-                foreach(var siteInstance in requestedSiteInstances)
+                foreach (var siteInstance in requestedSiteInstances)
                 {
-                    var response = await client.PostAsJsonAsync($"daas/sessionsV2?instance={siteInstance.siteInstanceName}", newSession);
-                    Assert.NotNull(response);
+                    HttpResponseMessage response = null;
+                    await RetryHelper.RetryOnExceptionAsync(3, TimeSpan.FromSeconds(1),
+                        async () =>
+                        {
+                            outputHelper.WriteLine($"[{DateTime.UtcNow:O}] Making HTTP POST call to submit new session to daas/sessionsV2?instance={siteInstance.siteInstanceName}");
+                            response = await client.PostAsJsonAsync($"daas/sessionsV2?instance={siteInstance.siteInstanceName}", newSession);
+                        });
+
+                    Assert.True(response != null, $"HttpResponse object for posting V2 Session for {siteInstance.siteInstanceName} is NULL");
 
                     string sessionIdResponse = await response.Content.ReadAsStringAsync();
                     Assert.NotNull(sessionIdResponse);
@@ -84,9 +92,15 @@ namespace Daas.Test
             }
             else
             {
-                var response = await client.PostAsJsonAsync("daas/sessions", newSession);
-                Assert.NotNull(response);
+                HttpResponseMessage response = null;
+                await RetryHelper.RetryOnExceptionAsync(2, TimeSpan.FromSeconds(1),
+                    async () =>
+                    {
+                        outputHelper.WriteLine($"[{DateTime.UtcNow:O}] Making HTTP POST call to submit new session to daas/sessions");
+                        response = await client.PostAsJsonAsync("daas/sessions", newSession);
+                    });
 
+                Assert.True(response != null, "HttpResponse object for posting Session is NULL");
                 Assert.Equal(System.Net.HttpStatusCode.Accepted, response.StatusCode);
 
                 string sessionIdResponse = await response.Content.ReadAsStringAsync();
@@ -164,7 +178,7 @@ namespace Daas.Test
             // The logic for Utility.GetScmHostName() is a bit flaky. For now, lets live with this
             //
 
-            Assert.True(report.RelativePath.StartsWith("https://" , StringComparison.OrdinalIgnoreCase) || report.RelativePath.StartsWith("/api/vfs", StringComparison.OrdinalIgnoreCase), $"Report relativePath is not expected {report.RelativePath.Substring(0, 10)}");
+            Assert.True(report.RelativePath.StartsWith("https://", StringComparison.OrdinalIgnoreCase) || report.RelativePath.StartsWith("/api/vfs", StringComparison.OrdinalIgnoreCase), $"Report relativePath is not expected {report.RelativePath.Substring(0, 10)}");
             Assert.True(log.RelativePath.StartsWith("https://", StringComparison.OrdinalIgnoreCase) || report.RelativePath.StartsWith("/api/vfs", StringComparison.OrdinalIgnoreCase), $"Log relativePath is not expected {report.RelativePath.Substring(0, 10)}");
         }
 
