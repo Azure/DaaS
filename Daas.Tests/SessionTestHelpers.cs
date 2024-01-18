@@ -204,6 +204,11 @@ namespace Daas.Test
                     }
 
                     var session = JsonConvert.DeserializeObject<Session>(sessionString);
+                    if (session == null)
+                    {
+                        throw new Exception($"Retry Count = {retryCount}. Encountered NULL session while trying to deserialize '{sessionString}'");
+                    }
+
                     return session;
                 }
                 catch (Exception ex)
