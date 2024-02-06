@@ -12,7 +12,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using DaaS.Configuration;
 using Azure.Storage.Blobs;
-using Azure.Storage.Blobs.Models;
+using Microsoft.WindowsAzure.Storage.Blob;
 using System.IO;
 
 namespace DaaS.Storage
@@ -21,46 +21,7 @@ namespace DaaS.Storage
     {
         const string ContainerName ="memorydumps";
 
-        private readonly ConcurrentDictionary<string, BlobContainerClient> Containers = new ConcurrentDictionary<string, BlobContainerClient>();
-
-        public async Task DeleteFileAsync(string filePath)
-        {
-            var containerClient = GetBlobContainerClient() ?? throw new NullReferenceException("Failed to get instance of Azure Storage client");
-
-            await foreach (var blobItem in containerClient.GetBlobsByHierarchyAsync(prefix: filePath))
-            {
-                if (blobItem.IsBlob)
-                {
-                    var blobClient = containerClient.GetBlobClient(blobItem.Blob.Name);
-                    await blobClient.DeleteIfExistsAsync();
-                }
-            }
-        }
-
-        public async Task DownloadFileAsync(string sourceFilePath, string destinationFilePath)
-        {
-            var containerClient = GetBlobContainerClient() ?? throw new NullReferenceException("Failed to get instance of Azure Storage client");
-            BlobClient blobClient = containerClient.GetBlobClient(sourceFilePath);
-
-            // Check if the blob exists
-            if (await blobClient.ExistsAsync())
-            {
-                // Download the blob to a local file using DownloadTo method
-                BlobDownloadInfo blobDownloadInfo = await blobClient.DownloadAsync();
-                FileSystemHelpers.CreateDirectoryIfNotExists(Path.GetDirectoryName(destinationFilePath));
-
-                // Save the downloaded content to a local file
-                using (var fileStream = File.OpenWrite(destinationFilePath))
-                {
-                    await blobDownloadInfo.Content.CopyToAsync(fileStream);
-                    fileStream.Close();
-                }
-            }
-            else
-            {
-                throw new Exception($"Blob '{destinationFilePath}' does not exist in the container.");
-            }
-        }
+        private readonly ConcurrentDictionary<string, IContainerClient> Containers = new ConcurrentDictionary<string, IContainerClient>();
 
         public string GetBlobStorageHostName()
         {
@@ -82,50 +43,6 @@ namespace DaaS.Storage
             }
 
             return string.Empty;
-        }
-
-        public async Task<IEnumerable<StorageFile>> GetFilesAsync(string directoryPath)
-        {
-            directoryPath = directoryPath.ConvertBackSlashesToForwardSlashes();
-            var files = new List<StorageFile>();
-            var containerClient = GetBlobContainerClient() ?? throw new NullReferenceException("Failed to get instance of Azure Storage client");
-
-            await foreach (BlobItem blob in containerClient.GetBlobsAsync(BlobTraits.None, BlobStates.None, directoryPath))
-            {
-                files.Add(new StorageFile
-                {
-                    Name = Path.GetFileName(blob.Name),
-                    FullPath = blob.Name,
-                    CreatedOn = blob.Properties.CreatedOn,
-                    Size = blob.Properties.ContentLength,
-                    LastModified = blob.Properties.LastModified,
-                    Uri = new Uri($"{containerClient.Uri}/{blob.Name}")
-                });
-            }
-
-            return files;
-        }
-
-        public void RemoveDirectory(string directoryPath)
-        {
-            DeleteFileAsync(directoryPath).Wait();
-        }
-
-        public async Task<Uri> UploadFileAsync(string sourceFilePath, string destinationFilePath, CancellationToken cancellationToken)
-        {
-            destinationFilePath = destinationFilePath.ConvertBackSlashesToForwardSlashes();
-            var containerClient = GetBlobContainerClient() ?? throw new NullReferenceException("Failed to get instance of Azure Storage client");
-
-            BlobClient blobClient = containerClient.GetBlobClient(destinationFilePath);
-
-            // Open the file and upload it to Azure Storage
-            using (FileStream fs = File.OpenRead(sourceFilePath))
-            {
-                await blobClient.UploadAsync(fs, true, cancellationToken);
-                fs.Close();
-            }
-
-            return blobClient.Uri;
         }
 
         public bool ValidateStorageConfiguration(out string storageAccount, out Exception exceptionContactingStorage)
@@ -179,38 +96,75 @@ namespace DaaS.Storage
             return false;
         }
 
-        private BlobContainerClient GetBlobContainerClient()
+        private IContainerClient GetBlobContainerClient()
         {
             string connectionString = Settings.Instance.StorageConnectionString;
             if (!string.IsNullOrWhiteSpace(connectionString))
             {
-                if (Containers.TryGetValue(connectionString, out BlobContainerClient container))
+                if (Containers.TryGetValue(connectionString, out IContainerClient containerClient))
                 {
-                    return container;
+                    return containerClient;
                 }
 
                 var newContainerClient = new BlobContainerClient(connectionString, ContainerName);
                 newContainerClient.CreateIfNotExists();
-                Containers.TryAdd(connectionString, newContainerClient);
-                return newContainerClient;
+                var azureBlobContainerClient = new AzureBlobContainerClient(newContainerClient);
+                Containers.TryAdd(connectionString, azureBlobContainerClient);
+                return azureBlobContainerClient;
             }
             else
             {
                 string accountSasUri = Settings.Instance.AccountSasUri;
                 if (!string.IsNullOrWhiteSpace(accountSasUri))
                 {
-                    if (Containers.TryGetValue(accountSasUri, out BlobContainerClient container))
+                    if (Containers.TryGetValue(accountSasUri, out IContainerClient containerClient))
                     {
-                        return container;
+                        return containerClient;
                     }
 
-                    var newContainerClient = new BlobContainerClient(new Uri(accountSasUri));
-                    Containers.TryAdd(accountSasUri, newContainerClient);
-                    return newContainerClient;
+                    var newContainerClient = new CloudBlobContainer(new Uri(accountSasUri));
+                    newContainerClient.CreateIfNotExists();
+                    var legacyBlobContainerClient = new LegacyBlobContainerClient(newContainerClient);
+                    Containers.TryAdd(accountSasUri, legacyBlobContainerClient);
+                    return legacyBlobContainerClient;
                 }
             }
 
             return null;
+        }
+
+        public async Task DeleteFileAsync(string filePath)
+        {
+            filePath = filePath.ConvertBackSlashesToForwardSlashes();
+            var containerClient = GetBlobContainerClient() ?? throw new NullReferenceException("Failed to get instance of Azure Storage client");
+            await containerClient.DeleteFileAsync(filePath);
+        }
+
+        public async Task DownloadFileAsync(string sourceFilePath, string destinationFilePath)
+        {
+            var containerClient = GetBlobContainerClient() ?? throw new NullReferenceException("Failed to get instance of Azure Storage client");
+            FileSystemHelpers.CreateDirectoryIfNotExists(Path.GetDirectoryName(destinationFilePath));
+            sourceFilePath = sourceFilePath.ConvertBackSlashesToForwardSlashes();
+            await containerClient.DownloadFileAsync(sourceFilePath, destinationFilePath);
+        }
+
+        public async Task<IEnumerable<StorageFile>> GetFilesAsync(string directoryPath)
+        {
+            directoryPath = directoryPath.ConvertBackSlashesToForwardSlashes();
+            var containerClient = GetBlobContainerClient() ?? throw new NullReferenceException("Failed to get instance of Azure Storage client");
+            return await containerClient.GetFilesAsync(directoryPath);
+        }
+
+        public void RemoveDirectory(string directoryPath)
+        {
+            DeleteFileAsync(directoryPath).Wait();
+        }
+
+        public async Task<Uri> UploadFileAsync(string sourceFilePath, string destinationFilePath, CancellationToken cancellationToken)
+        {
+            destinationFilePath = destinationFilePath.ConvertBackSlashesToForwardSlashes();
+            var containerClient = GetBlobContainerClient() ?? throw new NullReferenceException("Failed to get instance of Azure Storage client");
+            return await containerClient.UploadFileAsync(sourceFilePath, destinationFilePath, cancellationToken);
         }
     }
 }

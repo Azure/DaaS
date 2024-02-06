@@ -114,12 +114,15 @@
     <Compile Include="LockFile.cs" />
     <Compile Include="Sessions\SessionController.cs" />
     <Compile Include="Infrastructure.cs" />
+    <Compile Include="Storage\AzureBlobContainerClient.cs" />
     <Compile Include="Storage\AzureStorageService.cs" />
     <Compile Include="Helper.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Storage\FileSystem.cs" />
     <Compile Include="Storage\AlertingStorageQueue.cs" />
+    <Compile Include="Storage\IContainerClient.cs" />
     <Compile Include="Storage\IStorageService.cs" />
+    <Compile Include="Storage\LegacyBlobContainerClient.cs" />
     <Compile Include="Storage\StorageFile.cs" />
     <Compile Include="Utilities.cs" />
     <Compile Include="Utility.cs" />
@@ -163,6 +166,9 @@
     </PackageReference>
     <PackageReference Include="System.Memory">
       <Version>4.5.5</Version>
+    </PackageReference>
+    <PackageReference Include="WindowsAzure.Storage">
+      <Version>9.3.3</Version>
     </PackageReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
