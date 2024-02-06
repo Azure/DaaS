@@ -30,9 +30,6 @@ namespace DaaSRunner
             Diagnostic
         }
 
-        private static SessionController _DaaS = new SessionController();
-        private static int cleanOutHeartBeats = 0;
-        private static DateTime _lastHeartbeatSent = DateTime.MinValue;
         private static bool m_MonitoringEnabled = false;
         private static readonly CpuMonitoring m_CpuMonitoring = new CpuMonitoring();
         private static ICpuMonitoringRule m_CpuMonitoringRule = null;
@@ -40,7 +37,7 @@ namespace DaaSRunner
         private static Timer m_SasUriTimer;
         private static Timer m_CompletedSessionsCleanupTimer;
 
-        private static DateTime _lastSessionCleanupTime = DateTime.MinValue;
+        private static DateTime _lastSessionCleanupTime = DateTime.UtcNow;
         private static DateTime _lastV2SessionUpdatedTime = DateTime.UtcNow;
 
         private static readonly ISessionManager _sessionManager = new SessionManager(new AzureStorageService());
@@ -79,10 +76,10 @@ namespace DaaSRunner
             Thread.Sleep(TimeSpan.FromSeconds(20));
 
             // Start a timer to validate SAS URI's are configured correctly
-            m_SasUriTimer = new Timer(new TimerCallback(ValidateStorageConfiguration), null, (int)TimeSpan.FromMinutes(1).TotalMilliseconds, (int)TimeSpan.FromHours(1).TotalMilliseconds);
+            m_SasUriTimer = new Timer(new TimerCallback(ValidateStorageConfiguration), null, (int)TimeSpan.FromMinutes(1).TotalMilliseconds, (int)TimeSpan.FromHours(4).TotalMilliseconds);
 
             // Start a timer to cleanup completed sessions
-            m_CompletedSessionsCleanupTimer = new Timer(new TimerCallback(CompletedSessionCleanup), null, (int)TimeSpan.FromMinutes(1).TotalMilliseconds, (int)TimeSpan.FromMinutes(30).TotalMilliseconds);
+            m_CompletedSessionsCleanupTimer = new Timer(new TimerCallback(CompletedSessionCleanup), null, (int)TimeSpan.FromMinutes(1).TotalMilliseconds, (int)TimeSpan.FromHours(4).TotalMilliseconds);
 
             InitializeThreadsForCpuMonitoring();
 
