@@ -56,9 +56,11 @@ namespace DaaS.Storage
                 string accountSasUri = Settings.Instance.AccountSasUri;
                 BlobContainerClient containerClient = null;
 
+                bool usingConnectionString = false;
                 if (!string.IsNullOrWhiteSpace(connectionString))
                 {
                     containerClient = new BlobContainerClient(connectionString, ContainerName);
+                    usingConnectionString = true;
                 }
                 else if (!string.IsNullOrWhiteSpace(accountSasUri))
                 {
@@ -85,6 +87,7 @@ namespace DaaS.Storage
                     break;
                 }
 
+                Logger.LogVerboseEvent($"Storage account validated succesfully {(usingConnectionString ? "using connection string." : "using SAS URI.")}");
                 return true;
 
             }

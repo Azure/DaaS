@@ -59,6 +59,14 @@ namespace DaaS.Configuration
         public Diagnoser[] Diagnosers { get; set; }
         public string DiagnosticToolsPath { get; set; }
 
+        public bool IsStorageAccountConfigured
+        {
+            get
+            {
+                return !string.IsNullOrWhiteSpace(AccountSasUri) || !string.IsNullOrWhiteSpace(StorageConnectionString);
+            }
+        }
+
         internal string BlobSasUri
         {
             get

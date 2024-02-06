@@ -88,6 +88,12 @@ namespace DaaSRunner
 
         private static void ValidateStorageConfiguration(object state)
         {
+            if (!Settings.Instance.IsStorageAccountConfigured)
+            {
+                Logger.LogVerboseEvent("Storage account is not configured");
+                return;
+            }
+
             try
             {
                 var isValid = storageService.ValidateStorageConfiguration(out string _, out Exception exceptionContactingStorage);
