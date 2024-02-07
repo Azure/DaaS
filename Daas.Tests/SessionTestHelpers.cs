@@ -179,7 +179,7 @@ namespace Daas.Test
             //
 
             Assert.True(report.RelativePath.StartsWith("https://", StringComparison.OrdinalIgnoreCase) || report.RelativePath.StartsWith("/api/vfs", StringComparison.OrdinalIgnoreCase), $"Report relativePath is not expected {report.RelativePath.Substring(0, 10)}");
-            Assert.True(log.RelativePath.StartsWith("https://", StringComparison.OrdinalIgnoreCase) || report.RelativePath.StartsWith("/api/vfs", StringComparison.OrdinalIgnoreCase), $"Log relativePath is not expected {report.RelativePath.Substring(0, 10)}");
+            Assert.True(log.RelativePath.StartsWith("https://", StringComparison.OrdinalIgnoreCase) || log.RelativePath.StartsWith("/api/vfs", StringComparison.OrdinalIgnoreCase), $"Log relativePath is not expected {log.RelativePath.Substring(0, 10)}");
         }
 
         internal static async Task<Session> GetSessionInformationAsync(string sessionId, HttpClient client, ITestOutputHelper testOutputHelper)
