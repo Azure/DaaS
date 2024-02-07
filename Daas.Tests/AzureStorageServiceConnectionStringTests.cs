@@ -15,7 +15,6 @@ namespace Daas.Test
         public AzureStorageServiceConnectionStringTests():
             base(new AzureStorageService(Setup.GetConfiguration()["WEBSITE_DAAS_STORAGE_CONNECTIONSTRING"], string.Empty), DateTime.UtcNow.Ticks.ToString() + "_CS")
         {
-            TestHelpers.SetupTestEnvironment();
         }
 
     }

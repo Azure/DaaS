@@ -19,7 +19,6 @@ namespace Daas.Test
         public AzureStorageServiceSasUriTests() :
             base(new AzureStorageService(string.Empty, Setup.GetConfiguration()["WEBSITE_DAAS_STORAGE_SASURI"]), DateTime.UtcNow.Ticks.ToString())
         {
-            TestHelpers.SetupTestEnvironment();
         }
     }
 }

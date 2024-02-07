@@ -8,14 +8,18 @@ using DaaS.Sessions;
 using DaaS.Storage;
 using Newtonsoft.Json;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace Daas.Test
 {
     public class SessionControllerTests
     {
-        public SessionControllerTests()
+        private readonly ITestOutputHelper _output;
+
+        public SessionControllerTests(ITestOutputHelper output)
         {
             TestHelpers.SetupTestEnvironment();
+            _output = output;
         }
 
         [Fact]
@@ -53,41 +57,36 @@ namespace Daas.Test
             };
 
             var result = await sessionsController.SubmitNewSession(newSession) as ResponseMessageResult;
-            Assert.NotNull(result);
+            Assert.True(result != null, "Result should not be null");
 
-            if (result == null)
-            {
-                throw new NullReferenceException("result is null");
-            }
+            _output.WriteLine("Response.StatusCode = " + result.Response.StatusCode.ToString());
 
             Assert.Equal(System.Net.HttpStatusCode.Accepted, result.Response.StatusCode);
 
             string sessionIdResponse = await result.Response.Content.ReadAsStringAsync();
-            Assert.NotNull(sessionIdResponse);
+            Assert.True(sessionIdResponse != null, "sessionIdResponse should not be null");
+
+            _output.WriteLine("sessionIdResponse.= " + sessionIdResponse);
 
             string sessionId = JsonConvert.DeserializeObject<string>(sessionIdResponse);
+            Assert.True(!string.IsNullOrEmpty(sessionId), "sessionId should not be null");
+            _output.WriteLine("SessionId.= " + sessionId);
 
+            await Task.Delay(1000);
             var activeSession = await sessionsController.GetActiveSession() as OkNegotiatedContentResult<Session>;
-            Assert.NotNull(activeSession);
+            Assert.True(activeSession != null, "activeSession should not be null");
+            Assert.True(activeSession.Content != null, "activeSession.Content should not be null");
 
             var cts = new CancellationTokenSource(TimeSpan.FromMinutes(15));
 
-            if (activeSession == null)
-            {
-                throw new NullReferenceException("activeSession is null");
-            }
+            _output.WriteLine("Session Content = " + JsonConvert.SerializeObject(activeSession.Content));
 
-            await sessionManager.RunToolForSessionAsync(activeSession.Content, queueAnalysisRequest:false, cts.Token);
+            await sessionManager.RunToolForSessionAsync(activeSession.Content, queueAnalysisRequest: false, cts.Token);
 
             var completedSession = await sessionsController.GetSession(sessionId) as OkNegotiatedContentResult<Session>;
-            Assert.NotNull(completedSession);
+            Assert.True(completedSession != null, "Completed session should not be NULL");
+            Assert.True(completedSession.Content != null, "completedSession.Content should not be NULL");
 
-            if (completedSession == null || completedSession.Content == null)
-            {
-                throw new NullReferenceException("Either completed session is null or content is null");
-            }
-
-            Assert.NotNull(completedSession.Content);
             Assert.Equal(Status.Complete, completedSession.Content.Status);
         }
 
