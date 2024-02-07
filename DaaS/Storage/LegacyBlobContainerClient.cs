@@ -24,22 +24,11 @@ namespace DaaS.Storage
 
         public async Task DeleteFileAsync(string filePath)
         {
-            CloudBlobDirectory directory = _cloudBlobContainer.GetDirectoryReference(filePath);
-            BlobContinuationToken continuationToken = null;
-            do
-            {
-                var resultSegment = await directory.ListBlobsSegmentedAsync(continuationToken);
-                continuationToken = resultSegment.ContinuationToken;
+            CloudBlockBlob blob = _cloudBlobContainer.GetBlockBlobReference(filePath);
+            bool deleted = await blob.DeleteIfExistsAsync();
 
-                foreach (IListBlobItem item in resultSegment.Results)
-                {
-                    if (item.GetType() == typeof(CloudBlockBlob))
-                    {
-                        CloudBlockBlob blob = (CloudBlockBlob)item;
-                        await blob.DeleteAsync();
-                    }
-                }
-            } while (continuationToken != null);
+            string message = deleted ? $"Blob '{filePath}' deleted successfully." : $"Blob '{filePath}' does not exist or couldn't be deleted.";
+            Logger.LogVerboseEvent(message);
         }
 
         public async Task DownloadFileAsync(string sourceFilePath, string destinationFilePath)
@@ -83,6 +72,30 @@ namespace DaaS.Storage
             } while (continuationToken != null);
 
             return files;
+        }
+
+        public async Task RemoveDirectoryAsync(string directoryPath)
+        {
+            CloudBlobDirectory directory = _cloudBlobContainer.GetDirectoryReference(directoryPath);
+            BlobContinuationToken continuationToken = null;
+            do
+            {
+                var resultSegment = await directory.ListBlobsSegmentedAsync(continuationToken);
+                continuationToken = resultSegment.ContinuationToken;
+
+                foreach (IListBlobItem item in resultSegment.Results)
+                {
+                    if (item.GetType() == typeof(CloudBlockBlob))
+                    {
+                        CloudBlockBlob blob = (CloudBlockBlob)item;
+
+                        bool deleted = await blob.DeleteIfExistsAsync();
+
+                        string message = deleted ? $"Blob '{directoryPath}/{blob.Name}' deleted successfully." : $"Blob '{directoryPath}/{blob.Name}' does not exist or couldn't be deleted.";
+                        Logger.LogVerboseEvent(message);
+                    }
+                }
+            } while (continuationToken != null);
         }
 
         public async Task<Uri> UploadFileAsync(string sourceFilePath, string destinationFilePath, CancellationToken cancellationToken)

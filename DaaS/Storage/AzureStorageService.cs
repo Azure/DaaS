@@ -19,9 +19,26 @@ namespace DaaS.Storage
 {
     public class AzureStorageService : IStorageService
     {
-        const string ContainerName ="memorydumps";
+        const string ContainerName = "memorydumps";
 
         private readonly ConcurrentDictionary<string, IContainerClient> Containers = new ConcurrentDictionary<string, IContainerClient>();
+        private readonly string _connectionString = "";
+        private readonly string _accountSasUri = "";
+
+        public AzureStorageService()
+        {
+        }
+
+        /// <summary>
+        /// Should be called only from Unit Tests
+        /// </summary>
+        /// <param name="connectionString"></param>
+        /// <param name="accountSasUri"></param>
+        public AzureStorageService(string connectionString, string accountSasUri)
+        {
+            this._connectionString = connectionString;
+            this._accountSasUri = accountSasUri;
+        }
 
         public string GetBlobStorageHostName()
         {
@@ -101,7 +118,7 @@ namespace DaaS.Storage
 
         private IContainerClient GetBlobContainerClient()
         {
-            string connectionString = Settings.Instance.StorageConnectionString;
+            var connectionString = GetConnectionString();
             if (!string.IsNullOrWhiteSpace(connectionString))
             {
                 if (Containers.TryGetValue(connectionString, out IContainerClient containerClient))
@@ -117,7 +134,7 @@ namespace DaaS.Storage
             }
             else
             {
-                string accountSasUri = Settings.Instance.AccountSasUri;
+                var accountSasUri = GetAccountSasUri();
                 if (!string.IsNullOrWhiteSpace(accountSasUri))
                 {
                     if (Containers.TryGetValue(accountSasUri, out IContainerClient containerClient))
@@ -134,6 +151,16 @@ namespace DaaS.Storage
             }
 
             return null;
+        }
+
+        private string GetAccountSasUri()
+        {
+            return string.IsNullOrWhiteSpace(_accountSasUri) ? Settings.Instance.AccountSasUri : _accountSasUri;
+        }
+
+        private string GetConnectionString()
+        {
+            return string.IsNullOrWhiteSpace(_connectionString) ? Settings.Instance.StorageConnectionString : _connectionString;
         }
 
         public async Task DeleteFileAsync(string filePath)
@@ -158,9 +185,11 @@ namespace DaaS.Storage
             return await containerClient.GetFilesAsync(directoryPath);
         }
 
-        public void RemoveDirectory(string directoryPath)
+        public async Task RemoveDirectoryAsync(string directoryPath)
         {
-            DeleteFileAsync(directoryPath).Wait();
+            directoryPath = directoryPath.ConvertBackSlashesToForwardSlashes();
+            var containerClient = GetBlobContainerClient() ?? throw new NullReferenceException("Failed to get instance of Azure Storage client");
+            await containerClient.RemoveDirectoryAsync(directoryPath);
         }
 
         public async Task<Uri> UploadFileAsync(string sourceFilePath, string destinationFilePath, CancellationToken cancellationToken)

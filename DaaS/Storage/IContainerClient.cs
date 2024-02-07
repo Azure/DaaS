@@ -17,6 +17,7 @@ namespace DaaS.Storage
         public Task DeleteFileAsync(string filePath);
         public Task DownloadFileAsync(string sourceFilePath, string destinationFilePath);
         public Task<IEnumerable<StorageFile>> GetFilesAsync(string directoryPath);
+        public Task RemoveDirectoryAsync(string directoryPath);
         public Task<Uri> UploadFileAsync(string sourceFilePath, string destinationFilePath, CancellationToken cancellationToken);
     }
 }

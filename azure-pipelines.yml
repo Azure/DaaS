@@ -391,7 +391,10 @@ steps:
       $storageAccountKeys = Get-AzStorageAccountKey -ResourceGroupName DAAS-DevOps-Testing -AccountName daasdevopsstorage
       $storageAccountKey = $storageAccountKeys[0].Value
       $connectionString = "DefaultEndpointsProtocol=https;AccountName=daasdevopsstorage;AccountKey=$storageAccountKey;EndpointSuffix=core.windows.net"
-      
+
+      $sasUrl = New-AzStorageAccountSASToken -Context $storageAccount.context -Service Blob,Table,Queue -ResourceType Container,Object -Permission "acdlpruw" -ExpiryTime (Get-Date).AddDays(1)
+      $sasUrl = "https://daasdevopsstorage.blob.core.windows.net/memorydumps" + $sasurl
+
       Start-Job -Name DOTNETSITE -ScriptBlock $CreateWebApp -ArgumentList ($siteName, $connectionString, "KUDU_ENDPOINT", "DOTNET") | Out-Null
       Start-Job -Name DOTNETSITEBACKUP -ScriptBlock $CreateWebApp -ArgumentList ($siteNameBackup, $connectionString, "KUDU_ENDPOINT_BACKUP", "X64") | Out-Null
       Start-Job -Name JAVASITE -ScriptBlock $CreateWebApp -ArgumentList ($siteNameJava , $connectionString, "KUDU_ENDPOINT_JAVA", "JAVA") | Out-Null
@@ -415,6 +418,8 @@ steps:
       Write-Host $instancesJson
 
       Write-Host "##vso[task.setvariable variable=$instancesVariableName]$instancesJson"
+      Write-Host "##vso[task.setvariable variable=WEBSITE_DAAS_STORAGE_CONNECTIONSTRING]$connectionString"
+      Write-Host "##vso[task.setvariable variable=WEBSITE_DAAS_STORAGE_SASURI]$sasUrl"
 
     azurePowerShellVersion: 'LatestVersion'
 

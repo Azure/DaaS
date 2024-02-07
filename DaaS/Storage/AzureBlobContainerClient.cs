@@ -30,7 +30,9 @@ namespace DaaS.Storage
                 if (blobItem.IsBlob)
                 {
                     var blobClient = _blobContainerClient.GetBlobClient(blobItem.Blob.Name);
-                    await blobClient.DeleteIfExistsAsync();
+                    bool deleted = await blobClient.DeleteIfExistsAsync();
+                    string message = deleted ? $"Blob '{filePath}' deleted successfully." : $"Blob '{filePath}' does not exist or couldn't be deleted.";
+                    Logger.LogVerboseEvent(message);
                 }
             }
         }
@@ -70,6 +72,17 @@ namespace DaaS.Storage
             }
 
             return files;
+        }
+
+        public async Task RemoveDirectoryAsync(string directoryPath)
+        {
+            await foreach (BlobItem blobItem in _blobContainerClient.GetBlobsAsync(BlobTraits.None, BlobStates.None, directoryPath))
+            {
+                BlobClient blobClient = _blobContainerClient.GetBlobClient(blobItem.Name);
+                bool deleted = await blobClient.DeleteIfExistsAsync();
+                string message = deleted ? $"Blob '{directoryPath}/{blobItem.Name}' deleted successfully." : $"Blob '{directoryPath}/{blobItem.Name}' does not exist or couldn't be deleted.";
+                Logger.LogVerboseEvent(message);
+            }
         }
 
         public async Task<Uri> UploadFileAsync(string sourceFilePath, string destinationFilePath, CancellationToken cancellationToken)

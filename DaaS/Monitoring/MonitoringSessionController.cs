@@ -168,9 +168,9 @@ namespace DaaS
             return "Analysis request submitted";
         }
 
-        public void DeleteSession(string sessionId)
+        public async Task DeleteSessionAsync(string sessionId)
         {
-            DeleteFilesFromStorage(sessionId);
+            await DeleteFilesFromStorageAsync(sessionId);
 
             string cpuMonitoringCompleted = GetCpuMonitoringPath(MonitoringSessionDirectories.Completed);
             var sessionFilePath = Path.Combine(cpuMonitoringCompleted, sessionId + ".json");
@@ -190,7 +190,7 @@ namespace DaaS
             Logger.LogCpuMonitoringVerboseEvent("Deleted session", sessionId);
         }
 
-        private void DeleteFilesFromStorage(string sessionId)
+        private async Task DeleteFilesFromStorageAsync(string sessionId)
         {
             try
             {
@@ -200,11 +200,8 @@ namespace DaaS
                     return;
                 }
 
-                string filePathLegacy = GetRelativePathForSession(sessionId);
-                storageService.RemoveDirectory(filePathLegacy);
-
                 string filePath = GetRelativePathForSession(session.DefaultHostName, sessionId);
-                storageService.RemoveDirectory(filePath);
+                await storageService.RemoveDirectoryAsync(filePath);
             }
             catch (Exception ex)
             {
