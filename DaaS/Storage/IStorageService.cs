@@ -18,7 +18,7 @@ namespace DaaS.Storage
         Task DownloadFileAsync(string sourceFilePath, string destinationFilePath);
         Task DeleteFileAsync(string filePath);
         Task<IEnumerable<StorageFile>> GetFilesAsync(string directoryPath);
-        void RemoveDirectory(string directoryPath);
+        Task RemoveDirectoryAsync(string directoryPath);
         string GetBlobStorageHostName();
         bool ValidateStorageConfiguration(out string storageAccount, out Exception exceptionContactingStorage);
     }

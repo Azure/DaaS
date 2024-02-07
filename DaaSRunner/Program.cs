@@ -136,12 +136,12 @@ namespace DaaSRunner
 
             List<MonitoringSession> monitoringSessionsToRemove = completedMonitoringSessions.Skip(maxSessionsToKeep).ToList();
             string logMessage = $"[MaxDiagnosticSessionsToKeep] Found {monitoringSessionsToRemove.Count()} monitoring sessions to remove as we have {completedMonitoringSessions.Count()} completed sessions";
-            DeleteSessions(monitoringSessionsToRemove, (session) => { controllerMonitoring.DeleteSession(session.SessionId); }, logMessage);
+            DeleteSessions(monitoringSessionsToRemove, (session) => { controllerMonitoring.DeleteSessionAsync(session.SessionId).Wait(); }, logMessage);
 
             completedMonitoringSessions = controllerMonitoring.GetAllCompletedSessions().OrderByDescending(s => s.StartDate).ToList();
             List<MonitoringSession> olderSessionsMonitoring = completedMonitoringSessions.Where(x => x.StartDate < DateTime.UtcNow.AddDays(-1 * numberOfDays)).ToList();
             logMessage = $"[MaxNumberOfDaysForSessions] Found {olderSessionsMonitoring.Count()} older monitoring sessions to remove";
-            DeleteSessions(olderSessionsMonitoring, (session) => { controllerMonitoring.DeleteSession(session.SessionId); }, logMessage);
+            DeleteSessions(olderSessionsMonitoring, (session) => { controllerMonitoring.DeleteSessionAsync(session.SessionId).Wait(); }, logMessage);
 
         }
 

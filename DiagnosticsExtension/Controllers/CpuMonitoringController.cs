@@ -143,12 +143,12 @@ namespace DiagnosticsExtension.Controllers
 
         [HttpDelete]
         [Route("{sessionId}")]
-        public HttpResponseMessage Delete(string sessionId)
+        public async Task<HttpResponseMessage> Delete(string sessionId)
         {
             var monitoringController = new MonitoringSessionController();
             try
             {
-                monitoringController.DeleteSession(sessionId);
+                await monitoringController.DeleteSessionAsync(sessionId);
                 return Request.CreateResponse(HttpStatusCode.OK);
             }
             catch (Exception ex)
