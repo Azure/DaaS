@@ -53,7 +53,7 @@ namespace Daas.Test
             Assert.NotNull(fileUploadUri);
             Assert.Contains($"/{fileName}", fileUploadUri.AbsoluteUri);
 
-            var downloadPath = Path.Combine(Path.GetTempPath(), $"downloaded_{DateTime.UtcNow.Ticks}.txt");
+            var downloadPath = Path.Combine(Path.GetTempPath(), $"downloaded_{Guid.NewGuid().ToString().Replace("-", "")}.txt");
             await _azureStorageService.DownloadFileAsync($"{_folderPath}/{fileName}", downloadPath);
 
             Assert.True(File.Exists(downloadPath));
@@ -146,7 +146,7 @@ namespace Daas.Test
 
         private string GetFileName()
         {
-            return $"File-{DateTime.UtcNow.Ticks}.txt";
+            return $"File-{Guid.NewGuid().ToString().Replace("-","")}.txt";
         }
 
     }
