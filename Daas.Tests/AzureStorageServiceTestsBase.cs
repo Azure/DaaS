@@ -35,6 +35,7 @@ namespace Daas.Test
 
             Assert.NotNull(fileUploadUri);
             Assert.Contains("/test.txt" , fileUploadUri.AbsoluteUri);
+            await _azureStorageService.RemoveDirectoryAsync(_folderPath);
         }
 
         [Fact]
@@ -53,6 +54,7 @@ namespace Daas.Test
             await _azureStorageService.DownloadFileAsync("test.txt", downloadPath);
 
             Assert.True(File.Exists(downloadPath));
+            await _azureStorageService.RemoveDirectoryAsync(_folderPath);
         }
 
         [Fact]
@@ -80,6 +82,8 @@ namespace Daas.Test
             Assert.NotNull(firstFile.CreatedOn);
             Assert.True(firstFile.Size > 0, "File Size greater than 0");
             Assert.Equal(firstFile.Size, fileSize);
+
+            await _azureStorageService.RemoveDirectoryAsync(_folderPath);
         }
 
         [Fact]
@@ -98,6 +102,8 @@ namespace Daas.Test
 
             var files = await _azureStorageService.GetFilesAsync(_folderPath);
             Assert.Empty(files);
+
+            await _azureStorageService.RemoveDirectoryAsync(_folderPath);
         }
 
         [Fact]
