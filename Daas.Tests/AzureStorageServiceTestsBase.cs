@@ -5,6 +5,7 @@
 // </copyright>
 // -----------------------------------------------------------------------
 
+using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -28,13 +29,14 @@ namespace Daas.Test
         public async Task FileUpload()
         {
             await _azureStorageService.RemoveDirectoryAsync(_folderPath);
+            string fileName = GetFileName();
 
-            string testFile = Path.Combine(Path.GetTempPath(), "test.txt");
+            string testFile = Path.Combine(Path.GetTempPath(), fileName);
             File.WriteAllText(testFile, "someContent");
-            var fileUploadUri = await _azureStorageService.UploadFileAsync(testFile, $"{_folderPath}/test.txt", default);
+            var fileUploadUri = await _azureStorageService.UploadFileAsync(testFile, $"{_folderPath}/{fileName}", default);
 
             Assert.NotNull(fileUploadUri);
-            Assert.Contains("/test.txt" , fileUploadUri.AbsoluteUri);
+            Assert.Contains($"/{fileName}", fileUploadUri.AbsoluteUri);
             await _azureStorageService.RemoveDirectoryAsync(_folderPath);
         }
 
@@ -42,16 +44,17 @@ namespace Daas.Test
         public async Task FileDownload()
         {
             await _azureStorageService.RemoveDirectoryAsync(_folderPath);
+            string fileName = GetFileName();
 
-            string testFile = Path.Combine(Path.GetTempPath(), "test.txt");
+            string testFile = Path.Combine(Path.GetTempPath(), fileName);
             File.WriteAllText(testFile, "someContent");
-            var fileUploadUri = await _azureStorageService.UploadFileAsync(testFile, $"{_folderPath}/test.txt", default);
+            var fileUploadUri = await _azureStorageService.UploadFileAsync(testFile, $"{_folderPath}/{fileName}", default);
 
             Assert.NotNull(fileUploadUri);
-            Assert.Contains("/test.txt" , fileUploadUri.AbsoluteUri);
+            Assert.Contains($"/{fileName}", fileUploadUri.AbsoluteUri);
 
             var downloadPath = Path.Combine(Path.GetTempPath(), "downloaded.txt");
-            await _azureStorageService.DownloadFileAsync("test.txt", downloadPath);
+            await _azureStorageService.DownloadFileAsync($"{_folderPath}/{fileName}", downloadPath);
 
             Assert.True(File.Exists(downloadPath));
             await _azureStorageService.RemoveDirectoryAsync(_folderPath);
@@ -61,14 +64,15 @@ namespace Daas.Test
         public async Task ListFiles()
         {
             await _azureStorageService.RemoveDirectoryAsync(_folderPath);
+            string fileName = GetFileName();
 
-            string testFile = Path.Combine(Path.GetTempPath(), "test.txt");
+            string testFile = Path.Combine(Path.GetTempPath(), fileName);
             File.WriteAllText(testFile, "someContent");
             var fileSize = new FileInfo(testFile).Length;
-            var fileUploadUri = await _azureStorageService.UploadFileAsync(testFile, $"{_folderPath}/test.txt", default);
+            var fileUploadUri = await _azureStorageService.UploadFileAsync(testFile, $"{_folderPath}/{fileName}", default);
 
             Assert.NotNull(fileUploadUri);
-            Assert.Contains("/test.txt" , fileUploadUri.AbsoluteUri);
+            Assert.Contains($"/{fileName}" , fileUploadUri.AbsoluteUri);
 
             var files = await _azureStorageService.GetFilesAsync(_folderPath);
             Assert.NotNull(files);
@@ -76,9 +80,9 @@ namespace Daas.Test
             var firstFile = files.FirstOrDefault();
             Assert.NotNull(firstFile);
 
-            Assert.Contains("/test.txt", firstFile.Uri.AbsoluteUri);
-            Assert.Contains("/test.txt", firstFile.FullPath);
-            Assert.True(firstFile.Name == "test.txt", "File name matches");
+            Assert.Contains($"/{fileName}", firstFile.Uri.AbsoluteUri);
+            Assert.Contains($"/{fileName}", firstFile.FullPath);
+            Assert.True(firstFile.Name == fileName, "File name matches");
             Assert.NotNull(firstFile.CreatedOn);
             Assert.True(firstFile.Size > 0, "File Size greater than 0");
             Assert.Equal(firstFile.Size, fileSize);
@@ -90,15 +94,16 @@ namespace Daas.Test
         public async Task DeleteFile()
         {
             await _azureStorageService.RemoveDirectoryAsync(_folderPath);
+            string fileName = GetFileName();
 
-            string testFile = Path.Combine(Path.GetTempPath(), "test.txt");
+            string testFile = Path.Combine(Path.GetTempPath(), fileName);
             File.WriteAllText(testFile, "someContent");
-            var fileUploadUri = await _azureStorageService.UploadFileAsync(testFile, $"{_folderPath}/test.txt", default);
+            var fileUploadUri = await _azureStorageService.UploadFileAsync(testFile, $"{_folderPath}/{fileName}", default);
 
             Assert.NotNull(fileUploadUri);
-            Assert.Contains("/test.txt" , fileUploadUri.AbsoluteUri);
+            Assert.Contains($"/{fileName}" , fileUploadUri.AbsoluteUri);
 
-            await _azureStorageService.DeleteFileAsync($"{_folderPath}/test.txt");
+            await _azureStorageService.DeleteFileAsync($"{_folderPath}/{fileName}");
 
             var files = await _azureStorageService.GetFilesAsync(_folderPath);
             Assert.Empty(files);
@@ -110,8 +115,9 @@ namespace Daas.Test
         public async Task RemoveDirectory()
         {
             await _azureStorageService.RemoveDirectoryAsync(_folderPath);
+            string fileName = GetFileName();
 
-            string testFile = Path.Combine(Path.GetTempPath(), "test.txt");
+            string testFile = Path.Combine(Path.GetTempPath(), fileName);
             File.WriteAllText(testFile, "someContent");
             
             var fileUploadUri1 = await _azureStorageService.UploadFileAsync(testFile, $"{_folderPath}/test1.txt", default);
@@ -136,6 +142,11 @@ namespace Daas.Test
             files = await _azureStorageService.GetFilesAsync(_folderPath);
             Assert.NotNull(files);
             Assert.Empty(files);
+        }
+
+        private string GetFileName()
+        {
+            return $"File-{DateTime.UtcNow.Ticks}.txt";
         }
 
     }
