@@ -1,4 +1,4 @@
-// -----------------------------------------------------------------------
+﻿// -----------------------------------------------------------------------
 // <copyright file="AspNetCoreRequestParser.cs" company="Microsoft Corporation">
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License. See LICENSE in the project root for license information.
@@ -79,7 +79,7 @@ namespace ClrProfilingAnalyzer.Parser
 
                 parser.AddCallbackForProviderEvent(MicrosoftExtensionsLoggingProvider, MessageJsonEvent, delegate (TraceEvent data)
                 {
-                    ParseMessageJsonEvent(data, requestsFullTrace);
+                    ParseMessageJsonEvent(data, aspnetCoreRequests, failedRequests, requestsFullTrace);
                 });
 
                 clrParser.ThreadPoolWorkerThreadWait += delegate (ThreadPoolWorkerThreadTraceData data)
@@ -118,19 +118,55 @@ namespace ClrProfilingAnalyzer.Parser
             return results;
         }
 
-        private static void ParseMessageJsonEvent(TraceEvent data, Dictionary<AspNetCoreRequestId, List<AspNetCoreTraceEvent>> requestsFullTrace)
+        private static void ParseMessageJsonEvent(
+            TraceEvent data,
+            Dictionary<string, AspNetCoreRequest> aspnetCoreRequests,
+            Dictionary<AspNetCoreRequest, List<AspNetCoreTraceEvent>> failedRequests,
+            Dictionary<AspNetCoreRequestId, List<AspNetCoreTraceEvent>> requestsFullTrace)
         {
+
+            //
+            // See if we can parse StatusCode from ArgumentsJson Event
+            //
+
+            string formattedMessage = string.Empty;
+            if (data.PayloadByName("FormattedMessage") != null
+                && data.PayloadByName("FormattedMessage").ToString().StartsWith("Request finished")
+                && data.PayloadByName("ArgumentsJson") != null)
+            {
+                var statusCode = GetStatusCodeFromArgumentsJson(data);
+                if (statusCode > 499)
+                {
+                    var shortActivityId = StartStopActivityComputer.ActivityPathString(data.ActivityID);
+                    if (aspnetCoreRequests.TryGetValue(shortActivityId, out AspNetCoreRequest coreRequest))
+                    {
+                        coreRequest.StatusCode = statusCode;
+                        coreRequest.EndTimeRelativeMSec = data.TimeStampRelativeMSec;
+
+                        var requestFullTraceFailedRequest = requestsFullTrace.Where(x => x.Key.ShortActivityId == coreRequest.ShortActivityId).FirstOrDefault();
+                        if (requestFullTraceFailedRequest.Value != null && failedRequests.Count() < MAX_FAILED_REQUESTS_TO_TRACE)
+                        {
+                            if (!failedRequests.Keys.Any(x => x.RequestId == coreRequest.RequestId))
+                            {
+                                var clonedRequest = coreRequest.Clone();
+                                failedRequests.Add(clonedRequest, requestFullTraceFailedRequest.Value.ToArray().ToList());
+                            }
+                        }
+                    }
+                }
+            }
+
             if (data.PayloadByName("ExceptionJson") == null || data.PayloadByName("EventName") == null)
             {
                 return;
             }
-            
+
             var exceptionJsonString = data.PayloadByName("ExceptionJson").ToString();
             if (exceptionJsonString == "{}")
             {
                 return;
             }
-            
+
             var loggerName = data.PayloadByName("LoggerName").ToString();
             var eventName = data.PayloadByName("EventName").ToString();
             if (eventName.Contains("Exception") || loggerName.Contains("Exception"))
@@ -360,6 +396,30 @@ namespace ClrProfilingAnalyzer.Parser
             }
             return statusCode;
         }
+
+        private static int GetStatusCodeFromArgumentsJson(TraceEvent data)
+        {
+            int intStatusCode = -1;
+            var argumentsJson = data.PayloadByName("ArgumentsJson").ToString();
+            var json = JToken.Parse(argumentsJson);
+            string statusCode = "";
+            foreach (var child in json.Children<JProperty>())
+            {
+                if (child.Name == "StatusCode")
+                {
+                    statusCode = child.Value.ToString();
+                    break;
+                }
+            }
+
+            if (int.TryParse(statusCode, out intStatusCode))
+            {
+                return intStatusCode;
+            }
+
+            return -1;
+        }
+
         private static void GetAspnetCoreRequestDetailsFromArgs(string argumentsJson, out string requestPath, out string requestId)
         {
             requestPath = string.Empty;
