@@ -94,7 +94,7 @@ namespace ClrProfilingAnalyzer
             catch (Exception ex)
             {
                 string diskUsageDetails = GetDiskUsageDetails();
-                Logger.LogDiagnoserVerboseEvent($"Failed while extracting ETL Trace. LocalFilePath is {localFilePath} and Disk Usage Details are { diskUsageDetails } and Exception {ex.GetType().ToString()}:{ex.Message} \r\n {ex.StackTrace}");
+                Logger.LogDiagnoserVerboseEvent($"Failed while extracting ETL Trace. LocalFilePath is {localFilePath} and Disk Usage Details are {diskUsageDetails} and Exception {ex.GetType().ToString()}:{ex.Message} \r\n {ex.StackTrace}");
                 throw ex;
             }
 
@@ -112,13 +112,13 @@ namespace ClrProfilingAnalyzer
                 if (GetDiskFreeSpace(localPath, out ulong freeBytes, out ulong totalBytes))
                 {
                     var usageLocal = Math.Round(((totalBytes - freeBytes) * 100.0) / totalBytes);
-                    diskUsageDetails = $" {localPath} has totalBytes = [{ totalBytes.ToString() }]  and freeBytes = [{ freeBytes.ToString()}] and UsedPercent = { usageLocal.ToString() } ";
+                    diskUsageDetails = $" {localPath} has totalBytes = [{totalBytes.ToString()}]  and freeBytes = [{freeBytes.ToString()}] and UsedPercent = {usageLocal.ToString()} ";
                 }
 
                 if (GetDiskFreeSpace(homePath, out freeBytes, out totalBytes))
                 {
                     var usageHomePath = Math.Round(((totalBytes - freeBytes) * 100.0) / totalBytes);
-                    diskUsageDetails += $", {homePath} has totalBytes = [{ totalBytes.ToString() }]  and freeBytes = [{ freeBytes.ToString()}] and UsedPercent = { usageHomePath.ToString() } ";
+                    diskUsageDetails += $", {homePath} has totalBytes = [{totalBytes.ToString()}]  and freeBytes = [{freeBytes.ToString()}] and UsedPercent = {usageHomePath.ToString()} ";
                 }
             }
             catch (Exception)
@@ -201,11 +201,11 @@ namespace ClrProfilingAnalyzer
                 stats.TimeToParseIISEventsInSeconds = stopWatch.Elapsed.TotalSeconds;
 
                 stopWatch.Restart();
-                Logger.LogStatus("Parsing .net core events from the trace file");
-                
-                var coreParserResults= AspNetCoreRequestParser.ParseDotNetCoreRequests(dataFile, MIN_REQUEST_DURATION_IN_MILLISECONDS);
-                
-                Logger.LogDiagnoserVerboseEvent($"Finished Parsing .net core Events, found {coreParserResults.Requests.Count()} requests");
+                Logger.LogStatus("Parsing .NET Core events from the trace file");
+
+                var coreParserResults = AspNetCoreRequestParser.ParseDotNetCoreRequests(dataFile, MIN_REQUEST_DURATION_IN_MILLISECONDS);
+
+                Logger.LogDiagnoserVerboseEvent($"Finished Parsing .NET Core Events, found {coreParserResults.Requests.Count()} requests");
                 stopWatch.Stop();
                 stats.TimeToParseNetCoreEventsInSeconds = stopWatch.Elapsed.TotalSeconds;
                 stats.SlowRequestCountAspNetCore = coreParserResults.Requests.Count();
@@ -278,7 +278,7 @@ namespace ClrProfilingAnalyzer
 
                 stopWatch.Restart();
                 Logger.LogStatus("Generating CPU Stacks");
-                GenerateCPUStackTraces(dataFile,  coreParserResults.Processes, false);
+                GenerateCPUStackTraces(dataFile, coreParserResults.Processes, false);
                 stopWatch.Stop();
                 stats.TimeToGenerateCpuStacks = stopWatch.Elapsed.TotalSeconds;
 
@@ -346,7 +346,7 @@ namespace ClrProfilingAnalyzer
             {
                 FileSystemHelpers.DeleteFile(etlFilePath);
                 Logger.LogDiagnoserVerboseEvent($"Deleted file {etlFilePath}");
-                
+
                 if (!string.IsNullOrWhiteSpace(uncompressedPath))
                 {
                     DeleteDirectory(uncompressedPath);
@@ -852,14 +852,14 @@ namespace ClrProfilingAnalyzer
 
                 if (timeAccountedForThisRequest / requestDuration < 0.5)
                 {
-                    Logger.LogDiagnoserVerboseEvent($"WARNING:PercentRecorded = {timeAccountedForThisRequest / requestDuration}% - Request { request.Path } with ID { request.ContextId }  took { requestDuration} and we accounted { timeAccountedForThisRequest } ");
+                    Logger.LogDiagnoserVerboseEvent($"WARNING:PercentRecorded = {timeAccountedForThisRequest / requestDuration}% - Request {request.Path} with ID {request.ContextId}  took {requestDuration} and we accounted {timeAccountedForThisRequest} ");
                     //TODO :: Need to think what to do here
                 }
                 else if (timeAccountedForThisRequest > requestDuration)
                 {
                     // TODO :: So this can happen if a request has a CHILD REQUEST EVENT
                     // Unfortunately, this is messing our stats as of now
-                    Logger.LogDiagnoserVerboseEvent($"WARNING:Accounted More time PercentRecorded = {timeAccountedForThisRequest / requestDuration}% - Request { request.Path }  with ID { request.ContextId }  took { requestDuration} and we accounted { timeAccountedForThisRequest } ");
+                    Logger.LogDiagnoserVerboseEvent($"WARNING:Accounted More time PercentRecorded = {timeAccountedForThisRequest / requestDuration}% - Request {request.Path}  with ID {request.ContextId}  took {requestDuration} and we accounted {timeAccountedForThisRequest} ");
                     foreach (var node in pipelineNodes)
                     {
                         var pipeLineNode = node.GetCostliestChild(node);
@@ -1066,12 +1066,12 @@ namespace ClrProfilingAnalyzer
             return (cPUMSec / g_CPUTimeTotalMetrics * g_CPUMetricPerInterval * 100 > 2);
         }
 
-        private static void GenerateCpuStackForProcess(CallTree callTree , CopyStackSource copySource, TraceEventStackSource traceStackSource, bool showUnknownAddresses, TraceProcess process, string name, int processID, Predicate<TraceEvent> predicate = null, bool coreProcess = false)
+        private static void GenerateCpuStackForProcess(CallTree callTree, CopyStackSource copySource, TraceEventStackSource traceStackSource, bool showUnknownAddresses, TraceProcess process, string name, int processID, Predicate<TraceEvent> predicate = null, bool coreProcess = false)
         {
             TraceEvents eventsThisProcess = process.EventsInProcess.Filter((x) => ((predicate == null) || predicate(x)) && x is SampledProfileTraceData);
             traceStackSource = new TraceEventStackSource(eventsThisProcess);
             traceStackSource.ShowUnknownAddresses = showUnknownAddresses;
-           
+
             // We clone the samples so that we don't have to go back to the ETL file from here on.  
             var copySourceThisProcess = CopyStackSource.Clone(traceStackSource);
 
@@ -1102,7 +1102,7 @@ namespace ClrProfilingAnalyzer
             {
                 filterParamsProcess.GroupRegExs = @"[ASP.NET Just My App] \Temporary ASP.NET Files\->;!dynamicClass.S->;!=>OTHER";
             }
-            
+
 
             filterStackSourceProcess = new FilterStackSource(filterParamsProcess, copySourceThisProcess, ScalingPolicyKind.ScaleToData);
             callTree.StackSource = filterStackSourceProcess;
@@ -1168,7 +1168,7 @@ namespace ClrProfilingAnalyzer
                 try
                 {
                     localFilePath = GetLocalFilePath(m_DiagSessionPath, dhPackage, resource, ".etl");
-                    Logger.LogDiagnoserVerboseEvent($"Found '{resource.ResourceId } resource '{resource.Name}'. Loading ...");
+                    Logger.LogDiagnoserVerboseEvent($"Found '{resource.ResourceId} resource '{resource.Name}'. Loading ...");
                     etlFilePath = localFilePath;
                 }
                 catch (Exception)
