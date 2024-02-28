@@ -1,3 +1,6 @@
+# ⛔️ DEPRECATED
+This project has been migrated over into an internal repository. While we may not be tracking or accepting new issues here in this repo, please feel free to use our feedback channel in our Diagnose and Solve blade in [Azure Portal](https://portal.azure.com/)
+
 [![Build Status](https://msazure.visualstudio.com/Antares/_apis/build/status/Azure.DaaS?branchName=main)](https://msazure.visualstudio.com/Antares/_build/latest?definitionId=291420&branchName=main)
 
 # Contributing
